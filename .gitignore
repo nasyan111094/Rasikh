@@ -1,0 +1,13 @@
+.dart_tool/
+.build/
+build/
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+*.iml
+.idea/
+.packages
+.pub-cache/
+.pub/
+pubspec.lock
