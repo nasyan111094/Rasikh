@@ -1,18 +1,27 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// features/Lawyer/lawyer_Settings/widgets/dialogs/report_comment_dialog.dart
+// ─────────────────────────────────────────────────────────────────────────────
+
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:size_config/size_config.dart';
 
-/// 🔹 External call to show the report dialog
-Future<void> showReportDialog(BuildContext context) {
+/// Shows the report dialog and calls [onSubmit] with the typed message
+/// when the user taps "إرسال". Does nothing if the field is empty.
+Future<void> showReportDialog(
+    BuildContext context, {
+      required void Function(String message) onSubmit,
+    }) {
   return showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (_) => const _ReportDialog(),
+    builder: (_) => _ReportDialog(onSubmit: onSubmit),
   );
 }
 
 class _ReportDialog extends StatefulWidget {
-  const _ReportDialog({Key? key}) : super(key: key);
+  const _ReportDialog({Key? key, required this.onSubmit}) : super(key: key);
+
+  final void Function(String message) onSubmit;
 
   @override
   State<_ReportDialog> createState() => _ReportDialogState();
@@ -23,7 +32,7 @@ class _ReportDialogState extends State<_ReportDialog>
   late final AnimationController _controller;
   late final Animation<Offset> _offsetAnimation;
   late final Animation<double> _scaleAnimation;
-  final _controllerText = TextEditingController();
+  final _textController = TextEditingController();
 
   @override
   void initState() {
@@ -49,8 +58,15 @@ class _ReportDialogState extends State<_ReportDialog>
   @override
   void dispose() {
     _controller.dispose();
-    _controllerText.dispose();
+    _textController.dispose();
     super.dispose();
+  }
+
+  void _onSend() {
+    final message = _textController.text.trim();
+    if (message.isEmpty) return;
+    Navigator.of(context).pop();
+    widget.onSubmit(message);
   }
 
   @override
@@ -87,7 +103,7 @@ class _ReportDialogState extends State<_ReportDialog>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ❌ Close button (auto-aligned based on direction)
+                      // ❌ Close button
                       Align(
                         alignment: direction == TextDirection.rtl
                             ? Alignment.topRight
@@ -127,7 +143,8 @@ class _ReportDialogState extends State<_ReportDialog>
                           children: [
                             TextSpan(
                               text: ' *',
-                              style: TextStyle(color: cs.error, fontSize: 14.sp),
+                              style:
+                              TextStyle(color: cs.error, fontSize: 14.sp),
                             ),
                           ],
                         ),
@@ -139,7 +156,7 @@ class _ReportDialogState extends State<_ReportDialog>
 
                       // 🧾 TextField
                       TextField(
-                        controller: _controllerText,
+                        controller: _textController,
                         maxLines: 4,
                         textDirection: direction,
                         decoration: InputDecoration(
@@ -202,9 +219,7 @@ class _ReportDialogState extends State<_ReportDialog>
                           // Send
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.of(context).pop(_controllerText.text);
-                              },
+                              onPressed: _onSend,
                               style: ElevatedButton.styleFrom(
                                 minimumSize: Size.fromHeight(46.h),
                                 elevation: 0,

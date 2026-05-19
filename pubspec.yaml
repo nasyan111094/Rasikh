@@ -28,6 +28,7 @@ dependencies:
   # Provides the Cupertino Icons font for iOS-style icons in Flutter apps.
   cupertino_icons:
   awesome_dialog:
+  flutter_html:
   # -------------------------------------------
   # PDF and File Utilities
   # -------------------------------------------

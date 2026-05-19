@@ -2,7 +2,7 @@
 // features/Lawyer/profile/logic/states/lawyer_profile_states.dart
 // ─────────────────────────────────────────────────────────────────────────────
 
-import '../models/lawyer_profile_model.dart';
+import '../../models/lawyer_profile_model.dart';
 
 sealed class LawyerProfileState {}
 

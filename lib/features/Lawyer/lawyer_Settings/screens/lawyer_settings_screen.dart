@@ -12,11 +12,12 @@ import 'package:size_config/size_config.dart';
 import '../../../../Shared/widgets/account_item_widget.dart' show AccountItem;
 import '../../../../Shared/widgets/lawyer_profile_avatar.dart';
 import '../../../../config/navigation/nav.dart';
-import '../../../User/profile/screens/notifications_screen.dart';
+
 import '../../../User/profile/widgets/dialog_widget.dart';
 
-import '../bloc/lawyer_cubit.dart';
-import '../bloc/lawyer_state.dart';
+import '../../../common/notifications/notifications_screen.dart';
+import '../bloc/Profile_cubit/lawyer_cubit.dart';
+import '../bloc/Profile_cubit/lawyer_state.dart';
 
 
 class LawyerSettingsScreen extends StatefulWidget {

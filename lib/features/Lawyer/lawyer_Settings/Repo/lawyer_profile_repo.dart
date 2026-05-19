@@ -4,12 +4,14 @@
 // Handles all lawyer profile endpoints:
 //   GET  /api/v1/lawyers/me                          → fetch profile
 //   PUT  /api/v1/lawyers/update/form                 → update profile (multipart)
+//   PUT  /api/v1/lawyers/update/form                 → update specializations
 //   POST /api/v1/lawyers/change-phone/request        → request phone change OTP
 //   POST /api/v1/lawyers/change-phone/verify         → verify phone change OTP
 //   POST /api/v1/lawyers/account/deletion/otp        → send deletion OTP
 //   POST /api/v1/lawyers/account/deletion/request    → confirm account deletion
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
@@ -70,6 +72,35 @@ class LawyerProfileRepo {
     );
 
     if (result.isRight) {
+      return getProfile();
+    }
+    return Left(_extractError(result.left));
+  }
+
+  // ── UPDATE specializations (multipart/form-data) ───────────────────────────
+  //
+  // Sends only the specialization fields:
+  //   mainSpecializations  → JSON-encoded array of main spec IDs
+  //   subSpecializations   → JSON-encoded array of sub  spec IDs
+  //
+  // Returns the refreshed profile so the cubit can cache it.
+
+  Future<Either<String, LawyerProfileModel>> updateSpecializations({
+    required List<String> mainSpecializationIds,
+    required List<String> subSpecializationIds,
+  }) async {
+    final formData = FormData.fromMap({
+      'mainSpecializations': jsonEncode(mainSpecializationIds),
+      'subSpecializations': jsonEncode(subSpecializationIds),
+    });
+
+    final result = await _adapter.put(
+      _ProfileEndpoints.update,
+      body: formData,
+    );
+
+    if (result.isRight) {
+      // Re-fetch the full profile so callers always get the canonical model.
       return getProfile();
     }
     return Left(_extractError(result.left));
@@ -157,15 +188,12 @@ class LawyerProfileRepo {
   }
 
   // ── SEND account deletion OTP ──────────────────────────────────────────────
-  // POST /api/v1/lawyers/account/deletion/otp
-  // Returns the masked phone number the OTP was sent to.
 
   Future<Either<String, String>> sendDeletionOtp() async {
     final result = await _adapter.post(_ProfileEndpoints.deletionOtp);
 
     if (result.isRight) {
       final data = result.right.data;
-      // Server returns { "data": { "phone": "+966511111111" } }
       final phone = data['data']?['phone']?.toString() ?? '';
       return Right(phone);
     }
@@ -173,9 +201,6 @@ class LawyerProfileRepo {
   }
 
   // ── CONFIRM account deletion ───────────────────────────────────────────────
-  // POST /api/v1/lawyers/account/deletion/request
-  // Body: { "confirm": true, "otp": "<6-digit code>" }
-  // Returns grace period details so the UI can inform the lawyer.
 
   Future<Either<String, DeleteAccountResponseModel>> requestAccountDeletion({
     required String otp,

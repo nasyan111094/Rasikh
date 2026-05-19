@@ -7,8 +7,8 @@ import 'package:size_config/size_config.dart';
 import '../../../../Shared/dialogs/otp_dialog.dart';
 import '../../../../config/navigation/nav.dart';
 import '../../../../core/get_it_service/get_it_service.dart';
-import '../../../Lawyer/lawyer_Settings/bloc/lawyer_cubit.dart';
-import '../../../Lawyer/lawyer_Settings/bloc/lawyer_state.dart';
+import '../../../Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
+import '../../../Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_state.dart';
 
 
 /// 🔹 External interface to show the confirmation dialog.

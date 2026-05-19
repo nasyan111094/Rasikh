@@ -18,8 +18,8 @@ import 'package:rasikh/features/common/account_type_selection/screens/account_ty
 import 'package:size_config/size_config.dart';
 
 import '../../../../core/get_it_service/get_it_service.dart';
-import '../bloc/lawyer_cubit.dart';
-import '../bloc/lawyer_state.dart';
+import '../bloc/Profile_cubit/lawyer_cubit.dart';
+import '../bloc/Profile_cubit/lawyer_state.dart';
 import '../models/lawyer_profile_model.dart';
 
 class LawyerUpdateLicenceScreen extends StatefulWidget {

@@ -6,8 +6,8 @@ import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../Repo/lawyer_profile_repo.dart';
-import '../models/lawyer_profile_model.dart';
+import '../../Repo/lawyer_profile_repo.dart';
+import '../../models/lawyer_profile_model.dart';
 import 'lawyer_state.dart';
 
 class LawyerProfileCubit extends Cubit<LawyerProfileState> {

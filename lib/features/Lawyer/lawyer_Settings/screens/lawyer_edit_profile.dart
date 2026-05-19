@@ -19,8 +19,8 @@ import '../../../../config/app_config.dart';
 import '../../../../core/widgets/fields/prefix_text_filed_icon.dart';
 import '../../../../core/widgets/general_app_bar.dart';
 
-import '../bloc/lawyer_cubit.dart';
-import '../bloc/lawyer_state.dart';
+import '../bloc/Profile_cubit/lawyer_cubit.dart';
+import '../bloc/Profile_cubit/lawyer_state.dart';
 import '../models/lawyer_profile_model.dart';
 
 

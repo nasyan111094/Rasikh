@@ -7,7 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:rasikh/features/Lawyer/lawyer_Settings/bloc/lawyer_cubit.dart';
+import 'package:rasikh/features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
+import 'package:rasikh/features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:size_config/size_config.dart';
 
@@ -28,6 +29,9 @@ import 'core/connectivity/app_connectivity_wrapper.dart';
 import 'core/theme/theme.dart';
 import 'core/theme/theme_cubit/theme_cubit.dart';
 import 'core/theme/theme_cubit/theme_states.dart';
+import 'features/Lawyer/lawyer_Settings/Repo/specializations_repo.dart';
+import 'features/Lawyer/lawyer_Settings/bloc/Specializations_cubit/specializations_cubit.dart';
+import 'features/Lawyer/lawyer_Settings/screens/lawyer_specializations_screen.dart';
 import 'features/User/home/cubit/home_cubit.dart';
 import 'features/common/splash/screens/splash_page.dart';
 
@@ -84,6 +88,8 @@ Future<void> main() async {
         BlocProvider<LawyerProfileCubit>(
           create: (_) => getIt<LawyerProfileCubit>(),
         ),
+
+
       ],
       child: const AppWithOverlay(),
     ),

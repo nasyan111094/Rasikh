@@ -15,8 +15,8 @@ import 'package:size_config/size_config.dart';
 import '../../../../config/navigation/nav.dart';
 import '../../../../core/widgets/fields/phone_field.dart';
 import '../../../../core/widgets/gradiant_button.dart';
-import '../../../Lawyer/lawyer_Settings/bloc/lawyer_cubit.dart';
-import '../../../Lawyer/lawyer_Settings/bloc/lawyer_state.dart';
+import '../../../Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
+import '../../../Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_state.dart';
 
 import '../widgets/header_capsule_appbar_widget.dart';
 

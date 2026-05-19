@@ -27,10 +27,15 @@ import 'package:rasikh/features/User/profile/repo/profile_repo.dart';
 
 import '../../features/Company/company_register_completion/bloc/company_completion_cubit.dart';
 import '../../features/Company/company_register_completion/repo/company_completion_repo.dart';
+import '../../features/Lawyer/lawyer_Settings/Repo/help_center_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
-import '../../features/Lawyer/lawyer_Settings/bloc/lawyer_cubit.dart';
+import '../../features/Lawyer/lawyer_Settings/Repo/specializations_repo.dart';
+import '../../features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
+import '../../features/Lawyer/lawyer_Settings/bloc/Specializations_cubit/specializations_cubit.dart';
 import '../../features/User/user_register_completion/bloc/user_completion_cubit.dart';
 import '../../features/User/user_register_completion/repo/user_completion_repo.dart';
+import '../../features/common/notifications/bloc/notifications_cubit.dart';
+import '../../features/common/notifications/repo/notifications_repo.dart';
 import '../theme/theme_cubit/theme_cubit.dart';
 
 export 'package:get_it/get_it.dart';
@@ -128,6 +133,22 @@ Future<void> initializeDependencies() async {
           () => LawyerProfileCubit(getIt<LawyerProfileRepo>()),
     );
 
+    getIt.registerLazySingleton<SpecializationsRepo>(() => SpecializationsRepo());
+    getIt.registerFactory<SpecializationsCubit>(() => SpecializationsCubit());
+
+
+
+    getIt.registerLazySingleton<NotificationsRepo>(
+          () => NotificationsRepo(),
+    );
+
+    getIt.registerFactory<NotificationsCubit>(
+          () => NotificationsCubit(getIt<NotificationsRepo>()),
+    );
+
+    getIt.registerLazySingleton<HelpCenterRepo>(
+          () => HelpCenterRepo(),
+    );
 
     // ─── Logger ───────────────────────────────────────────────────────────────
     getIt.registerLazySingleton<Logger>(

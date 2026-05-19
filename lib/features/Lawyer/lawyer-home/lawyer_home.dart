@@ -17,8 +17,8 @@ import 'package:rasikh/core/widgets/picture.dart';
 import '../../../Shared/widgets/lawyer_profile_avatar.dart';
 import '../../User/home/widgets/custom_app_bar_widget.dart';
 
-import '../lawyer_Settings/bloc/lawyer_cubit.dart';
-import '../lawyer_Settings/bloc/lawyer_state.dart';
+import '../lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
+import '../lawyer_Settings/bloc/Profile_cubit/lawyer_state.dart';
 
 class LawyerHomeScreen extends StatefulWidget {
   const LawyerHomeScreen({super.key});

@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../../config/navigation/nav.dart';
 import '../../../../Shared/widgets/account_item_widget.dart';
+import '../../../common/notifications/notifications_screen.dart';
 import '../widgets/dialog_widget.dart';
 import 'profile_edit_screen.dart';
 import 'financial_transactions_screen.dart';
 import 'support_help_screen.dart';
-import 'notifications_screen.dart';
+
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
