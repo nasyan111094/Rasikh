@@ -47,6 +47,7 @@ dependencies:
   # Easy localization framework supporting multiple languages and formats.
   easy_localization: ^3.0.3
   flutter_secure_storage:
+  audioplayers: ^6.1.0
   # A simple service locator for dependency injection throughout the app.
   get_it: ^7.7.0
 

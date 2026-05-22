@@ -29,6 +29,9 @@ import 'core/connectivity/app_connectivity_wrapper.dart';
 import 'core/theme/theme.dart';
 import 'core/theme/theme_cubit/theme_cubit.dart';
 import 'core/theme/theme_cubit/theme_states.dart';
+import 'features/Lawyer/consultation/Bloc/consultations_cubit.dart';
+import 'features/Lawyer/consultation/consultations_screen.dart';
+import 'features/Lawyer/consultation/repo/consultations_repo.dart';
 import 'features/Lawyer/lawyer_Settings/Repo/specializations_repo.dart';
 import 'features/Lawyer/lawyer_Settings/bloc/Specializations_cubit/specializations_cubit.dart';
 import 'features/Lawyer/lawyer_Settings/screens/lawyer_specializations_screen.dart';
@@ -88,7 +91,10 @@ Future<void> main() async {
         BlocProvider<LawyerProfileCubit>(
           create: (_) => getIt<LawyerProfileCubit>(),
         ),
-
+        BlocProvider(
+          create: (_) => ConsultationsCubit(repo: ConsultationsRepo()),
+          child: LawerConsultationsScreen(), // ✅ cubit is now in scope
+        ),
 
       ],
       child: const AppWithOverlay(),

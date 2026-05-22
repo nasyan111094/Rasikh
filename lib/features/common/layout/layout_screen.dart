@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
+import 'package:rasikh/features/Lawyer/consultation/consultations_screen.dart';
 import 'package:rasikh/features/Lawyer/lawyer-appointments/lawyer_appointments_screen.dart';
 import 'package:rasikh/features/Lawyer/lawyer-home/lawyer_home.dart';
 import 'package:rasikh/features/common/Auth/models/auth_model.dart';
@@ -70,7 +71,7 @@ class _LayoutPageState extends State<LayoutPage> {
         body: _selectedIndex == 0
             ? (getIt<CacheHelper>().cachedVendorType == VendorType.user ? HomePage() : LawyerHomeScreen())
             : _selectedIndex == 1
-                ? InstantConsultationScreen()
+                ? LawerConsultationsScreen()
                 : _selectedIndex == 2
                     ? (getIt<CacheHelper>().cachedVendorType  == VendorType.user ?  MyAppointmentsScreen() :LawyerAppointmentsScreen())
                     : getIt<CacheHelper>().cachedVendorType == VendorType.user ? ProfileScreen()  : LawyerSettingsScreen (),
