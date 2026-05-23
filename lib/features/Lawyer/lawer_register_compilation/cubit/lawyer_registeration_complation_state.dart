@@ -6,6 +6,7 @@
 
 import 'package:equatable/equatable.dart';
 
+import '../../../../Shared/models/city_model.dart';
 import '../models/lawyer_registeration_complation_model.dart';
 
 abstract class LawyerCompletionState extends Equatable {

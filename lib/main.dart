@@ -9,6 +9,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
+import 'package:rasikh/features/User/profile/cubit/profile_cubit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:size_config/size_config.dart';
 
@@ -90,6 +91,10 @@ Future<void> main() async {
         ),
         BlocProvider<LawyerProfileCubit>(
           create: (_) => getIt<LawyerProfileCubit>(),
+        ),
+
+        BlocProvider<ProfileCubit>(
+          create: (_) => getIt<ProfileCubit>(),
         ),
         BlocProvider(
           create: (_) => ConsultationsCubit(repo: ConsultationsRepo()),

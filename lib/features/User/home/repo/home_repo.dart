@@ -28,7 +28,7 @@ class HomeRepo {
 
     print(requestData.toString());
 
-    final result = await getIt.get<ApiHandler>().dioAdapterBase.post(
+    final result = await getIt.get<ApiHandler>().dioAdapterBase.get(
           EndPoints.advertismentWithDataBase,
           body: requestData,
         );

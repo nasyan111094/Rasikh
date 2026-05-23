@@ -377,15 +377,14 @@ class _OtpPageState extends State<OtpPage> {
     
     // Verify success
     if (state.verifyOtpStatus == RequestStatus.success) {
-      final profileCompleted =
-          state.verifyOtpModel!.lawyer.profileCompleted;
-
-      if (state.isRegister || !profileCompleted) {
+      final profileCompleted = state.verifyOtpModel!.lawyer.profileCompleted;
+      if (state.isRegister && !profileCompleted) {
         Nav.vendorCompletion(
           context,
           vendor: getIt<CacheHelper>().cachedVendorType!,
         );
-      } else {
+      }
+      else {
         // Login + profile complete → show user congratulation then go home
         _showUserCongratulationDialog(context);
       }

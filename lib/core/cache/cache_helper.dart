@@ -20,6 +20,7 @@ import 'package:rasikh/core/cache/pref_keys.dart';
 import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../features/User/profile/models/user_model.dart';
 import '../models/user_model.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────

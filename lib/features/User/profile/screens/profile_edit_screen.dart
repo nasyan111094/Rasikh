@@ -1,12 +1,23 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/widgets/fields/email_field.dart';
 import 'package:rasikh/core/widgets/fields/name_field.dart';
-
 import 'package:size_config/size_config.dart';
+
+
 import '../../../../core/widgets/fields/prefix_text_filed_icon.dart';
+import '../cubit/profile_cubit.dart';
+import '../models/update_profile_parameters.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
+
+// ProfileEditScreen does NOT create its own cubit.
+// It is always pushed via BlocProvider.value from ProfileScreen,
+// inheriting the singleton ProfileCubit.
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -16,31 +27,47 @@ class ProfileEditScreen extends StatefulWidget {
 }
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameCtrl = TextEditingController();
+  final _formKey   = GlobalKey<FormState>();
+  final _nameCtrl  = TextEditingController();
   final _emailCtrl = TextEditingController();
   String? _city;
-
-  // Regex for Arabic & English names
-  static final RegExp _nameRegex = RegExp(
-    r"[A-Za-z"
-    r"\u0600-\u06FF"
-    r"\u0750-\u077F"
-    r"\u08A0-\u08FF"
-    r"\uFB50-\uFDFF"
-    r"\uFE70-\uFEFF"
-    r"\u064B-\u0652"
-    r"\u0670"
-    r"\u0640"
-    r"\s'’\-]+",
-  );
-
-  final _nameFormatter = FilteringTextInputFormatter.allow(
-    _nameRegex,
-  );
+  File?   _avatarFile;
+  bool    _prefilled = false;
 
   static const Color kGrey60 = Color(0xFF9E9E9E);
 
+  // ── Pre-fill fields once (runs at most once when data is available) ────────
+  void _prefill() {
+
+    _nameCtrl.text  = getIt<ProfileCubit>().profile?.fullName ?? '';
+    _emailCtrl.text = getIt<ProfileCubit>().profile?.email    ?? '';
+    const valid = {'الرياض', 'جدة', 'الدمام', 'مكة', 'المدينة'};
+    if (getIt<ProfileCubit>().profile?.city != null && valid.contains(getIt<ProfileCubit>().profile?.city)) {
+      setState(() => _city = getIt<ProfileCubit>().profile?.city);
+    }
+  }
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 80,
+    );
+    if (picked != null) setState(() => _avatarFile = File(picked.path));
+  }
+
+  void _submit(BuildContext context) {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    context.read<ProfileCubit>().updateProfile(
+      UpdateProfileParam(
+        fullName: _nameCtrl.text.trim(),
+        email:    _emailCtrl.text.trim(),
+        city:     _city!,
+        avatar:   _avatarFile,
+      ),
+    );
+  }
+
+  // ── Label styles (unchanged from original) ────────────────────────────────
   TextStyle _labelStyle(BuildContext context) {
     final theme = Theme.of(context);
     return theme.textTheme.bodyMedium!.copyWith(
@@ -60,14 +87,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     color: const Color(0xFF777777),
   );
 
-  TextStyle get _hintStyle => TextStyle(
-    fontSize: 12.sp,
-    fontWeight: FontWeight.w500,
-    height: 1.2,
-    letterSpacing: -0.24,
-    color: kGrey60,
-  );
-
   @override
   void dispose() {
     _nameCtrl.dispose();
@@ -76,140 +95,199 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 
   @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _prefill() ;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Directionality(
-      textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: const HeaderCapsuleAppBar(title: 'تعديل الملف الشخصي'),
-        body: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 16.h),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Gap(40.h) ,
-                  Center(
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        CircleAvatar(
-                          radius: 50.h,
-                          backgroundColor: const Color(0xFFF3EFE8),
-                          backgroundImage:
-                          const AssetImage('assets/images/avatar.png'),
-                        ),
-                        Positioned(
-                          bottom: -2.h,
-                          right: -2.w,
-                          child: Container(
-                            width: 28.w,
-                            height: 28.h,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFB29569),
-                              borderRadius: BorderRadius.circular(14.h),
-                              border: Border.all(color: Colors.white, width: 2.w),
-                            ),
-                            child: Icon(Icons.camera_alt_rounded,
-                                size: 14.sp, color: Colors.white),
+    return BlocConsumer<ProfileCubit, ProfileState>(
+      listener: (context, state) {
+
+
+        if (state.error != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.error!),
+              backgroundColor: theme.colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.h),
+              ),
+            ),
+          );
+        }
+
+        if (state.updateSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'تم تحديث البيانات بنجاح',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onPrimary,
+                ),
+              ),
+              backgroundColor: theme.colorScheme.primary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.h),
+              ),
+            ),
+          );
+          Navigator.of(context).maybePop();
+        }
+      },
+      builder: (context, state) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: Scaffold(
+            appBar: const HeaderCapsuleAppBar(title: 'تعديل الملف الشخصي'),
+            body: SafeArea(
+              child: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 16.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Gap(40.h),
+
+                      // ── Avatar ──────────────────────────────────────────
+                      Center(
+                        child: GestureDetector(
+                          onTap: _pickImage,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              CircleAvatar(
+                                radius: 50.h,
+                                backgroundColor: const Color(0xFFF3EFE8),
+                                backgroundImage: _avatarFile != null
+                                    ? FileImage(_avatarFile!) as ImageProvider
+                                    : (state.data?.avatar != null
+                                    ? NetworkImage(
+                                  'http://89.117.60.202:3050${state.data!.avatar}',
+                                )
+                                    : const AssetImage(
+                                  'assets/images/avatar.png',
+                                )) as ImageProvider,
+                              ),
+                              Positioned(
+                                bottom: -2.h,
+                                right:  -2.w,
+                                child: Container(
+                                  width: 28.w,
+                                  height: 28.h,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFB29569),
+                                    borderRadius: BorderRadius.circular(14.h),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 2.w,
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 14.sp,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
+
+                      SizedBox(height: 28.h),
+
+                      // ── Name ────────────────────────────────────────────
+                      _FieldLabel(
+                        'الاسم كامل',
+                        labelStyle: _labelStyle(context),
+                        starStyle: _labelStarStyle,
+                        requiredMark: true,
+                      ),
+                      SizedBox(height: 8.h),
+                      NameField(controller: _nameCtrl),
+
+                      SizedBox(height: 30.h),
+
+                      // ── Email ───────────────────────────────────────────
+                      _FieldLabel(
+                        'البريد الإلكتروني',
+                        labelStyle: _labelStyle(context),
+                        starStyle: _labelStarStyle,
+                      ),
+                      SizedBox(height: 8.h),
+                      EmailField(controller: _emailCtrl),
+
+                      SizedBox(height: 30.h),
+
+                      // ── City ────────────────────────────────────────────
+                      _FieldLabel(
+                        'اختر المدينة',
+                        labelStyle: _labelStyle(context),
+                        starStyle: _labelStarStyle,
+                        requiredMark: true,
+                      ),
+                      SizedBox(height: 8.h),
+                      CityDropdownField(
+                        value: _city,
+                        onChanged: (val) => setState(() => _city = val),
+                      ),
+
+                      SizedBox(height: 24.h),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // ── Save button ─────────────────────────────────────────────
+            bottomNavigationBar: SafeArea(
+              minimum: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
+              child: SizedBox(
+                height: 48.h,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.h),
+                    ),
+                    padding: EdgeInsets.fromLTRB(12.w, 16.h, 12.w, 16.h),
+                    textStyle: theme.textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(height: 28.h),
-
-                  // Name Field
-                  _FieldLabel(
-                    'الاسم كامل',
-                    labelStyle: _labelStyle(context),
-                    starStyle: _labelStarStyle,
-                    requiredMark: true,
-                  ),
-                  SizedBox(height: 8.h),
-
-                  NameField(controller: _nameCtrl , ) ,
-                  
-         
-
-                  SizedBox(height: 30.h),
- 
-                  // Email Field
-                  _FieldLabel(
-                    'البريد الإلكتروني',
-                    labelStyle: _labelStyle(context),
-                    starStyle: _labelStarStyle,
-                  ),
-                  SizedBox(height: 8.h),
-                  EmailField(controller: _emailCtrl),
-
-                  SizedBox(height: 30.h),
-                  // City Dropdown
-                  _FieldLabel(
-                    'اختر المدينة',
-                    labelStyle: _labelStyle(context),
-                    starStyle: _labelStarStyle,
-                    requiredMark: true,
-                  ),
-                  SizedBox(height: 8.h) ,
-                 CityDropdownField(onChanged: (val){},) ,
-
-
-
-
-                SizedBox(height: 24.h),
-                ],
+                  onPressed: state.loading ? null : () => _submit(context),
+                  child: state.loading
+                      ? SizedBox(
+                    width: 20.w,
+                    height: 20.h,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  )
+                      : const Text('تحديث البيانات'),
+                ),
               ),
             ),
           ),
-        ),
-        bottomNavigationBar: SafeArea(
-          minimum: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
-          child: SizedBox(
-            height: 48.h,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: theme.colorScheme.primary,
-                foregroundColor: theme.colorScheme.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.h),
-                ),
-                padding: EdgeInsets.fromLTRB(12.w, 16.h, 12.w, 16.h),
-                textStyle: theme.textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              onPressed: () {
-                if (_formKey.currentState?.validate() ?? false) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'تم تحديث البيانات بنجاح',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onPrimary,
-                        ),
-                      ),
-                      backgroundColor: theme.colorScheme.primary,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.h),
-                      ),
-                    ),
-                  );
-                  Navigator.of(context).maybePop();
-                }
-              },
-              child: const Text('تحديث البيانات'),
-            ),
-          ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _FieldLabel — unchanged from original
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String text;
@@ -236,10 +314,8 @@ class _FieldLabel extends StatelessWidget {
             ? [
           TextSpan(
             text: '  *',
-            style: starStyle.copyWith(
-              color: theme.colorScheme.error,
-            ),
-          )
+            style: starStyle.copyWith(color: theme.colorScheme.error),
+          ),
         ]
             : const [],
       ),
@@ -247,7 +323,9 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-
+// ─────────────────────────────────────────────────────────────────────────────
+// CityDropdownField — unchanged from original
+// ─────────────────────────────────────────────────────────────────────────────
 
 class CityDropdownField extends StatefulWidget {
   final String? value;
@@ -274,9 +352,7 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
     super.initState();
     _focusNode = FocusNode();
     _focusNode.addListener(() {
-      setState(() {
-        isFocused = _focusNode.hasFocus;
-      });
+      setState(() => isFocused = _focusNode.hasFocus);
     });
   }
 
@@ -288,7 +364,7 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final theme       = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return Focus(
@@ -296,7 +372,7 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
       child: DropdownButtonFormField<String>(
         value: widget.value,
         isExpanded: true,
-        dropdownColor: Theme.of(context).colorScheme.onSecondary,
+        dropdownColor: colorScheme.onSecondary,
         icon: Icon(
           Icons.keyboard_arrow_down_rounded,
           color: isFocused
@@ -341,17 +417,16 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
           filled: true,
           contentPadding: EdgeInsets.symmetric(
             horizontal: 14.w,
-            vertical: 18.h, // 👈 زودناها (كانت 12.h)
+            vertical: 18.h,
           ),
         ),
-
         items: const [
-          DropdownMenuItem(value: 'الرياض', child: Text('الرياض') ),
-          DropdownMenuItem(value: 'جدة', child: Text('جدة')),
-          DropdownMenuItem(value: 'الدمام', child: Text('الدمام')),
-          DropdownMenuItem(value: 'مكة', child: Text('مكة')),
+          DropdownMenuItem(value: 'الرياض',  child: Text('الرياض')),
+          DropdownMenuItem(value: 'جدة',     child: Text('جدة')),
+          DropdownMenuItem(value: 'الدمام',  child: Text('الدمام')),
+          DropdownMenuItem(value: 'مكة',     child: Text('مكة')),
+          DropdownMenuItem(value: 'المدينة', child: Text('المدينة')),
         ],
-
         onChanged: widget.onChanged,
         validator: widget.validator ??
                 (v) => (v == null) ? 'من فضلك اختر المدينة' : null,

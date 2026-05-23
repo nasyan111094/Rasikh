@@ -15,6 +15,7 @@ import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
 
 
+import '../../../../Shared/models/city_model.dart';
 import '../../../../config/app_config.dart';
 import '../../../../core/cache/cache_helper.dart';
 import '../../../../core/get_it_service/get_it_service.dart';

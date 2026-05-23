@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/loading_widget.dart';
@@ -13,8 +12,8 @@ import 'package:rasikh/features/User/home/widgets/custom_app_bar_widget.dart';
 import 'package:rasikh/features/User/home/widgets/options.dart';
 import 'package:size_config/size_config.dart';
 
-
 import '../../../config/navigation/nav.dart';
+import '../profile/cubit/profile_cubit.dart';
 import 'cubit/home_cubit.dart';
 import 'cubit/home_state.dart';
 import 'models/advertising_response_model.dart';
@@ -31,6 +30,10 @@ class _HomePageState extends State<HomePage> with RouteAware {
   void initState() {
     super.initState();
     context.read<HomeCubit>().getAdevertisingDataWithDataBase();
+    // Load profile once so CustomAppBar has real data immediately.
+    // ProfileCubit must be provided above this widget (e.g. in the
+    // bottom-nav scaffold) as a singleton via getIt.
+    context.read<ProfileCubit>().loadProfile();
   }
 
   @override
@@ -67,12 +70,12 @@ class _HomePageState extends State<HomePage> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-
+    final theme     = Theme.of(context);
     final textTheme = theme.textTheme;
 
     return Scaffold(
+      // CustomAppBar uses BlocBuilder<ProfileCubit> internally —
+      // no params needed; it reads the singleton cubit from context.
       appBar: const CustomAppBar(),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.end,
@@ -88,11 +91,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                 return SizedBox(
                   height: 220.h,
                   width: double.infinity,
-                  child: Center(
-                    child: AdsSlider(
-                      imageUrls: advertiseList,
-                    ),
-                  ),
+                  child: Center(child: AdsSlider(imageUrls: advertiseList)),
                 );
               } else if (state is HomeFailedState) {
                 return SizedBox(
@@ -136,7 +135,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                           child: SingleChildScrollView(
                             child: LegalConsultationCard(
                               onPressed: () {
-                                Nav.chooseSpecialtyScreen(context) ; 
+                                Nav.chooseSpecialtyScreen(context);
                               },
                             ),
                           ),
@@ -144,9 +143,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                       ),
                     );
                   },
-                  separatorBuilder: (BuildContext context, int index) {
-                    return Gap(24.h);
-                  },
+                  separatorBuilder: (_, __) => Gap(24.h),
                 ),
               ),
             ),

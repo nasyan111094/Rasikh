@@ -5,6 +5,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_html/flutter_html.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 
@@ -13,8 +15,11 @@ import '../../../../core/get_it_service/get_it_service.dart';
 import '../../../../core/widgets/general_app_bar.dart';
 import '../../../User/profile/screens/contact_us_screen.dart';
 import '../../../User/profile/screens/policy_text_screen.dart';
+import '../../../User/profile/screens/question_screen.dart';
 import '../../../User/profile/widgets/header_capsule_appbar_widget.dart';
 
+import '../../../User/profile/widgets/support_action_row.dart';
+import '../../../common/Auth/models/auth_model.dart';
 import '../Repo/help_center_repo.dart';
 import '../bloc/help_center/content_cubit.dart';
 
@@ -37,6 +42,24 @@ class HelpingCenterScreen extends StatelessWidget {
             children: [
               divider,
               const SizedBox(height: 20),
+              /// الأسئلة الشائعة
+             if(getIt<CacheHelper>().cachedVendorType == VendorType.user) SupportActionRow(
+                leading: SvgPicture.asset(
+                  'assets/icons/Question_Circle.svg',
+                  width: 24.w,
+                  height: 24.h,
+                  colorFilter: ColorFilter.mode(Theme.of(context).colorScheme.onSurface, BlendMode.srcIn),
+                ),
+                label: 'الأسئلة الشائعة',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const FaqScreen(),
+                    ),
+                  );
+                },
+              ),
+
               _HelpCenterBody(divider: divider),
               const SizedBox(height: 8),
             ],

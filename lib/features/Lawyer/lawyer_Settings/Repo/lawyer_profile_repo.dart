@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
+import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 
 import '../../../../../../core/cache/cache_helper.dart';
 import '../../../../../../core/get_it_service/get_it_service.dart';
@@ -28,10 +29,14 @@ import '../models/lawyer_profile_model.dart';
 class _ProfileEndpoints {
   static const String me = 'lawyers/me';
   static const String update = 'lawyers/update/form';
-  static const String changePhoneRequest = 'lawyers/change-phone/request';
-  static const String changePhoneVerify = 'lawyers/change-phone/verify';
-  static const String deletionOtp = 'lawyers/account/deletion/otp';
-  static const String deletionRequest = 'lawyers/account/deletion/request';
+  static const String lawyerchangePhoneRequest = 'lawyers/change-phone/request';
+  static const String clientchangePhoneRequest = 'clients/change-phone/request';
+  static const String lawyerchangePhoneVerify = 'lawyers/change-phone/verify';
+  static const String clientchangePhoneVerify = 'clients/change-phone/verify';
+  static const String lawyerdeletionOtp = 'lawyers/account/deletion/otp';
+  static const String clientdeletionOtp = 'clients/account/deletion/otp';
+  static const String lawyerdeletionRequest = 'lawyers/account/deletion/request';
+  static const String clientdeletionRequest = 'clients/account/deletion/request';
 }
 
 // ── Repository ────────────────────────────────────────────────────────────────
@@ -157,7 +162,7 @@ class LawyerProfileRepo {
     required String phone,
   }) async {
     final result = await _adapter.post(
-      _ProfileEndpoints.changePhoneRequest,
+     _cache.cachedVendorType == VendorType.lawyer ? _ProfileEndpoints.lawyerchangePhoneRequest : _ProfileEndpoints.clientchangePhoneRequest,
       body: ChangePhoneRequestModel(phone: phone).toJson(),
     );
 
@@ -177,7 +182,7 @@ class LawyerProfileRepo {
     required String code,
   }) async {
     final result = await _adapter.post(
-      _ProfileEndpoints.changePhoneVerify,
+      _cache.cachedVendorType == VendorType.lawyer ? _ProfileEndpoints.lawyerchangePhoneVerify : _ProfileEndpoints.clientchangePhoneVerify,
       body: ChangePhoneVerifyModel(phone: phone, code: code).toJson(),
     );
 
@@ -190,7 +195,7 @@ class LawyerProfileRepo {
   // ── SEND account deletion OTP ──────────────────────────────────────────────
 
   Future<Either<String, String>> sendDeletionOtp() async {
-    final result = await _adapter.post(_ProfileEndpoints.deletionOtp);
+    final result = await _adapter.post( _cache.cachedVendorType == VendorType.lawyer ?_ProfileEndpoints.lawyerdeletionOtp:_ProfileEndpoints.clientdeletionOtp);
 
     if (result.isRight) {
       final data = result.right.data;
@@ -206,7 +211,7 @@ class LawyerProfileRepo {
     required String otp,
   }) async {
     final result = await _adapter.post(
-      _ProfileEndpoints.deletionRequest,
+      _cache.cachedVendorType == VendorType.lawyer ? _ProfileEndpoints.lawyerdeletionRequest:_ProfileEndpoints.clientdeletionRequest,
       body: DeleteAccountRequestBody(otp: otp).toJson(),
     );
 

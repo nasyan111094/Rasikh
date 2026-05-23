@@ -32,6 +32,7 @@ import '../../features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/specializations_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import '../../features/Lawyer/lawyer_Settings/bloc/Specializations_cubit/specializations_cubit.dart';
+import '../../features/User/profile/cubit/profile_cubit.dart';
 import '../../features/User/user_register_completion/bloc/user_completion_cubit.dart';
 import '../../features/User/user_register_completion/repo/user_completion_repo.dart';
 import '../../features/common/notifications/bloc/notifications_cubit.dart';
@@ -155,6 +156,19 @@ Future<void> initializeDependencies() async {
           () => Logger(
         level: kReleaseMode ? Level.off : Level.debug,
       ),
+    );
+
+
+
+// 2. Register ProfileCubit as a factory so each screen gets a fresh instance
+//    when it creates its own BlocProvider.
+//    (ProfileScreen and ProfileEditScreen each call BlocProvider internally,
+//     so no manual factory is needed – they call getIt<ProfileRepo>() directly.)
+
+// ─── If you want a shared ProfileCubit across HomePage + ProfileScreen ────────
+// Register it as a singleton cubit at app level:
+    getIt.registerLazySingleton<ProfileCubit>(
+          () => ProfileCubit(getIt<ProfileRepo>()),
     );
   } catch (e, stackTrace) {
     print('Error in initializeDependencies: $e');

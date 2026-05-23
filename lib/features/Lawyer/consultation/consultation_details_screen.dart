@@ -168,7 +168,6 @@ class _DetailsAppBar extends StatelessWidget {
         right: 16.w,
       ),
       child: Row(
-
         children: [
           GestureDetector(
             onTap: onBack,
@@ -183,7 +182,7 @@ class _DetailsAppBar extends StatelessWidget {
               child: const Icon(Icons.arrow_back_outlined, size: 18),
             ),
           ),
-          Gap(10.w) ,
+          Gap(10.w),
           Text(
             "تفاصيل الإستشارة",
             style: theme.textTheme.titleMedium?.copyWith(
@@ -232,6 +231,16 @@ class _DetailsContent extends StatelessWidget {
 
     final startLabel = _formatDateTime(consultation.effectiveStartDateTime);
 
+    // ── Safe date/time extraction ─────────────────────────────────────────
+    // Use RegExp to split on any whitespace, so single or double spaces
+    // in _formatDateTime never cause a FormatException.
+    final parts = startLabel.trim().split(RegExp(r'\s+'));
+    final datePart = parts.isNotEmpty ? parts.first : '—';
+    final timePart = parts.length > 1 ? parts.last : '—';
+    final hourValue = timePart == '—' ? null : int.tryParse(timePart.split(':').first);
+    final amPm = hourValue == null ? '' : (hourValue >= 12 ? ' مساء' : ' صباحا');
+    final timeDisplay = timePart == '—' ? '—' : '$timePart$amPm';
+
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
       child: Column(
@@ -262,8 +271,6 @@ class _DetailsContent extends StatelessWidget {
             ),
           ),
           SizedBox(height: 16.h),
-
-
 
           // ── Specialization ───────────────────────────────────────────────
           _SectionLabel(label: "التخصص"),
@@ -364,16 +371,11 @@ class _DetailsContent extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _InfoColumn(label: "تاريخ البدء", value: startLabel.split(' ').first),
+              _InfoColumn(label: "تاريخ البدء", value: datePart),
               _VerticalDivider(),
               _InfoColumn(
                 label: "وقت البدء",
-                value: startLabel.split(' ').last +
-                    " " +
-                    (int.parse(startLabel.split(' ').last.split(':').first) >= 12
-                        ? "مساء"
-                        : "صباحا"),
-
+                value: timeDisplay,
               ),
               if (consultation.durationMin != null) ...[
                 _VerticalDivider(),
@@ -602,8 +604,6 @@ class _ClientCard extends StatelessWidget {
                   ),
 
                   Gap(8.w),
-
-
                 ],
               ),
 
@@ -613,11 +613,9 @@ class _ClientCard extends StatelessWidget {
                 runSpacing: 8.h,
                 spacing: 8.w,
                 children: [
-
                   if (hasCity)
                     _InfoChip(
-                      icon:
-                      Icons.location_on_rounded,
+                      icon: Icons.location_on_rounded,
                       text: client.city!,
                     ),
                 ],
@@ -627,8 +625,6 @@ class _ClientCard extends StatelessWidget {
         ),
 
         Gap(10.w),
-
-
       ],
     );
   }

@@ -148,7 +148,13 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
                   backgroundColor: Theme.of(ctx).colorScheme.error,
                 ),
               );
+
+
+            }    else
+            {
+
             }
+
           },
           builder: (ctx, state) {
             return OtpDialog(

@@ -51,18 +51,18 @@ abstract class EndPoints {
   static String getUserProfile = "User/ClientUserProfile";
   // auth
   static String loginWithDataBase = 'user-management/login';
-  static String profileDataWithDataBase = 'User/ClientUserProfile';
+  static String profileDataWithDataBase = 'clients/profile';
   static String serviceContract({required String serviceId}) =>
       'OrderReport/GetServiceContract/$serviceId';
   static String contractsWithDataBase = 'Order/GetOrderContracts';
-  static String advertismentWithDataBase = 'Advertisement/GetAll';
+  static String advertismentWithDataBase = 'content/public/banners';
   static String userCurrentOrders = 'Order/GetUserCurrentOrder';
   static String userEndOrders = 'Order/GetUserEndOrder';
   static String nextVisits = 'Order/GetUserEndOrder';
 
   static String order = 'Order';
 
-  static String updateProfileWithDataBase = 'User/UpdateClientUserProfile';
+  static String updateProfileWithDataBase = 'clients/profile';
 
   static String updateUserWithDataBase = 'profile';
 /////////////////////////////////////////////////////////

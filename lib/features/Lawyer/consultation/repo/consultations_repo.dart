@@ -9,6 +9,8 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
+import 'package:rasikh/core/cache/cache_helper.dart';
+import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 
 import '../../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../../core/utils/api/api_handler.dart';
@@ -17,10 +19,18 @@ import '../models/consultation_model.dart';
 // ── Endpoint constants ────────────────────────────────────────────────────────
 
 class _ConsultationsEndpoints {
-  static const String consultations = 'lawyer/consultations';
+  static const String lawyerConsultations = 'lawyer/consultations';
 
-  static String consultationDetails(String id) => 'lawyer/consultations/$id';
+  static String lawyerConsultationDetails(String id) => 'lawyer/consultations/$id';
+
+
+  static const String clientConsultations = 'client/consultations';
+
+  static String clientConsultationDetails(String id) => 'client/consultations/$id';
 }
+
+
+
 
 // ── Repository ────────────────────────────────────────────────────────────────
 
@@ -44,7 +54,7 @@ class ConsultationsRepo {
     }
 
     final result = await _adapter.get(
-      _ConsultationsEndpoints.consultations,
+      getIt<CacheHelper>().cachedVendorType ==VendorType.lawyer?_ConsultationsEndpoints.lawyerConsultations:_ConsultationsEndpoints.clientConsultations,
       queryParameters: queryParameters,
     );
 
@@ -61,7 +71,7 @@ class ConsultationsRepo {
     required String id,
   }) async {
     final result = await _adapter.get(
-      _ConsultationsEndpoints.consultationDetails(id),
+      getIt<CacheHelper>().cachedVendorType ==VendorType.lawyer? _ConsultationsEndpoints.lawyerConsultationDetails(id): _ConsultationsEndpoints.clientConsultationDetails(id),
     );
 
     if (result.isRight) {
