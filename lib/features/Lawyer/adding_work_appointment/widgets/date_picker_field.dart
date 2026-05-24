@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:size_config/size_config.dart';
 
@@ -22,24 +23,17 @@ class DatePickerField extends StatelessWidget {
       initialDate: DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime(2030),
-      builder: (BuildContext context, Widget? child) {
-        final theme = Theme.of(context);
+      builder: (context, child) {
         return Theme(
-          data: theme.copyWith(
-            colorScheme: theme.colorScheme.copyWith(
-              primary: theme.colorScheme.primary,       // header background / selected date
-              onPrimary: theme.colorScheme.onPrimary,   // header text
-              onSurface: theme.colorScheme.onSurface,   // body text
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              surface: Colors.white, // Background
+              primary: primary, // Selected date & buttons
+              onPrimary: Colors.white,
+              onSurface: Colors.black,
             ),
-            dialogBackgroundColor: theme.colorScheme.onSecondaryContainer, // picker background
-            cardColor: theme.colorScheme.onSecondaryContainer,
-            primaryColor: theme.colorScheme.onSecondaryContainer,
-            canvasColor: theme.colorScheme.onSecondaryContainer,
-
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.primary, // buttons color
-              ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Colors.white,
             ),
           ),
           child: child!,
@@ -47,8 +41,9 @@ class DatePickerField extends StatelessWidget {
       },
     );
 
-
-    if (picked != null) onSelect(picked);
+    if (picked != null) {
+      onSelect(picked);
+    }
   }
 
 
@@ -108,7 +103,7 @@ class DatePickerField extends StatelessWidget {
                       fontFamily: "almarai",
                       color: value == null
                           ? theme.dividerColor
-                          : theme.colorScheme.primary,
+                          : Colors.black,
                     ),
                   ),
                 ),

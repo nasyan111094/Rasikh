@@ -76,7 +76,10 @@ class _HomePageState extends State<HomePage> with RouteAware {
     return Scaffold(
       // CustomAppBar uses BlocBuilder<ProfileCubit> internally —
       // no params needed; it reads the singleton cubit from context.
-      appBar: const CustomAppBar(),
+      appBar: CustomAppBar<ProfileCubit, ProfileState>(
+        getFullName: (state) => state.data?.fullName,
+        getAvatar: (state) => state.data?.avatar,
+      ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.center,

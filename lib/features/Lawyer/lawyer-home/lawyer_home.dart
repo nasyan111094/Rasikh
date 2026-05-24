@@ -1,24 +1,21 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/home/screens/lawyer_home_screen.dart
-//
-// Integrates LawyerProfileCubit to show real name + avatar in the AppBar.
-// All existing UI widgets are unchanged.
-// ─────────────────────────────────────────────────────────────────────────────
+// features/Lawyer/lawyer-home/lawyer_home.dart
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/widgets/general_divider.dart';
 import 'package:size_config/size_config.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 
-import '../../../Shared/widgets/lawyer_profile_avatar.dart';
 import '../../User/home/widgets/custom_app_bar_widget.dart';
-
 import '../lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import '../lawyer_Settings/bloc/Profile_cubit/lawyer_state.dart';
+import 'bloc/avaiabilty_cubit.dart';
+import 'bloc/avaiabilty_state.dart';
+import 'models/avaiability_status_model.dart';
 
 class LawyerHomeScreen extends StatefulWidget {
   const LawyerHomeScreen({super.key});
@@ -31,147 +28,223 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Load profile once when home screen appears
     final cubit = context.read<LawyerProfileCubit>();
     if (cubit.cachedProfile == null) {
       cubit.getProfile();
     }
+    else
+      {
+        setState(() {
+
+        });
+      }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      // ── Custom AppBar with live name + avatar ────────────────────────────
-      appBar: _LawyerHomeAppBar(),
-      body: SafeArea(
-        child: Column(
-          children: [
-            GeneralDivider(),
-            _AvailabilityCard(),
-            GeneralDivider(),
-            Gap(20.h),
-            Expanded(
-              child: SingleChildScrollView(
-                padding:
-                EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _SectionHeader(
-                        title: 'استشارات جديدة', onViewAll: () {}),
-                    Gap(10.h),
-                    _ConsultationCard(
-                      title: 'استشارات فورية',
-                      time: '٢:٣٠ م',
-                      onAccept: () {},
-                      onDetails: () {},
-                    ),
-                    Gap(10.h),
-                    _ConsultationCard(
-                      title: 'استشارات كتابية',
-                      time: '٣:٠٠ م',
-                      onAccept: () {},
-                      onDetails: () {},
-                    ),
-                    Gap(24.h),
-                    _SectionHeader(
-                        title: 'أقرب 3 مواعيد اليوم', onViewAll: () {}),
-                    Gap(10.h),
-                    _AppointmentCard(
-                        title: 'استشارات كتابية', time: '٢:٣٠ م'),
-                    Gap(10.h),
-                    _AppointmentCard(
-                        title: 'استشارات كتابية', time: '٥:٣٠ م'),
-                    Gap(24.h),
-                    _SectionHeader(
-                        title: 'آخر حركة مالية', onViewAll: () {}),
-                    Gap(10.h),
-                    _TransactionCard(),
-                  ],
+    return BlocProvider<LawyerAvailabilityCubit>(
+      create: (_) => getIt<LawyerAvailabilityCubit>(),
+      child: Scaffold(
+        appBar: CustomAppBar<LawyerProfileCubit, LawyerProfileState>(
+          getFullName: (state) {
+            if (state is LawyerProfileLoaded) return state.profile.fullName;
+            return null;
+          },
+          getAvatar: (state) {
+            if (state is LawyerProfileLoaded) return state.profile.photoUrl;
+            return null;
+          },
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              GeneralDivider(),
+              _AvailabilityCard(),
+              GeneralDivider(),
+              Gap(20.h),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _SectionHeader(title: 'استشارات جديدة', onViewAll: () {}),
+                      Gap(10.h),
+                      _ConsultationCard(
+                        title: 'استشارات فورية',
+                        time: '٢:٣٠ م',
+                        onAccept: () {},
+                        onDetails: () {},
+                      ),
+                      Gap(10.h),
+                      _ConsultationCard(
+                        title: 'استشارات كتابية',
+                        time: '٣:٠٠ م',
+                        onAccept: () {},
+                        onDetails: () {},
+                      ),
+                      Gap(24.h),
+                      _SectionHeader(title: 'أقرب 3 مواعيد اليوم', onViewAll: () {}),
+                      Gap(10.h),
+                      _AppointmentCard(title: 'استشارات كتابية', time: '٢:٣٠ م'),
+                      Gap(10.h),
+                      _AppointmentCard(title: 'استشارات كتابية', time: '٥:٣٠ م'),
+                      Gap(24.h),
+                      _SectionHeader(title: 'آخر حركة مالية', onViewAll: () {}),
+                      Gap(10.h),
+                      _TransactionCard(),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ── AppBar with live profile data ─────────────────────────────────────────────
+// ── Availability Card ─────────────────────────────────────────────────────────
 
-class _LawyerHomeAppBar extends StatelessWidget
-    implements PreferredSizeWidget {
+class _AvailabilityCard extends StatefulWidget {
+  const _AvailabilityCard();
+
   @override
-  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+  State<_AvailabilityCard> createState() => _AvailabilityCardState();
+}
+
+class _AvailabilityCardState extends State<_AvailabilityCard> {
+  bool _isAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // ✅ If profile is already cached (e.g. after hot reload), use it immediately
+    final cached = context.read<LawyerProfileCubit>().cachedProfile;
+    if (cached != null) {
+      _isAvailable = cached.activityStatus == 'available_now';
+    }
+    // Otherwise _isAvailable stays false and BlocListener below will update it
+    // once LawyerProfileLoaded fires.
+  }
+
+  void _onToggle(bool val) {
+    setState(() => _isAvailable = val);
+    final status = val
+        ? LawyerAvailabilityStatus.availableNow
+        : LawyerAvailabilityStatus.unavailable;
+    context.read<LawyerAvailabilityCubit>().updateAvailability(status);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return AppBar(
-      backgroundColor:
-      theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      titleSpacing: 16.w,
-      title: BlocBuilder<LawyerProfileCubit, LawyerProfileState>(
-        buildWhen: (p, c) =>
-        c is LawyerProfileLoaded ||
-            c is UpdateProfileSuccess ||
-            c is LawyerProfileLoading,
+    return MultiBlocListener(
+      listeners: [
+        // ✅ Listen to profile loading → sync toggle with real activityStatus
+        BlocListener<LawyerProfileCubit, LawyerProfileState>(
+          listener: (context, state) {
+            if (state is LawyerProfileLoaded) {
+              setState(() {
+                _isAvailable = state.profile.activityStatus == 'available_now';
+              });
+            }
+          },
+        ),
+        // Listen to availability update result
+        BlocListener<LawyerAvailabilityCubit, LawyerAvailabilityState>(
+          listener: (context, state) {
+            if (state is UpdateAvailabilitySuccess) {
+              setState(() {
+                _isAvailable =
+                    state.currentStatus == LawyerAvailabilityStatus.availableNow;
+              });
+            } else if (state is UpdateAvailabilityError) {
+              // Roll back optimistic toggle
+              setState(() => _isAvailable = !_isAvailable);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+        ),
+      ],
+      child: BlocBuilder<LawyerAvailabilityCubit, LawyerAvailabilityState>(
         builder: (context, state) {
-          final cubit = context.read<LawyerProfileCubit>();
-          final profile = cubit.cachedProfile;
-          final isLoading = state is LawyerProfileLoading;
+          final isLoading = state is UpdateAvailabilityLoading;
 
-          return Directionality(
-            textDirection: TextDirection.rtl,
+          return Container(
+            padding: EdgeInsets.all(10.w),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(5.h)),
             child: Row(
               children: [
-                // Avatar
-                LawyerProfileAvatar(
-                  photoUrl: profile?.photoUrl,
-                  radius: 18.h,
-                  isLoading: isLoading,
+                // ── Status dot ────────────────────────────────────────────
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  width: 20.w,
+                  height: 20.w,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _isAvailable ? Colors.green : Colors.red,
+                  ),
                 ),
-                Gap(10.w),
-                // Name + greeting
+                Gap(12.w),
+                // ── Labels ────────────────────────────────────────────────
                 Expanded(
-                  child: isLoading
-                      ? _ShimmerBox(width: 100.w, height: 14.h)
-                      : Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
+                      Text('حالة التوفر', style: theme.textTheme.titleMedium),
                       Text(
-                        'مرحباً،',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withOpacity(0.5),
-                        ),
-                      ),
-                      Text(
-                        profile?.fullName ?? '---',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                        'هل أنت متاح الآن للإستشارات الفورية',
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.hintColor),
                       ),
                     ],
                   ),
                 ),
-                // Notification bell (kept from original CustomAppBar logic)
-                IconButton(
-                  icon: Icon(
-                    Icons.notifications_none_rounded,
-                    color: theme.colorScheme.onSurface,
-                    size: 22.sp,
-                  ),
-                  onPressed: () {},
+                // ── Toggle + label ────────────────────────────────────────
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (child, anim) =>
+                          FadeTransition(opacity: anim, child: child),
+                      child: isLoading
+                          ? SizedBox(
+                        key: const ValueKey('loading'),
+                        width: 16.w,
+                        height: 16.w,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: theme.colorScheme.primary,
+                        ),
+                      )
+                          : Text(
+                        _isAvailable ? 'متاح' : 'غير متاح',
+                        key: ValueKey(_isAvailable),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: _isAvailable ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 20.h,
+                      child: Switch(
+                        value: _isAvailable,
+                        onChanged: isLoading ? null : _onToggle,
+                        activeColor: Colors.green,
+                        inactiveThumbColor: Colors.red,
+                        inactiveTrackColor: Colors.red.withOpacity(0.2),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -182,102 +255,9 @@ class _LawyerHomeAppBar extends StatelessWidget
   }
 }
 
-class _ShimmerBox extends StatelessWidget {
-  final double width;
-  final double height;
-  const _ShimmerBox({required this.width, required this.height});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: Theme.of(context).dividerColor.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(6.h),
-      ),
-    );
-  }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// The widgets below are IDENTICAL to the original — no UI changes.
+// Unchanged widgets below
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _AvailabilityCard extends StatefulWidget {
-  const _AvailabilityCard();
-
-  @override
-  State<_AvailabilityCard> createState() => _AvailabilityCardState();
-}
-
-class _AvailabilityCardState extends State<_AvailabilityCard> {
-  bool isAvailable = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: EdgeInsets.all(10.w),
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(5.h)),
-      child: Row(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            width: 20.w,
-            height: 20.w,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isAvailable ? Colors.green : Colors.red,
-            ),
-          ),
-          Gap(12.w),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('حالة التوفر', style: theme.textTheme.titleMedium),
-                Text(
-                  'هل أنت متاح الآن للإستشارات الفورية',
-                  style:
-                  theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
-                ),
-              ],
-            ),
-          ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, anim) =>
-                    FadeTransition(opacity: anim, child: child),
-                child: Text(
-                  isAvailable ? 'متاح' : 'غير متاح',
-                  key: ValueKey(isAvailable),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: isAvailable ? Colors.green : Colors.red,
-                  ),
-                ),
-              ),
-              SizedBox(
-                height: 20.h,
-                child: Switch(
-                  value: isAvailable,
-                  onChanged: (val) => setState(() => isAvailable = val),
-                  activeColor: Colors.green,
-                  inactiveThumbColor: Colors.red,
-                  inactiveTrackColor: Colors.red.withOpacity(0.2),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -333,8 +313,7 @@ class _ConsultationCard extends StatelessWidget {
             height: 40.w,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(
-                  color: theme.colorScheme.outline, width: 1),
+              border: Border.all(color: theme.colorScheme.outline, width: 1),
             ),
             child: Center(
               child: Picture(
@@ -427,8 +406,7 @@ class _AppointmentCard extends StatelessWidget {
           Picture(getAssetIcon('clock.svg'), width: 20.w, height: 20.w),
           Gap(6.w),
           Text(time,
-              style:
-              theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
         ],
       ),
     );
@@ -455,20 +433,18 @@ class _TransactionCard extends StatelessWidget {
               border: Border.all(color: greyFA),
               shape: BoxShape.circle,
             ),
-            child: Picture(getAssetIcon('wallet.svg'),
-                width: 20.w, height: 20.w),
+            child: Picture(getAssetIcon('wallet.svg'), width: 20.w, height: 20.w),
           ),
           Gap(10.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('تم إضافة لمحفظتك',
-                    style: theme.textTheme.titleMedium),
+                Text('تم إضافة لمحفظتك', style: theme.textTheme.titleMedium),
                 Text(
                   '1200 ريال',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                      color: primary, fontWeight: FontWeight.w900),
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(color: primary, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
@@ -476,8 +452,7 @@ class _TransactionCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Picture(getAssetIcon('Calendar.svg'),
-                  width: 20.h, height: 20.h),
+              Picture(getAssetIcon('Calendar.svg'), width: 20.h, height: 20.h),
               Gap(5.w),
               Text(
                 '16 / 10 / 2025',

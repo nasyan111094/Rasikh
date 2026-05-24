@@ -13,7 +13,7 @@ class NotificationsCubit extends Cubit<NotificationsState> {
 
   final NotificationsRepo _repo;
 
-  static const int _defaultLimit = 20;
+  static const int _defaultLimit = 10;
 
   // ── Fetch first page ──────────────────────────────────────────────────────
 

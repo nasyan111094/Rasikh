@@ -2,11 +2,13 @@
 // features/Lawyer/lawyer_Settings/presentation/screens/lawyer_rates_screen.dart
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
+import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/picture.dart';
@@ -429,28 +431,38 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
                       // Author
                       Row(
                         children: [
-                          CircleAvatar(
-                            radius: 25.w,
-                            backgroundColor:
-                            colorScheme.primary.withOpacity(0.15),
-                            child: Text(
-                              review.client.fullName.isNotEmpty
-                                  ? review.client.fullName[0]
-                                  : '?',
-                              style: TextStyle(
-                                color: colorScheme.primary,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18.sp,
-                              ),
-                            ),
-                          )
-                              .animate(onPlay: (c) => c.repeat(reverse: true))
-                              .scaleXY(
-                            begin: 1,
-                            end: 1.05,
-                            duration: 800.ms,
-                            curve: Curves.easeInOut,
-                          ),
+              CircleAvatar(
+              radius: 25.w,
+                backgroundColor: colorScheme.primary.withOpacity(0.15),
+                child: ClipOval(
+                  child: CachedNetworkImage(
+                    imageUrl: AppConfig.baseImgUrl+ review.client.avatar ?? '',
+                    width: 50.w,
+                    height: 50.w,
+                    fit: BoxFit.cover,
+                    errorWidget: (_, __, ___) => Center(
+                      child: Text(
+                        review.client.fullName.isNotEmpty
+                            ? review.client.fullName[0].toUpperCase()
+                            : '?',
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18.sp,
+                        ),
+                      ),
+                    ),
+                    placeholder: (_, __) => const CircularProgressIndicator(),
+                  ),
+                ),
+              )
+                  .animate(onPlay: (c) => c.repeat(reverse: true))
+                  .scaleXY(
+                begin: 1,
+                end: 1.05,
+                duration: 800.ms,
+                curve: Curves.easeInOut,
+              ),
                           Gap(6.w),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,19 +498,21 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
 
                       // Stars + report
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
+                          Text(
+                          review.stars.toStringAsFixed(1),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontFamily: "cairo",
+                            fontSize: 15.sp,
+                          ),
+                        ),
+                          Gap(5.w),
                           Picture(getAssetIcon("golden_start.svg"),
                               width: 25.h, height: 25.h),
                           Gap(4.w),
-                          Text(
-                            review.stars.toStringAsFixed(1),
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontFamily: "cairo",
-                              fontSize: 18.sp,
-                            ),
-                          ),
-                          Gap(25.w),
+
                           isReporting
                               ? SizedBox(
                             width: 20.w,

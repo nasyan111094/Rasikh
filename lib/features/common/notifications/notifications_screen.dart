@@ -249,8 +249,8 @@ class _NotificationCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12.h),
               border: Border.all(
                 color: notification.isRead
-                    ? greyEA
-                    : cs.primary.withOpacity(0.3),
+                    ? borderColor
+                    : cs.primary,
                 width: 1.w,
               ),
             ),

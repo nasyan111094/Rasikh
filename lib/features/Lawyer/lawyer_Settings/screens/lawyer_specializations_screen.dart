@@ -408,7 +408,6 @@ class _LawyerSpecializationsScreenState
               'تم اختيار $subSelectedCount تخصص فرعي',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
               ),
             )
                 : Text(

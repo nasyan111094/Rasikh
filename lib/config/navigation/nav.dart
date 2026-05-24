@@ -51,7 +51,7 @@ import '../../features/User/application/end_session_screen.dart';
 import '../../features/User/application/payment_screen(5).dart';
 import '../../features/User/application/video_call_screen.dart';
 
-import '../../features/User/lawyer_details/lawyer_details_screen.dart';
+import '../../features/User/application/lawyer_details_screen.dart';
 
 import '../../features/User/profile/screens/change_phone_number.dart';
 import '../../features/User/profile/screens/financial_transactions_screen.dart';

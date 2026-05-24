@@ -93,92 +93,99 @@ class _ContactUsView extends StatelessWidget {
             return RefreshIndicator(
               onRefresh: () =>
                   context.read<ContactCubit>().refreshContact(),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.all(16.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 8),
-                    Image.asset(
-                      'assets/images/contact_us.png',
-                      height:
-                      MediaQuery.of(context).size.height * 0.28,
-                      fit: BoxFit.contain,
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Image.asset(
+                    'assets/images/contact_us.png',
+                    height:
+                    MediaQuery.of(context).size.height * 0.28,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'تواصل معنا',
+                    style: textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.primary,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'تواصل معنا',
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.primary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'نحن دائماً سعداء بخدمتك، ويمكنك التواصل معنا عبر الوسائل المتاحة أدناه',
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: textTheme.bodyMedium?.color
+                          ?.withOpacity(0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.all(16.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+
+
+                          // ── Phone ────────────────────────────────────────────
+                          if (contact.phone.isNotEmpty) ...[
+                            ContactTileFigma(
+                              title: 'التواصل عبر رقم الدعم الفني',
+                              subtitle: contact.phone,
+                              iconAsset: 'assets/icons/call-calling.svg',
+                              showChevron: true,
+                              onTap: () => _callPhone(contact.phone),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // ── Email ─────────────────────────────────────────────
+                          if (contact.email.isNotEmpty) ...[
+                            ContactTileFigma(
+                              title: 'التواصل عبر البريد الإلكتروني',
+                              subtitle: contact.email,
+                              iconAsset: 'assets/icons/sms.svg',
+                              showChevron: true,
+                              onTap: () => _sendEmail(contact.email),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // ── WhatsApp ──────────────────────────────────────────
+                          if (contact.whatsapp.isNotEmpty) ...[
+                            ContactTileFigma(
+                              title: 'التواصل عبر واتساب',
+                              subtitle: contact.whatsapp,
+                              iconAsset: 'assets/icons/whatsapp.svg',
+                              showChevron: true,
+                              onTap: () => _openWhatsApp(contact.whatsapp),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          // ── Social Links ──────────────────────────────────────
+                          ...contact.socialLinks.map(
+                                (link) => Padding(
+                              padding: EdgeInsets.only(bottom: 20.h),
+                              child: ContactTileFigma(
+                                title: 'تابعنا على ${link.platform}',
+                                subtitle: link.url,
+                                iconAsset: 'assets/icons/link.svg',
+                                showChevron: true,
+                                onTap: () => _openUrl(link.url),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'نحن دائماً سعداء بخدمتك، ويمكنك التواصل معنا عبر الوسائل المتاحة أدناه',
-                      textAlign: TextAlign.center,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: textTheme.bodyMedium?.color
-                            ?.withOpacity(0.7),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // ── Phone ────────────────────────────────────────────
-                    if (contact.phone.isNotEmpty) ...[
-                      ContactTileFigma(
-                        title: 'التواصل عبر رقم الدعم الفني',
-                        subtitle: contact.phone,
-                        iconAsset: 'assets/icons/call-calling.svg',
-                        showChevron: true,
-                        onTap: () => _callPhone(contact.phone),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // ── Email ─────────────────────────────────────────────
-                    if (contact.email.isNotEmpty) ...[
-                      ContactTileFigma(
-                        title: 'التواصل عبر البريد الإلكتروني',
-                        subtitle: contact.email,
-                        iconAsset: 'assets/icons/sms.svg',
-                        showChevron: true,
-                        onTap: () => _sendEmail(contact.email),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // ── WhatsApp ──────────────────────────────────────────
-                    if (contact.whatsapp.isNotEmpty) ...[
-                      ContactTileFigma(
-                        title: 'التواصل عبر واتساب',
-                        subtitle: contact.whatsapp,
-                        iconAsset: 'assets/icons/whatsapp.svg',
-                        showChevron: true,
-                        onTap: () => _openWhatsApp(contact.whatsapp),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // ── Social Links ──────────────────────────────────────
-                    ...contact.socialLinks.map(
-                          (link) => Padding(
-                        padding: EdgeInsets.only(bottom: 20.h),
-                        child: ContactTileFigma(
-                          title: 'تابعنا على ${link.platform}',
-                          subtitle: link.url,
-                          iconAsset: 'assets/icons/link.svg',
-                          showChevron: true,
-                          onTap: () => _openUrl(link.url),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           }

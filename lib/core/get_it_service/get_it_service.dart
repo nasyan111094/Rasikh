@@ -27,6 +27,8 @@ import 'package:rasikh/features/User/profile/repo/profile_repo.dart';
 
 import '../../features/Company/company_register_completion/bloc/company_completion_cubit.dart';
 import '../../features/Company/company_register_completion/repo/company_completion_repo.dart';
+import '../../features/Lawyer/lawyer-home/bloc/avaiabilty_cubit.dart';
+import '../../features/Lawyer/lawyer-home/repo/lawer_availability_rpeo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/help_center_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/specializations_repo.dart';
@@ -158,7 +160,15 @@ Future<void> initializeDependencies() async {
       ),
     );
 
+// Repo — factory so each call gets a fresh instance
+    getIt.registerFactory<LawyerAvailabilityRepo>(
+          () => LawyerAvailabilityRepo(),
+    );
 
+// Cubit — lazy singleton so it survives navigation
+    getIt.registerLazySingleton<LawyerAvailabilityCubit>(
+          () => LawyerAvailabilityCubit(getIt<LawyerAvailabilityRepo>()),
+    );
 
 // 2. Register ProfileCubit as a factory so each screen gets a fresh instance
 //    when it creates its own BlocProvider.

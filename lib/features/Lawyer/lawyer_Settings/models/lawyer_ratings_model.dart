@@ -9,12 +9,14 @@ class RatingClient {
   final String fullName;
   final String phone;
   final String city;
+  final String avatar;
 
   const RatingClient({
     required this.id,
     required this.fullName,
     required this.phone,
     required this.city,
+    required this.avatar
   });
 
   factory RatingClient.fromJson(Map<String, dynamic> json) => RatingClient(
@@ -22,6 +24,7 @@ class RatingClient {
         fullName: json['fullName']?.toString() ?? '',
         phone: json['phone']?.toString() ?? '',
         city: json['city']?.toString() ?? '',
+        avatar: json['avatar']?.toString() ?? '',
       );
 }
 

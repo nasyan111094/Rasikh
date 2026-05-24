@@ -9,7 +9,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:rasikh/config/app_config.dart';
+import 'package:rasikh/config/theme/colors.dart';
+import 'package:rasikh/config/theme/styles_manager.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
+import 'package:rasikh/core/widgets/custom_dotted_container.dart';
 import 'package:rasikh/core/widgets/fields/prefix_text_filed_icon.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/user_selector/general_app_button.dart';
@@ -30,8 +33,7 @@ class LawyerUpdateLicenceScreen extends StatefulWidget {
       _LawyerUpdateLicenceScreenState();
 }
 
-class _LawyerUpdateLicenceScreenState
-    extends State<LawyerUpdateLicenceScreen> {
+class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
   final _formKey = GlobalKey<FormState>();
   final _idController = TextEditingController();
   final _licenseController = TextEditingController();
@@ -187,32 +189,32 @@ class _LawyerUpdateLicenceScreenState
     );
 
     context.read<LawyerProfileCubit>().updateLicence(
-      request: request,
-      licenseImage: _licenseImageFile,
-      nationalIdDocument: _nationalIdDocFile,
-      commercialRegistrationDocument: _commercialRegDocFile,
-    );
+          request: request,
+          licenseImage: _licenseImageFile,
+          nationalIdDocument: _nationalIdDocFile,
+          commercialRegistrationDocument: _commercialRegDocFile,
+        );
   }
 
   // ── Styles ────────────────────────────────────────────────────────────────
 
   TextStyle _labelStyle(BuildContext context) =>
       Theme.of(context).textTheme.titleMedium!.copyWith(
-        color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
-      );
+            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+          );
 
   TextStyle get _labelStarStyle =>
       Theme.of(context).textTheme.titleMedium!.copyWith(
-        color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
-      );
+            color: Theme.of(context).colorScheme.onBackground.withOpacity(0.7),
+          );
 
   TextStyle get _hintStyle => TextStyle(
-    fontSize: 14.sp,
-    fontWeight: FontWeight.w500,
-    height: 1.2,
-    letterSpacing: -0.24,
-    color: kGrey60,
-  );
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w500,
+        height: 1.2,
+        letterSpacing: -0.24,
+        color: kGrey60,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -228,39 +230,39 @@ class _LawyerUpdateLicenceScreenState
           context.read<LawyerProfileCubit>().cachedProfile = null;
 
           getIt<CacheHelper>().currentToken = "";
-           getIt<CacheHelper>().setUserToken("");
+          getIt<CacheHelper>().setUserToken("");
 
-        /// Show success toast/snackbar
-        ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-        SnackBar(
-        content: Text(
-        "أصبح حسابك الأن قيد المراجعه",
-        style: theme.textTheme.bodyMedium?.copyWith(
-        color: cs.onPrimary,
-        ),
-        ),
-        backgroundColor: Colors.green,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 1),
-        shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12.h),
-        ),
-        ),
-        );
+          /// Show success toast/snackbar
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  "أصبح حسابك الأن قيد المراجعه",
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: cs.onPrimary,
+                  ),
+                ),
+                backgroundColor: Colors.green,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.h),
+                ),
+              ),
+            );
 
-        /// Wait 1 second then navigate
-        Future.delayed(const Duration(seconds: 1));
+          /// Wait 1 second then navigate
+          Future.delayed(const Duration(seconds: 1));
 
-        if (!context.mounted) return;
+          if (!context.mounted) return;
 
-        Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-        builder: (_) => const AccountTypeScreen(),
-        ),
-        (route) => false,
-        );
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => const AccountTypeScreen(),
+            ),
+            (route) => false,
+          );
         }
 
         if (state is UpdateLicenceError) {
@@ -292,157 +294,201 @@ class _LawyerUpdateLicenceScreenState
           body: SafeArea(
             child: Form(
               key: _formKey,
-              child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 16.h),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Gap(30.h),
-
-                    // ── National ID ─────────────────────────────────────────
-                    _FieldLabel(
-                      'رقم الهوية',
-                      requiredMark: true,
-                      labelStyle: _labelStyle(context),
-                      starStyle: _labelStarStyle,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(16.0.w),
+                    child: Container(
+                      width: double.maxFinite,
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: Colors.orange.shade100, width: 1.2),
+                        color: Colors.orange.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8.h),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            Icon(Icons.info_outline_rounded , color: Colors.orange,size:30.sp,) ,
+                            Gap(5.w) ,
+                            Expanded(
+                              child: Text(
+                                "تعديل الرخصة يعيدها للمراجعة، وعند انتهائها يُخفى المحامي حتى التحديث.",
+                                textAlign: TextAlign.center,
+                                style: getMediumBlack16Style().copyWith(color: Colors.orange),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                    Gap(8.h),
-                    _buildTextField(
-                      controller: _idController,
-                      hint: 'أدخل رقم الهوية',
-                      icon: 'assets/icons/user_id.svg',
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'من فضلك أدخل رقم الهوية'
-                          : null,
-                      inputType: TextInputType.number,
-                    ),
-                    Gap(20.h),
-
-                    // ── License number ──────────────────────────────────────
-                    _FieldLabel(
-                      'رقم الترخيص',
-                      requiredMark: true,
-                      labelStyle: _labelStyle(context),
-                      starStyle: _labelStarStyle,
-                    ),
-                    Gap(8.h),
-                    _buildTextField(
-                      controller: _licenseController,
-                      hint: 'أدخل رقم الترخيص',
-                      icon: 'assets/icons/user_id.svg',
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'من فضلك أدخل رقم الترخيص'
-                          : null,
-                      inputType: TextInputType.number,
-                    ),
-                    Gap(20.h),
-
-                    // ── License expiry date ────────────────────────────────
-                    _FieldLabel(
-                      'تاريخ انتهاء الرخصة',
-                      requiredMark: true,
-                      labelStyle: _labelStyle(context),
-                      starStyle: _labelStarStyle,
-                    ),
-                    Gap(8.h),
-                    _buildDatePickerField(),
-                    Gap(20.h),
-
-                    // ── Commercial reg number ───────────────────────────────
-                    _FieldLabel(
-                      'رقم السجل التجاري',
-                      requiredMark: true,
-                      labelStyle: _labelStyle(context),
-                      starStyle: _labelStarStyle,
-                    ),
-                    Gap(8.h),
-                    _buildTextField(
-                      controller: _commercialController,
-                      hint: 'أدخل رقم السجل التجاري',
-                      icon: 'assets/icons/City.svg',
-                      validator: (v) => (v == null || v.isEmpty)
-                          ? 'من فضلك أدخل رقم السجل التجاري'
-                          : null,
-                      inputType: TextInputType.number,
-                    ),
-                    Gap(28.h),
-
-                    // ── Upload section label ────────────────────────────────
-                    _FieldLabel(
-                      'يرجى إرفاق الصور المطلوبة',
-                      requiredMark: true,
-                      labelStyle: _labelStyle(context),
-                      starStyle: _labelStarStyle,
-                    ),
-                    Gap(8.h),
-                    Padding(
-                      padding: EdgeInsets.only(right: 8.w),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 16.h),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text('• صورة الهوية',
-                              style: theme.textTheme.bodyMedium),
-                          Text('• صورة الترخيص',
-                              style: theme.textTheme.bodyMedium),
-                          Text('• صورة السجل التجاري',
-                              style: theme.textTheme.bodyMedium),
+                          // ── National ID ─────────────────────────────────────────
+                          _FieldLabel(
+                            'رقم الهوية',
+                            requiredMark: true,
+                            labelStyle: _labelStyle(context),
+                            starStyle: _labelStarStyle,
+                          ),
+                          Gap(8.h),
+                          _buildTextField(
+                            controller: _idController,
+                            hint: 'أدخل رقم الهوية',
+                            icon: 'assets/icons/user_id.svg',
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'من فضلك أدخل رقم الهوية'
+                                : null,
+                            inputType: TextInputType.number,
+                          ),
+                          Gap(20.h),
+
+                          // ── License number ──────────────────────────────────────
+                          _FieldLabel(
+                            'رقم الترخيص',
+                            requiredMark: true,
+                            labelStyle: _labelStyle(context),
+                            starStyle: _labelStarStyle,
+                          ),
+                          Gap(8.h),
+                          _buildTextField(
+                            controller: _licenseController,
+                            hint: 'أدخل رقم الترخيص',
+                            icon: 'assets/icons/user_id.svg',
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'من فضلك أدخل رقم الترخيص'
+                                : null,
+                            inputType: TextInputType.number,
+                          ),
+                          Gap(20.h),
+
+                          // ── License expiry date ────────────────────────────────
+                          _FieldLabel(
+                            'تاريخ انتهاء الرخصة',
+                            requiredMark: true,
+                            labelStyle: _labelStyle(context),
+                            starStyle: _labelStarStyle,
+                          ),
+                          Gap(8.h),
+                          _buildDatePickerField(),
+                          Gap(20.h),
+
+                          // ── Commercial reg number ───────────────────────────────
+                          _FieldLabel(
+                            'رقم السجل التجاري',
+                            requiredMark: true,
+                            labelStyle: _labelStyle(context),
+                            starStyle: _labelStarStyle,
+                          ),
+                          Gap(8.h),
+                          _buildTextField(
+                            controller: _commercialController,
+                            hint: 'أدخل رقم السجل التجاري',
+                            icon: 'assets/icons/City.svg',
+                            validator: (v) => (v == null || v.isEmpty)
+                                ? 'من فضلك أدخل رقم السجل التجاري'
+                                : null,
+                            inputType: TextInputType.number,
+                          ),
+                          Gap(28.h),
+
+                          // ── Upload section label ────────────────────────────────
+                          _FieldLabel(
+                            'يرجى إرفاق الصور المطلوبة',
+                            requiredMark: true,
+                            labelStyle: _labelStyle(context),
+                            starStyle: _labelStarStyle,
+                          ),
+                          Gap(8.h),
+                          Padding(
+                            padding: EdgeInsets.only(right: 8.w),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('• صورة الهوية',
+                                    style: theme.textTheme.bodyMedium),
+                                Text('• صورة الترخيص',
+                                    style: theme.textTheme.bodyMedium),
+                                Text('• صورة السجل التجاري',
+                                    style: theme.textTheme.bodyMedium),
+                              ],
+                            ),
+                          ),
+                          Gap(16.h),
+
+                          // ── Upload cards ────────────────────────────────────────
+                          AppDottedBorder(
+                            child: Padding(
+                              padding:  EdgeInsets.all(10.0.w),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: _UploadCard(
+                                      label: 'الهوية',
+                                      localFile: _fileFor(_DocType.nationalId),
+                                      networkUrl:
+                                          _networkUrlFor(_DocType.nationalId),
+                                      onPick: () =>
+                                          _pickImage(type: _DocType.nationalId),
+                                      onRemove: () =>
+                                          _removeFile(_DocType.nationalId),
+                                    ),
+                                  ),
+                                  Gap(20.w),
+                                  Expanded(
+                                    child: _UploadCard(
+                                      label: 'الترخيص',
+                                      localFile: _fileFor(_DocType.license),
+                                      networkUrl: _networkUrlFor(_DocType.license),
+                                      onPick: () =>
+                                          _pickImage(type: _DocType.license),
+                                      onRemove: () => _removeFile(_DocType.license),
+                                    ),
+                                  ),
+                                  Gap(20.w),
+                                  Expanded(
+                                    child: _UploadCard(
+                                      label: 'السجل',
+                                      localFile: _fileFor(_DocType.commercial),
+                                      networkUrl:
+                                          _networkUrlFor(_DocType.commercial),
+                                      onPick: () =>
+                                          _pickImage(type: _DocType.commercial),
+                                      onRemove: () =>
+                                          _removeFile(_DocType.commercial),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Gap(30.h),
                         ],
                       ),
                     ),
-                    Gap(16.h),
-
-                    // ── Upload cards ────────────────────────────────────────
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _UploadCard(
-                            label: 'الهوية',
-                            localFile: _fileFor(_DocType.nationalId),
-                            networkUrl: _networkUrlFor(_DocType.nationalId),
-                            onPick: () => _pickImage(type: _DocType.nationalId),
-                            onRemove: () => _removeFile(_DocType.nationalId),
-                          ),
-                        ),
-                        Gap(20.w),
-                        Expanded(
-                          child: _UploadCard(
-                            label: 'الترخيص',
-                            localFile: _fileFor(_DocType.license),
-                            networkUrl: _networkUrlFor(_DocType.license),
-                            onPick: () => _pickImage(type: _DocType.license),
-                            onRemove: () => _removeFile(_DocType.license),
-                          ),
-                        ),
-                        Gap(20.w),
-                        Expanded(
-                          child: _UploadCard(
-                            label: 'السجل',
-                            localFile: _fileFor(_DocType.commercial),
-                            networkUrl: _networkUrlFor(_DocType.commercial),
-                            onPick: () => _pickImage(type: _DocType.commercial),
-                            onRemove: () => _removeFile(_DocType.commercial),
-                          ),
-                        ),
-                      ],
-                    ),
-                    Gap(30.h),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
 
           // ── Save Button ───────────────────────────────────────────────────
           bottomNavigationBar:
-          BlocBuilder<LawyerProfileCubit, LawyerProfileState>(
+              BlocBuilder<LawyerProfileCubit, LawyerProfileState>(
             buildWhen: (p, c) =>
-            c is UpdateLicenceLoading ||
+                c is UpdateLicenceLoading ||
                 c is UpdateLicenceSuccess ||
                 c is UpdateLicenceError,
             builder: (context, state) {
               final isLoading = state is UpdateLicenceLoading;
               return Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w , vertical: 6.h),
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
                 child: AppButton(
                   title: isLoading ? '' : 'حفظ',
                   isLoading: isLoading,
@@ -494,8 +540,7 @@ class _LawyerUpdateLicenceScreenState
           colorBorer: cs.outline,
           colorIcon: cs.onSurface,
         ),
-        contentPadding:
-        EdgeInsets.symmetric(horizontal: 14.w, vertical: 18.h),
+        contentPadding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 18.h),
       ),
     );
   }
@@ -508,12 +553,14 @@ class _LawyerUpdateLicenceScreenState
         ? '${_expiryDate!.day}/${_expiryDate!.month}/${_expiryDate!.year}'
         : '';
 
-    return DatePickerField(label: "", value: _expiryDate, onSelect:(date)
-    {
-      if (date != null) {
-        setState(() => _expiryDate = date);
-      }
-    } );
+    return DatePickerField(
+        label: "",
+        value: _expiryDate,
+        onSelect: (date) {
+          if (date != null) {
+            setState(() => _expiryDate = date);
+          }
+        });
   }
 }
 
@@ -572,13 +619,11 @@ class _UploadCard extends StatelessWidget {
                   color: _hasImage ? cs.primary : theme.dividerColor,
                   width: _hasImage ? 1.5 : 1,
                 ),
-                color: _hasImage
-                    ? cs.primary.withOpacity(0.04)
-                    : cs.onPrimary,
+                color: _hasImage ? cs.primary.withOpacity(0.04) : cs.onPrimary,
               ),
               child: _hasImage
-                ? _ImageContent(localFile: localFile, networkUrl: networkUrl)
-                : _EmptyContent(label: label, cs: cs, theme: theme),
+                  ? _ImageContent(localFile: localFile, networkUrl: networkUrl)
+                  : _EmptyContent(label: label, cs: cs, theme: theme),
             ),
           ),
 
@@ -587,32 +632,21 @@ class _UploadCard extends StatelessWidget {
           Positioned(
             top: -6.h,
             right: -6.w,
-
             child: Material(
               color: Colors.transparent,
-
               child: InkWell(
                 borderRadius: BorderRadius.circular(100.h),
-
                 onTap: onPick,
-
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 220),
-
                   padding: EdgeInsets.all(5.w),
-
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-
-                    color: _hasImage
-                        ? cs.primary
-                        : cs.surfaceContainerHighest,
-
+                    color: _hasImage ? cs.primary : cs.surfaceContainerHighest,
                     border: Border.all(
                       color: Colors.white,
                       width: 1.5,
                     ),
-
                     boxShadow: [
                       BoxShadow(
                         blurRadius: 10,
@@ -621,16 +655,9 @@ class _UploadCard extends StatelessWidget {
                       ),
                     ],
                   ),
-
                   child: Icon(
-                    _hasImage
-                        ? Icons.edit_rounded
-                        : Icons.add_rounded,
-
-                    color: _hasImage
-                        ? Colors.white
-                        : cs.primary,
-
+                    _hasImage ? Icons.edit_rounded : Icons.add_rounded,
+                    color: _hasImage ? Colors.white : cs.primary,
                     size: 16.sp,
                   ),
                 ),
@@ -670,7 +697,8 @@ class _ImageContent extends StatelessWidget {
     // Validate and construct complete URL if needed
     String? validUrl;
     if (networkUrl != null && networkUrl!.isNotEmpty) {
-      if (networkUrl!.startsWith('http://') || networkUrl!.startsWith('https://')) {
+      if (networkUrl!.startsWith('http://') ||
+          networkUrl!.startsWith('https://')) {
         validUrl = networkUrl;
       } else {
         // Relative path - prepend baseImgUrl
@@ -687,14 +715,13 @@ class _ImageContent extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.broken_image_outlined,
-                size: 28.sp,
-                color: cs.error.withOpacity(0.6)),
+                size: 28.sp, color: cs.error.withOpacity(0.6)),
             Gap(4.h),
             Text(
               'لا توجد صورة',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: cs.error.withOpacity(0.7),
-              ),
+                    color: cs.error.withOpacity(0.7),
+                  ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -725,7 +752,7 @@ class _ImageContent extends StatelessWidget {
                   color: cs.primary,
                   value: loadingProgress.expectedTotalBytes != null
                       ? loadingProgress.cumulativeBytesLoaded /
-                      loadingProgress.expectedTotalBytes!
+                          loadingProgress.expectedTotalBytes!
                       : null,
                 ),
               ),
@@ -741,14 +768,13 @@ class _ImageContent extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.broken_image_outlined,
-                    size: 28.sp,
-                    color: cs.error.withOpacity(0.6)),
+                    size: 28.sp, color: cs.error.withOpacity(0.6)),
                 Gap(4.h),
                 Text(
                   'تعذّر التحميل',
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: cs.error.withOpacity(0.7),
-                  ),
+                        color: cs.error.withOpacity(0.7),
+                      ),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -811,11 +837,11 @@ class _FieldLabel extends StatelessWidget {
   final TextStyle starStyle;
 
   const _FieldLabel(
-      this.text, {
-        this.requiredMark = false,
-        required this.labelStyle,
-        required this.starStyle,
-      });
+    this.text, {
+    this.requiredMark = false,
+    required this.labelStyle,
+    required this.starStyle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -827,11 +853,11 @@ class _FieldLabel extends StatelessWidget {
         style: labelStyle,
         children: requiredMark
             ? [
-          TextSpan(
-            text: '  *',
-            style: starStyle.copyWith(color: theme.colorScheme.error),
-          )
-        ]
+                TextSpan(
+                  text: '  *',
+                  style: starStyle.copyWith(color: theme.colorScheme.error),
+                )
+              ]
             : const [],
       ),
     );
