@@ -1,10 +1,17 @@
-import 'package:flutter/material.dart';
-import 'package:rasikh/core/utils/get_asset_path.dart';
+// ─────────────────────────────────────────────────────────────────────────────
+// choose_lawyer_method_dialog.dart
+// UI unchanged — now triggers cubit to load recommended/all lawyers
+// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:size_config/size_config.dart';
 
-import '../../../../config/navigation/nav.dart';
-import '../../../../core/widgets/picture.dart' show Picture;
+import '../../../../../config/navigation/nav.dart';
+import '../../../../../core/widgets/picture.dart';
+
+import '../bloc/consulation_application_cubit.dart';
 
 class ChooseLawyerMethodDialog extends StatefulWidget {
   const ChooseLawyerMethodDialog({super.key});
@@ -14,8 +21,9 @@ class ChooseLawyerMethodDialog extends StatefulWidget {
       _ChooseLawyerMethodDialogState();
 }
 
-class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
-  String selectedOption = 'recommend'; // 'recommend' or 'choose'
+class _ChooseLawyerMethodDialogState
+    extends State<ChooseLawyerMethodDialog> {
+  String selectedOption = 'recommend'; // 'recommend' | 'choose'
 
   @override
   Widget build(BuildContext context) {
@@ -32,11 +40,10 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // -------- Header --------
+            // ── Header ──────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-
                 Text(
                   'اختيار أسلوب تعيين المحامي',
                   style: theme.textTheme.titleMedium?.copyWith(
@@ -53,8 +60,7 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
                       color: theme.dividerColor.withOpacity(.2),
                       border: Border.all(
                         color: theme.dividerColor.withOpacity(.2),
-                        width: 1
-                        ,
+                        width: 1,
                       ),
                     ),
                     child: Icon(Icons.close, color: theme.hintColor),
@@ -65,7 +71,7 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
 
             SizedBox(height: 20.h),
 
-            // -------- Options Row --------
+            // ── Options row ──────────────────────────────────────────
             Row(
               children: [
                 Expanded(
@@ -90,7 +96,7 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
 
             SizedBox(height: 24.h),
 
-            // -------- Next Button --------
+            // ── Next button ──────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               height: 48.h,
@@ -102,9 +108,20 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
                   ),
                 ),
                 onPressed: () {
-                  // Handle continue action
-                  Navigator.pop(context, selectedOption);
-                  Nav.chooseLawyerScreen(context) ; 
+                  Navigator.pop(context);
+
+                  final cubit = context.read<ConsultationCubit>();
+
+                  if (selectedOption == 'recommend') {
+                    // Fetch recommended and navigate; choose screen shows
+                    // recommended tab by default
+                    cubit.loadRecommendedLawyer();
+                  } else {
+                    // Load full lawyers list
+                    cubit.loadLawyers();
+                  }
+
+                  Nav.chooseLawyerScreen(context);
                 },
                 child: Text(
                   'التالي',
@@ -121,10 +138,12 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
     );
   }
 
+  // ── Option card ────────────────────────────────────────────────────────────
+
   Widget _buildOptionCard(
       BuildContext context, {
         required String title,
-        required String  icon,
+        required String icon,
         required String value,
       }) {
     final theme = Theme.of(context);
@@ -139,10 +158,10 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12.h),
           border: Border.all(
-            color: isSelected ? colorScheme.primary : theme.dividerColor,
+            color:
+            isSelected ? colorScheme.primary : theme.dividerColor,
             width: 1.4,
           ),
-
         ),
         child: Column(
           children: [
@@ -155,10 +174,14 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: isSelected ? colorScheme.primary : theme.dividerColor,
+                      color: isSelected
+                          ? colorScheme.primary
+                          : theme.dividerColor,
                       width: 1.5,
                     ),
-                    color: isSelected ? colorScheme.primary : Colors.transparent,
+                    color: isSelected
+                        ? colorScheme.primary
+                        : Colors.transparent,
                   ),
                 ),
               ],
@@ -167,29 +190,36 @@ class _ChooseLawyerMethodDialogState extends State<ChooseLawyerMethodDialog> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color:  isSelected ? colorScheme.primary : theme.dividerColor,
+                  color: isSelected
+                      ? colorScheme.primary
+                      : theme.dividerColor,
                   width: 1.5,
                 ),
-
               ),
               child: Padding(
-                padding:  EdgeInsets.all(10.0.h),
-                child: Picture(getAssetIcon(icon),
-                    color: isSelected ? colorScheme.primary : theme.hintColor,
-                    height: 28.h , width: 28.h,),
+                padding: EdgeInsets.all(10.0.h),
+                child: Picture(
+                  getAssetIcon(icon),
+                  color: isSelected
+                      ? colorScheme.primary
+                      : theme.hintColor,
+                  height: 28.h,
+                  width: 28.h,
+                ),
               ),
             ),
             SizedBox(height: 20.h),
             Text(
               title,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: isSelected ? colorScheme.primary : theme.colorScheme.onSurface,
+                color: isSelected
+                    ? colorScheme.primary
+                    : theme.colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
             ),
             SizedBox(height: 8.h),
-
           ],
         ),
       ),

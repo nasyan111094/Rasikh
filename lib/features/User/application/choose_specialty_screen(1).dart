@@ -1,12 +1,29 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// choose_specialty_screen.dart  (Step 1)
+// Changes:
+//  • Shimmer loading skeleton instead of CircularProgressIndicator
+//  • Pull-to-refresh via RefreshIndicator
+//  • API now calls /specializations/active (handled in cubit/repo)
+//  • ✅ Auto-select parent when sub is chosen
+//  • ✅ Sub-specializations from other parents are cleared on new selection
+//  • ✅ Specializations without sub-specializations are hidden
+// ─────────────────────────────────────────────────────────────────────────────
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/picture.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../config/navigation/nav.dart';
 import '../../../core/widgets/auth_stepper.dart';
+import 'bloc/consulation_application_cubit.dart';
+import 'bloc/consulation_application_state.dart';
+import 'models/consultation_model.dart'
+    show SubSpecializationModel, SpecializationModel;
 
 class ChooseSpecialtyScreen extends StatefulWidget {
   const ChooseSpecialtyScreen({Key? key}) : super(key: key);
@@ -16,68 +33,28 @@ class ChooseSpecialtyScreen extends StatefulWidget {
 }
 
 class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
-  // -------------------------------
-  // 🔹 Data
-  // -------------------------------
-  String? selectedMainCategory;
-  final Set<String> selectedSubcategories = {};
   final TextEditingController searchController = TextEditingController();
-
   final List<String> quickFilters = ['تنفيذ', 'تجارية', 'أحوال', 'مرورية'];
 
-  final List<Map<String, dynamic>> mainCategories = [
-    {
-      'title': 'قضايا تجارية',
-      'description':
-      'قضايا تجارية، نزاعات ومعاملات الشركات والتجارة وحماية الحقوق التجارية.',
-      'icon': Icons.business_center_rounded,
-      'subcategories': [
-        'إثبات شراكة',
-        'نزاعات شراكة',
-        'بيع شراء',
-        'مقاولات',
-        'سمسرة',
-        'تقسيط',
-        'استيراد',
-        'نقل',
-        'وكالة تجارية',
-      ],
-    },
-    {
-      'title': 'حقوق عامة',
-      'description':
-      'قضايا تتعلق بالحقوق العامة والعلاقات القانونية بين الأفراد والجهات العامة.',
-      'icon': Icons.gavel_rounded,
-      'subcategories': [
-        'مطالبات مالية',
-        'تعويضات',
-        'عقود مدنية',
-        'ملكية فكرية',
-      ],
-    },
-  ];
-
-  // -------------------------------
-  // 🔹 Computed
-  // -------------------------------
-  bool get canProceed =>
-      selectedMainCategory != null && selectedSubcategories.isNotEmpty;
-
-  List<Map<String, dynamic>> get filteredCategories {
-    final query = searchController.text.trim();
-    if (query.isEmpty) return mainCategories;
-
-    return mainCategories
-        .where((cat) =>
-    cat['title'].toString().contains(query) ||
-        (cat['subcategories'] as List<String>)
-            .any((s) => s.contains(query)))
-        .toList();
+  @override
+  void initState() {
+    super.initState();
+    context.read<ConsultationCubit>().loadSpecializations();
   }
 
-  // -------------------------------
-  // 🔹 UI
-  // -------------------------------
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onRefresh() async {
+    await context.read<ConsultationCubit>().loadSpecializations(
+      search:
+      searchController.text.isEmpty ? null : searchController.text,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -86,39 +63,114 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: GeneralAppBar(title: "إختر التخصص"),
-        body: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: [
-              AuthStepperWidget( activeStep: 1, totalSteps: 5,)   ,
-              Gap(40.h) ,
-              _buildSearchBar(theme),
-              const Gap(10),
-              Row(
+        body: BlocBuilder<ConsultationCubit, ConsultationState>(
+          builder: (context, state) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
                 children: [
-                  _buildQuickFilters(),
+                  AuthStepperWidget(activeStep: 1, totalSteps: 5),
+                  Gap(40.h),
+                  _buildSearchBar(theme, state),
+                  const Gap(10),
+                  Row(children: [_buildQuickFilters()]),
+                  const Gap(10),
+                  Expanded(
+                    child: RefreshIndicator(
+                      onRefresh: _onRefresh,
+                      child: _buildBody(theme, state),
+                    ),
+                  ),
+                  const Gap(12),
+                  _buildNextButton(theme, state),
+                  const Gap(12),
                 ],
               ),
-              const Gap(10),
-              Expanded(child: _buildCategoryList(theme)),
-              const Gap(12),
-              _buildNextButton(theme),
-              const Gap(12),
-            ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  // ── Body ──────────────────────────────────────────────────────────────────
+
+  Widget _buildBody(ThemeData theme, ConsultationState state) {
+    switch (state.specializationsStatus) {
+      case ConsultationStatus.loading:
+        return _buildShimmer(theme);
+
+      case ConsultationStatus.failure:
+        return ListView(
+          children: [
+            SizedBox(height: 80.h),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline,
+                      color: theme.colorScheme.error, size: 48),
+                  Gap(12.h),
+                  Text(
+                    state.specializationsError ?? 'حدث خطأ ما',
+                    style: theme.textTheme.bodyMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  Gap(16.h),
+                  ElevatedButton(
+                    onPressed: () =>
+                        context.read<ConsultationCubit>().loadSpecializations(),
+                    child: const Text('إعادة المحاولة'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+
+      default:
+        return _buildCategoryList(theme, state);
+    }
+  }
+
+  // ── Shimmer skeleton ──────────────────────────────────────────────────────
+
+  Widget _buildShimmer(ThemeData theme) {
+    final baseColor = theme.brightness == Brightness.light
+        ? Colors.grey.shade300
+        : Colors.grey.shade700;
+    final highlightColor = theme.brightness == Brightness.light
+        ? Colors.grey.shade100
+        : Colors.grey.shade600;
+
+    return Shimmer.fromColors(
+      baseColor: baseColor,
+      highlightColor: highlightColor,
+      child: ListView.builder(
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 5,
+        itemBuilder: (_, __) => Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          height: 80.h,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
           ),
         ),
       ),
     );
   }
 
-  // -------------------------------
-  // 🔹 Widgets
-  // -------------------------------
+  // ── Search bar ────────────────────────────────────────────────────────────
 
-  Widget _buildSearchBar(ThemeData theme) {
+  Widget _buildSearchBar(ThemeData theme, ConsultationState state) {
     return TextField(
       controller: searchController,
-      onChanged: (_) => setState(() {}),
+      onChanged: (value) {
+        context
+            .read<ConsultationCubit>()
+            .loadSpecializations(search: value.isEmpty ? null : value);
+      },
       decoration: InputDecoration(
         hintText: 'ادخل كلمة مفتاحية مثل تنفيذ أو أموال ...',
         prefixIcon: const Icon(Icons.search_rounded),
@@ -129,6 +181,8 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
     );
   }
 
+  // ── Quick filters ─────────────────────────────────────────────────────────
+
   Widget _buildQuickFilters() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -137,211 +191,111 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
         children: quickFilters
             .map((f) => Padding(
           padding: const EdgeInsets.only(left: 8),
-          child:GestureDetector(
+          child: GestureDetector(
             onTap: () {
-              setState(() {
-                searchController.text = f;
-              });
+              searchController.text = f;
+              context
+                  .read<ConsultationCubit>()
+                  .loadSpecializations(search: f);
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.transparent, // 🔹 fully transparent background
-                borderRadius: BorderRadius.circular(40), // 🔹 pill shape
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(40),
                 border: Border.all(
-                  color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withOpacity(0.4),
                   width: 1.2,
                 ),
               ),
               child: Text(
                 f,
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                style:
+                Theme.of(context).textTheme.labelLarge?.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: Theme.of(context).colorScheme.onSurface,
+                  color: Theme.of(context)
+                      .colorScheme
+                      .onSurface,
                 ),
               ),
             ),
-          )
-
-
-          ,
+          ),
         ))
             .toList(),
       ),
     );
   }
 
-  Widget _buildCategoryList(ThemeData theme) {
-    if (filteredCategories.isEmpty) {
-      return Center(
-        child: Text(
-          'لم يتم العثور على نتائج',
-          style: theme.textTheme.bodyMedium,
-        ),
+  // ── Category list ─────────────────────────────────────────────────────────
+
+  Widget _buildCategoryList(ThemeData theme, ConsultationState state) {
+    // ✅ Show only specializations that have sub-specializations
+    final items = state.specializations
+        .where((s) => s.subSpecializations.isNotEmpty)
+        .toList();
+
+    if (items.isEmpty) {
+      return ListView(
+        children: [
+          SizedBox(height: 80.h),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.search_off, size: 48, color: theme.hintColor),
+                Gap(12.h),
+                Text(
+                  'لم يتم العثور على نتائج',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.hintColor),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
     }
 
     return ListView.builder(
-      itemCount: filteredCategories.length,
+      itemCount: items.length,
       itemBuilder: (context, index) {
-        final category = filteredCategories[index];
-        final title = category['title'] as String;
-        final isExpanded = selectedMainCategory == title;
-        final subcategories = category['subcategories'] as List<String>;
+        final spec = items[index];
+        final isExpanded = state.selectedSpecialization?.id == spec.id;
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isExpanded
-                  ? theme.colorScheme.primary.withOpacity(0.6)
-                  : theme.dividerColor.withOpacity(0.3),
-            ),
-          ),
-          child: Theme(
-            data: theme.copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              key: PageStorageKey(title),
-              initiallyExpanded: isExpanded,
-              onExpansionChanged: (expanded) {
-                setState(() {
-                  selectedMainCategory = expanded ? title : null;
-                  if (!expanded) selectedSubcategories.clear();
-                });
-              },
-
-              trailing: Radio<String>(
-              value: title,
-              groupValue: selectedMainCategory,
-              onChanged: (v) {
-                setState(() {
-                  selectedMainCategory = v;
-                  selectedSubcategories.clear();
-                });
-              },
-            ),
-              title: Row(
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(5.h),
-                      decoration: BoxDecoration(border: Border.all(color: isExpanded
-                          ? theme.colorScheme.primary.withOpacity(0.6)
-                          : theme.dividerColor,) , shape: BoxShape.circle),
-                      child: Picture(getAssetIcon("chat.svg" ) , width: 40.h,height: 40.h,color: isExpanded
-                          ? theme.colorScheme.primary.withOpacity(0.6)
-                          : theme.dividerColor,)) ,
-                  const Gap(6),
-                  Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: isExpanded
-                          ? theme.colorScheme.primary
-                          : theme.textTheme.titleMedium?.color,
-                    ),
-                  ),
-                ],
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: Text(
-                  category['description'],
-                  style:
-                  theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
-                ),
-              ),
-              children: [
-                if (subcategories.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Gap(8),
-                        Text(
-                          'اختر التخصص الفرعي',
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        Text(
-                          'يمكنك اختيار أكثر من تخصص إذا لزم الأمر.',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: theme.hintColor),
-                        ),
-                        const Gap(8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: subcategories.map((sub) {
-                            final selected =
-                            selectedSubcategories.contains(sub);
-                            return GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  if (selected) {
-                                    selectedSubcategories.remove(sub);
-                                  } else {
-                                    selectedSubcategories.add(sub);
-                                  }
-                                });
-                              },
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                curve: Curves.easeInOut,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: selected
-                                      ? theme.colorScheme.primary.withOpacity(0.15)
-                                      : Colors.transparent, // background transparent when not selected
-                                  borderRadius: BorderRadius.circular(30),
-                                  border: Border.all(
-                                    color: selected
-                                        ? theme.colorScheme.primary.withOpacity(0.6)
-                                        : theme.dividerColor.withOpacity(0.3),
-                                    width: 1.2,
-                                  ),
-                                ),
-                                child: Text(
-                                  sub,
-                                  style: theme.textTheme.labelLarge?.copyWith(
-                                    color: selected
-                                        ? theme.colorScheme.primary
-                                        : theme.colorScheme.onSurface,
-                                    fontWeight:
-                                    selected ? FontWeight.bold : FontWeight.normal,
-                                  ),
-                                ),
-                              ),
-                            )
-                            ;
-                          }).toList(),
-                        ),
-                        const Gap(12),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
+        return _SpecializationTile(
+          spec: spec,
+          isExpanded: isExpanded,
+          selectedSubIds: state.selectedSubSpecializations
+              .map((s) => s.id)
+              .toSet(),
+          // ✅ Only show selected subs when this IS the selected parent
+          isActiveParent: state.selectedSpecialization?.id == spec.id,
+          onToggleMain: (expanded) {
+            context.read<ConsultationCubit>().selectSpecialization(spec);
+          },
+          onToggleSub: (sub) => context
+              .read<ConsultationCubit>()
+          // ✅ Pass parentSpec so the cubit knows which parent owns this sub
+              .toggleSubSpecialization(sub as SubSpecializationModel),
         );
       },
     );
   }
 
-  Widget _buildNextButton(ThemeData theme) {
+  // ── Next button ───────────────────────────────────────────────────────────
+
+  Widget _buildNextButton(ThemeData theme, ConsultationState state) {
     return SizedBox(
-      width: double.infinity, // 🔹 full-width button
+      width: double.infinity,
       child: ElevatedButton(
-        onPressed: canProceed
-            ? () {
-           Nav.selectConsulationType(context) ;
-        }
+        onPressed: state.canProceedFromSpecialty
+            ? () => Nav.selectConsulationType(context)
             : null,
         style: ButtonStyle(
-          // ✅ Use the current theme colors dynamically
           backgroundColor: WidgetStateProperty.resolveWith<Color?>(
                 (states) {
               if (states.contains(WidgetState.disabled)) {
@@ -351,18 +305,15 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
               return theme.colorScheme.primary;
             },
           ),
-          foregroundColor: WidgetStateProperty.all(
-            theme.colorScheme.onPrimary,
-          ),
+          foregroundColor:
+          WidgetStateProperty.all(theme.colorScheme.onPrimary),
           padding: WidgetStateProperty.all(
-            const EdgeInsets.symmetric(vertical: 14),
-          ),
+              const EdgeInsets.symmetric(vertical: 14)),
           shape: WidgetStateProperty.all(
             RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+                borderRadius: BorderRadius.circular(14)),
           ),
-          elevation: WidgetStateProperty.all(0), // flat modern look
+          elevation: WidgetStateProperty.all(0),
         ),
         child: Text(
           'التالي',
@@ -374,5 +325,163 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
       ),
     );
   }
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Private tile widget
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SpecializationTile extends StatelessWidget {
+  final SpecializationModel spec;
+  final bool isExpanded;
+  final Set<String> selectedSubIds;
+
+  /// ✅ True only when this tile's parent is the currently selected parent.
+  /// Used to prevent showing sub-selections from a different parent visually.
+  final bool isActiveParent;
+
+  final void Function(bool expanded) onToggleMain;
+  final void Function(SubSpecializationModel sub) onToggleSub;
+
+  const _SpecializationTile({
+    required this.spec,
+    required this.isExpanded,
+    required this.selectedSubIds,
+    required this.isActiveParent,
+    required this.onToggleMain,
+    required this.onToggleSub,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isExpanded
+              ? theme.colorScheme.primary.withOpacity(0.6)
+              : theme.dividerColor.withOpacity(0.3),
+        ),
+      ),
+      child: Theme(
+        data: theme.copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          key: PageStorageKey(spec.id),
+          initiallyExpanded: isExpanded,
+          onExpansionChanged: onToggleMain,
+          trailing: Radio<String>(
+            value: spec.id,
+            // ✅ Only mark as selected when this is the active parent
+            groupValue: isActiveParent ? spec.id : null,
+            onChanged: (_) => onToggleMain(true),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: EdgeInsets.all(5.h),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: isExpanded
+                        ? theme.colorScheme.primary.withOpacity(0.6)
+                        : theme.dividerColor,
+                  ),
+                  shape: BoxShape.circle,
+                ),
+                child: Picture(
+                  getAssetIcon("chat.svg"),
+                  width: 40.h,
+                  height: 40.h,
+                  color: isExpanded
+                      ? theme.colorScheme.primary.withOpacity(0.6)
+                      : theme.dividerColor,
+                ),
+              ),
+              const Gap(6),
+              Text(
+                spec.name,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isExpanded
+                      ? theme.colorScheme.primary
+                      : theme.textTheme.titleMedium?.color,
+                ),
+              ),
+            ],
+          ),
+          children: [
+            // spec.subSpecializations is always non-empty here because we
+            // filtered at the list level, but we keep the guard for safety.
+            if (spec.subSpecializations.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Gap(8),
+                    Text(
+                      'اختر التخصص الفرعي',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      'يمكنك اختيار أكثر من تخصص إذا لزم الأمر.',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.hintColor),
+                    ),
+                    const Gap(8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: spec.subSpecializations.map((sub) {
+                        // ✅ Only highlight subs if this is the active parent
+                        final selected =
+                            isActiveParent && selectedSubIds.contains(sub.id);
+                        return GestureDetector(
+                          onTap: () => onToggleSub(sub),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            curve: Curves.easeInOut,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                            margin: const EdgeInsets.symmetric(
+                                horizontal: 4, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? theme.colorScheme.primary.withOpacity(0.15)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(30),
+                              border: Border.all(
+                                color: selected
+                                    ? theme.colorScheme.primary.withOpacity(0.6)
+                                    : theme.dividerColor.withOpacity(0.3),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Text(
+                              sub.name,
+                              style: theme.textTheme.labelLarge?.copyWith(
+                                color: selected
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurface,
+                                fontWeight: selected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const Gap(12),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

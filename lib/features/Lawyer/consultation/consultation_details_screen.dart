@@ -1,14 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // features/Lawyer/consultation/consultation_details_screen.dart
-//
-// pubspec.yaml — add:
-//   dependencies:
-//     audioplayers: ^6.1.0
-//
-// Android — android/app/src/main/AndroidManifest.xml, inside <manifest>:
-//   <uses-permission android:name="android.permission.INTERNET"/>
-//
-// iOS — no extra Info.plist keys needed for network audio.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
@@ -22,6 +13,7 @@ import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/features/Lawyer/consultation/widgets/consultation_shimmer.dart';
 import 'package:size_config/size_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/widgets/general_divider.dart';
 import '../../../../core/widgets/gradiant_button.dart';
@@ -30,7 +22,6 @@ import 'Bloc/consultation_details_cubit.dart';
 import 'Bloc/consultations_states.dart';
 import 'models/consultation_model.dart';
 
-/// Base server URL — update if your backend address changes.
 const String _kBaseUrl = 'http://89.117.60.202:3050';
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -72,7 +63,6 @@ class _LawyerConsultationDetailsScreenState
                 _DetailsAppBar(onBack: () => Navigator.pop(context)),
                 Expanded(child: _buildBody(context, state, theme)),
 
-                // Bottom action
                 if (state is ConsultationDetailsLoaded) ...[
                   if (state.consultation.status == ConsultationStatus.active)
                     Padding(
@@ -213,7 +203,6 @@ class _DetailsContent extends StatelessWidget {
     }
   }
 
-  /// Formats a [DateTime] that is already in local time (no re-parsing needed).
   String _formatDateTime(DateTime? dt) {
     if (dt == null) return '—';
     final h = dt.hour.toString().padLeft(2, '0');
@@ -231,14 +220,13 @@ class _DetailsContent extends StatelessWidget {
 
     final startLabel = _formatDateTime(consultation.effectiveStartDateTime);
 
-    // ── Safe date/time extraction ─────────────────────────────────────────
-    // Use RegExp to split on any whitespace, so single or double spaces
-    // in _formatDateTime never cause a FormatException.
     final parts = startLabel.trim().split(RegExp(r'\s+'));
     final datePart = parts.isNotEmpty ? parts.first : '—';
     final timePart = parts.length > 1 ? parts.last : '—';
-    final hourValue = timePart == '—' ? null : int.tryParse(timePart.split(':').first);
-    final amPm = hourValue == null ? '' : (hourValue >= 12 ? ' مساء' : ' صباحا');
+    final hourValue =
+    timePart == '—' ? null : int.tryParse(timePart.split(':').first);
+    final amPm =
+    hourValue == null ? '' : (hourValue >= 12 ? ' مساء' : ' صباحا');
     final timeDisplay = timePart == '—' ? '—' : '$timePart$amPm';
 
     return SingleChildScrollView(
@@ -249,10 +237,10 @@ class _DetailsContent extends StatelessWidget {
           // ── Client ───────────────────────────────────────────────────────
           if (consultation.client != null &&
               !consultation.hideClientFromLawyer) ...[
-
             _ClientCard(client: consultation.client!),
             SizedBox(height: 16.h),
           ],
+
           // ── Type + number ────────────────────────────────────────────────
           Text(
             _typeLabel(consultation.type),
@@ -373,10 +361,7 @@ class _DetailsContent extends StatelessWidget {
             children: [
               _InfoColumn(label: "تاريخ البدء", value: datePart),
               _VerticalDivider(),
-              _InfoColumn(
-                label: "وقت البدء",
-                value: timeDisplay,
-              ),
+              _InfoColumn(label: "وقت البدء", value: timeDisplay),
               if (consultation.durationMin != null) ...[
                 _VerticalDivider(),
                 _InfoColumn(
@@ -396,7 +381,7 @@ class _DetailsContent extends StatelessWidget {
             _SectionLabel(label: "مذكرة صوتية"),
             SizedBox(height: 12.h),
             _VoiceNotePlayer(
-              url: /*consultation.voiceNoteUrl!*/"/uploads/consultation-voice-notes/1779263759797-977114ca-7209-4ef4-849c-8bb1342c90fa.mp3",
+              url: consultation.voiceNoteUrl!,
               fallbackDurationSeconds:
               consultation.voiceNoteDurationSeconds ?? 0,
             ),
@@ -406,8 +391,29 @@ class _DetailsContent extends StatelessWidget {
           // ── Attachments ──────────────────────────────────────────────────
           if (consultation.attachments.isNotEmpty) ...[
             _SectionLabel(label: "المرفقات"),
-            SizedBox(height: 12.h),
-            _AttachmentsList(attachments: consultation.attachments),
+            SizedBox(height: 4.h),
+            // Counter badge
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Container(
+                padding:
+                EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20.h),
+                ),
+                child: Text(
+                  '${consultation.attachments.length}/5',
+                  style: TextStyle(
+                    color: theme.colorScheme.primary,
+                    fontSize: 11.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+            SizedBox(height: 10.h),
+            _AttachmentsGrid(attachments: consultation.attachments),
             SizedBox(height: 24.h),
           ],
         ],
@@ -421,13 +427,8 @@ class _DetailsContent extends StatelessWidget {
 class _SectionLabel extends StatelessWidget {
   final String label;
   final IconData? icon;
-  final Color? color;
 
-  const _SectionLabel({
-    required this.label,
-    this.icon,
-    this.color,
-  });
+  const _SectionLabel({required this.label, this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -440,9 +441,7 @@ class _SectionLabel extends StatelessWidget {
           color: primary,
           size: 18.sp,
         ),
-
         Gap(12.w),
-
         Expanded(
           child: Text(
             label,
@@ -511,22 +510,15 @@ class _VerticalDivider extends StatelessWidget {
   }
 }
 
-// ── Client Card (Redesigned) ─────────────────────────────────────────────────
+// ── Client Card ───────────────────────────────────────────────────────────────
 
 class _ClientCard extends StatelessWidget {
   final ConsultationClient client;
-
-  const _ClientCard({
-    required this.client,
-  });
+  const _ClientCard({required this.client});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-
-    final hasPhone =
-        client.phone != null && client.phone!.trim().isNotEmpty;
 
     final hasCity =
         client.city != null && client.city!.trim().isNotEmpty;
@@ -537,7 +529,6 @@ class _ClientCard extends StatelessWidget {
 
     return Row(
       children: [
-        // ── Avatar ─────────────────────────────
         Hero(
           tag: 'client_${client.id}',
           child: Container(
@@ -546,10 +537,7 @@ class _ClientCard extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [
-                  primary,
-                  primary.withValues(alpha: .7),
-                ],
+                colors: [primary, primary.withValues(alpha: .7)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -564,8 +552,7 @@ class _ClientCard extends StatelessWidget {
             child: Center(
               child: Text(
                 initials,
-                style:
-                theme.textTheme.titleLarge?.copyWith(
+                style: theme.textTheme.titleLarge?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
                   fontFamily: "cairo",
@@ -575,40 +562,22 @@ class _ClientCard extends StatelessWidget {
             ),
           ),
         ),
-
         Gap(14.w),
-
-        // ── Content ───────────────────────────
         Expanded(
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      client.fullName,
-                      maxLines: 1,
-                      overflow:
-                      TextOverflow.ellipsis,
-                      style: theme
-                          .textTheme.titleMedium
-                          ?.copyWith(
-                        fontWeight:
-                        FontWeight.w800,
-                        fontSize: 13.sp,
-                        letterSpacing: .2,
-                      ),
-                    ),
-                  ),
-
-                  Gap(8.w),
-                ],
+              Text(
+                client.fullName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13.sp,
+                  letterSpacing: .2,
+                ),
               ),
-
               Gap(5.h),
-
               Wrap(
                 runSpacing: 8.h,
                 spacing: 8.w,
@@ -623,7 +592,6 @@ class _ClientCard extends StatelessWidget {
             ],
           ),
         ),
-
         Gap(10.w),
       ],
     );
@@ -634,10 +602,7 @@ class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String text;
 
-  const _InfoChip({
-    required this.icon,
-    required this.text,
-  });
+  const _InfoChip({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -645,35 +610,22 @@ class _InfoChip extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: 10.w,
-        vertical: 5.h,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest
-            .withValues(alpha: .55),
+        color: cs.surfaceContainerHighest.withValues(alpha: .55),
         borderRadius: BorderRadius.circular(100.h),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 14.sp,
-            color: primary,
-          ),
-
+          Icon(icon, size: 14.sp, color: primary),
           Gap(6.w),
-
           ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 120.w,
-            ),
+            constraints: BoxConstraints(maxWidth: 120.w),
             child: Text(
               text,
               overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(
+              style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: FontWeight.w600,
                 fontSize: 12.sp,
                 color: cs.onSurfaceVariant,
@@ -689,10 +641,7 @@ class _InfoChip extends StatelessWidget {
 // ── Voice Note Player ─────────────────────────────────────────────────────────
 
 class _VoiceNotePlayer extends StatefulWidget {
-  /// Raw path like "/uploads/..." or a full "http://..." URL.
   final String url;
-
-  /// Shown before audio metadata loads (from voiceNoteDurationSeconds).
   final int fallbackDurationSeconds;
 
   const _VoiceNotePlayer({
@@ -708,13 +657,12 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
   final AudioPlayer _player = AudioPlayer();
 
   bool _isLoading = true;
-  bool _hasError  = false;
+  bool _hasError = false;
   bool _isPlaying = false;
-  bool _isCompleted = false;  // Track if audio has finished playing
-  Duration _total    = Duration.zero;
+  bool _isCompleted = false;
+  Duration _total = Duration.zero;
   Duration _position = Duration.zero;
 
-  /// Resolve partial path → full URL.
   String get _resolvedUrl {
     final u = widget.url;
     return u.startsWith(AppConfig.baseImgUrl) ? u : '$_kBaseUrl$u';
@@ -723,37 +671,26 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
   @override
   void initState() {
     super.initState();
-    // Show fallback duration immediately so the UI isn't 00:00 while loading.
     _total = Duration(seconds: widget.fallbackDurationSeconds);
     _initAudio();
   }
 
   Future<void> _initAudio() async {
     try {
-      // audioplayers ^6.1.0 doesn't support custom headers directly.
-      // The server should allow cleartext traffic to serve protected audio files.
-      // Since we've configured network_security_config.xml on Android,
-      // the audio player can now access the files from the HTTP server.
-
       await _player.setSourceUrl(_resolvedUrl);
-
-      // Fetch duration after source is ready
       final duration = await _player.getDuration();
       if (duration != null && duration > Duration.zero) {
         if (mounted) setState(() => _total = duration);
       }
 
-      // Real-time position updates
       _player.onPositionChanged.listen((pos) {
         if (mounted) setState(() => _position = pos);
       });
 
-      // Duration update (may arrive separately after source loads)
       _player.onDurationChanged.listen((d) {
         if (mounted && d > Duration.zero) setState(() => _total = d);
       });
 
-      // Play / pause / complete state
       _player.onPlayerStateChanged.listen((state) {
         if (!mounted) return;
         setState(() {
@@ -761,19 +698,13 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
           if (state == PlayerState.completed) {
             _isPlaying = false;
             _isCompleted = true;
-            // Don't reset position here - we'll do it on next play
           }
         });
       });
 
       if (mounted) setState(() => _isLoading = false);
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _hasError  = true;
-        });
-      }
+      if (mounted) setState(() { _isLoading = false; _hasError = true; });
     }
   }
 
@@ -782,37 +713,21 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
 
     if (_isPlaying) {
       await _player.pause();
-      // Clear completed flag when pausing so user can resume from pause point
-      if (_isCompleted) {
-        setState(() => _isCompleted = false);
-      }
+      if (_isCompleted) setState(() => _isCompleted = false);
     } else {
-      // If audio has completed, reload and play from start
       if (_isCompleted) {
         try {
-          // Release and reload the source to properly reset the player
           await _player.stop();
           await _player.setSourceUrl(_resolvedUrl);
-          setState(() {
-            _position = Duration.zero;
-            _isCompleted = false;
-          });
-        } catch (e) {
-          // If reload fails, just try to resume anyway
-          setState(() {
-            _isCompleted = false;
-          });
+          setState(() { _position = Duration.zero; _isCompleted = false; });
+        } catch (_) {
+          setState(() => _isCompleted = false);
         }
       }
       try {
         await _player.resume();
-      } catch (e) {
-        // If resume fails, log and mark as error
-        if (mounted) {
-          setState(() {
-            _hasError = true;
-          });
-        }
+      } catch (_) {
+        if (mounted) setState(() => _hasError = true);
       }
     }
   }
@@ -820,17 +735,9 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
   Future<void> _onSeek(double ms) async {
     try {
       await _player.seek(Duration(milliseconds: ms.toInt()));
-      // Clear completed flag when seeking manually
-      if (_isCompleted) {
-        setState(() => _isCompleted = false);
-      }
-    } catch (e) {
-      // Handle seek errors silently (timeout, invalid position, etc)
-      if (mounted) {
-        setState(() {
-          _hasError = true;
-        });
-      }
+      if (_isCompleted) setState(() => _isCompleted = false);
+    } catch (_) {
+      if (mounted) setState(() => _hasError = true);
     }
   }
 
@@ -848,13 +755,12 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final theme   = Theme.of(context);
-    final primary = theme.colorScheme.primary;
+    final theme = Theme.of(context);
+    final primaryColor = theme.colorScheme.primary;
 
     final totalMs = _total.inMilliseconds.toDouble();
-    final posMs   = _position.inMilliseconds
-        .toDouble()
-        .clamp(0.0, totalMs > 0 ? totalMs : 1.0);
+    final posMs =
+    _position.inMilliseconds.toDouble().clamp(0.0, totalMs > 0 ? totalMs : 1.0);
 
     if (_hasError) {
       return Container(
@@ -885,23 +791,20 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
       ),
       child: Row(
         children: [
-          // ── Play / Pause / Loading ─────────────────────────────────────
           GestureDetector(
             onTap: _togglePlayPause,
             child: Container(
               width: 46.w,
               height: 46.h,
               decoration: BoxDecoration(
-                color: _isLoading ? Colors.grey.shade300 : primary,
+                color: _isLoading ? Colors.grey.shade300 : primaryColor,
                 shape: BoxShape.circle,
               ),
               child: _isLoading
                   ? Padding(
                 padding: EdgeInsets.all(13.w),
                 child: const CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
+                    strokeWidth: 2, color: Colors.white),
               )
                   : Icon(
                 _isPlaying ? Icons.pause : Icons.play_arrow,
@@ -911,8 +814,6 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
             ),
           ),
           SizedBox(width: 12.w),
-
-          // ── Slider + timestamps ────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -924,10 +825,10 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
                     RoundSliderThumbShape(enabledThumbRadius: 6.w),
                     overlayShape:
                     RoundSliderOverlayShape(overlayRadius: 14.w),
-                    activeTrackColor:   primary,
+                    activeTrackColor: primaryColor,
                     inactiveTrackColor: Colors.grey.shade300,
-                    thumbColor:         primary,
-                    overlayColor:       primary.withOpacity(0.15),
+                    thumbColor: primaryColor,
+                    overlayColor: primaryColor.withOpacity(0.15),
                   ),
                   child: Slider(
                     value: posMs,
@@ -941,22 +842,16 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        _fmt(_position),
-                        style: TextStyle(
-                          fontSize: 11.sp,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        _fmt(_total),
-                        style: TextStyle(
-                          fontSize: 11.sp,
-                          color: Colors.grey.shade600,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      Text(_fmt(_position),
+                          style: TextStyle(
+                              fontSize: 11.sp,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500)),
+                      Text(_fmt(_total),
+                          style: TextStyle(
+                              fontSize: 11.sp,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
@@ -969,58 +864,215 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
   }
 }
 
-// ── Attachments List ──────────────────────────────────────────────────────────
+// ── Attachments Grid ──────────────────────────────────────────────────────────
 
-class _AttachmentsList extends StatelessWidget {
+class _AttachmentsGrid extends StatelessWidget {
   final List<ConsultationAttachment> attachments;
-  const _AttachmentsList({required this.attachments});
+  const _AttachmentsGrid({required this.attachments});
 
   String _resolveUrl(String url) =>
       url.startsWith('http') ? url : '$_kBaseUrl$url';
 
+  String _extension(String url) {
+    final clean = url.split('?').first;
+    final name = clean.split('/').last;
+    return name.contains('.')
+        ? name.split('.').last.toLowerCase()
+        : '';
+  }
+
+  bool _isImage(String ext) =>
+      ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(ext);
+
+  IconData _iconForExt(String ext) {
+    switch (ext) {
+      case 'pdf':
+        return Icons.picture_as_pdf_rounded;
+      case 'doc':
+      case 'docx':
+        return Icons.description_rounded;
+      case 'xls':
+      case 'xlsx':
+        return Icons.table_chart_rounded;
+      case 'mp4':
+      case 'mov':
+      case 'avi':
+        return Icons.videocam_rounded;
+      case 'mp3':
+      case 'm4a':
+      case 'wav':
+        return Icons.audiotrack_rounded;
+      default:
+        return Icons.insert_drive_file_rounded;
+    }
+  }
+
+  Color _colorForExt(String ext, ColorScheme cs) {
+    switch (ext) {
+      case 'pdf':
+        return Colors.redAccent;
+      case 'doc':
+      case 'docx':
+        return Colors.blueAccent;
+      case 'xls':
+      case 'xlsx':
+        return Colors.green;
+      case 'mp4':
+      case 'mov':
+      case 'avi':
+        return Colors.purple;
+      case 'mp3':
+      case 'm4a':
+      case 'wav':
+        return Colors.orange;
+      default:
+        return cs.primary;
+    }
+  }
+
+  String _labelForExt(String ext) {
+    switch (ext) {
+      case 'pdf':
+        return 'PDF';
+      case 'doc':
+      case 'docx':
+        return 'Word';
+      case 'xls':
+      case 'xlsx':
+        return 'Excel';
+      case 'mp4':
+      case 'mov':
+      case 'avi':
+        return 'فيديو';
+      case 'mp3':
+      case 'm4a':
+      case 'wav':
+        return 'صوت';
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp':
+        return 'صورة';
+      default:
+        return ext.isEmpty ? 'ملف' : ext.toUpperCase();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 74.h,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        reverse: true,
-        itemCount: attachments.length,
-        itemBuilder: (context, index) {
-          final url = _resolveUrl(attachments[index].url);
-          return GestureDetector(
-            onTap: () {
-              // TODO: open full-screen viewer
-            },
-            child: Container(
-              width: 64.w,
-              height: 64.h,
-              margin: EdgeInsets.only(left: 8.w),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(10.w),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: url.isNotEmpty
-                  ? ClipRRect(
-                borderRadius: BorderRadius.circular(10.w),
-                child: Image.network(
-                  url,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const _FileIcon(),
-                ),
-              )
-                  : const _FileIcon(),
-            ),
-          );
-        },
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: attachments.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10.w,
+        mainAxisSpacing: 10.h,
+        childAspectRatio: 2.3,
       ),
+      itemBuilder: (context, index) {
+        final attachment = attachments[index];
+        final url = _resolveUrl(attachment.url);
+        final ext = _extension(attachment.url);
+        final isImg = _isImage(ext);
+        final icon = _iconForExt(ext);
+        final color = _colorForExt(ext, cs);
+        final label = _labelForExt(ext);
+
+        // Extract file name from URL
+        final rawName = attachment.url.split('?').first.split('/').last;
+        final displayName = rawName.isNotEmpty ? rawName : 'مرفق ${index + 1}';
+
+        return GestureDetector(
+          onTap: () async {
+            final uri = Uri.parse(url);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+            }
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 8.h),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.05),
+              border: Border.all(color: color.withOpacity(0.25)),
+              borderRadius: BorderRadius.circular(12.h),
+            ),
+            child: Row(
+              children: [
+                // ── Thumbnail or icon ──────────────────────────────────
+                Container(
+                  width: 40.h,
+                  height: 40.h,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(8.h),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: isImg
+                      ? Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Icon(
+                      icon,
+                      color: color,
+                      size: 22.h,
+                    ),
+                  )
+                      : Icon(icon, color: color, size: 22.h),
+                ),
+                SizedBox(width: 8.w),
+
+                // ── Name + type badge ──────────────────────────────────
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        displayName,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: cs.onSurface,
+                          fontSize: 11.sp,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                        maxLines: 1,
+                        textAlign: TextAlign.right,
+                      ),
+                      SizedBox(height: 4.h),
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 6.w, vertical: 2.h),
+                        decoration: BoxDecoration(
+                          color: color.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(6.h),
+                        ),
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: 10.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-// ── Details Screen — Upcoming Session Button ──────────────────────────────────
-// Full-width countdown banner + enable button when session time arrives.
+// ── Upcoming Session Button ───────────────────────────────────────────────────
 
 class _DetailsUpcomingButton extends StatefulWidget {
   final ConsultationModel consultation;
@@ -1054,13 +1106,11 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
       setState(() => _remaining = null);
       return;
     }
-    // Use epoch milliseconds diff — completely timezone-safe.
-    // dt is UTC (parsed from "Z" string), DateTime.now() epoch is always absolute.
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     final startMs = dt.millisecondsSinceEpoch;
     final diffMs = startMs - nowMs;
-    setState(() => _remaining =
-    diffMs <= 0 ? Duration.zero : Duration(milliseconds: diffMs));
+    setState(() =>
+    _remaining = diffMs <= 0 ? Duration.zero : Duration(milliseconds: diffMs));
   }
 
   @override
@@ -1082,7 +1132,7 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
+    final primaryColor = theme.colorScheme.primary;
 
     if (_canEnter) {
       return SizedBox(
@@ -1091,18 +1141,16 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
       );
     }
 
-    // Active countdown
     final remaining = _remaining!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Countdown banner
         Container(
           padding: EdgeInsets.symmetric(vertical: 14.h, horizontal: 20.w),
           decoration: BoxDecoration(
-            color: primary.withOpacity(0.06),
+            color: primaryColor.withOpacity(0.06),
             borderRadius: BorderRadius.circular(14.w),
-            border: Border.all(color: primary.withOpacity(0.15)),
+            border: Border.all(color: primaryColor.withOpacity(0.15)),
           ),
           child: Row(
             children: [
@@ -1110,10 +1158,11 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
                 width: 44.w,
                 height: 44.h,
                 decoration: BoxDecoration(
-                  color: primary.withOpacity(0.12),
+                  color: primaryColor.withOpacity(0.12),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(Icons.timer_outlined, color: primary, size: 22.sp),
+                child: Icon(Icons.timer_outlined,
+                    color: primaryColor, size: 22.sp),
               ),
               SizedBox(width: 14.w),
               Expanded(
@@ -1139,11 +1188,10 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
                   ],
                 ),
               ),
-              // Big countdown clock
               Text(
                 _fmtCountdown(remaining),
                 style: TextStyle(
-                  color: primary,
+                  color: primaryColor,
                   fontSize: 22.sp,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 2,
@@ -1154,13 +1202,9 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
           ),
         ),
         SizedBox(height: 12.h),
-        // Disabled enter button
         Opacity(
           opacity: 0.4,
-          child: GradiantButton(
-            text: "أدخل الجلسه",
-            onTap: () {}, // intentionally no-op
-          ),
+          child: GradiantButton(text: "أدخل الجلسه", onTap: () {}),
         ),
         SizedBox(height: 4.h),
         Center(
@@ -1176,6 +1220,8 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
     );
   }
 }
+
+// ── File Icon Fallback ────────────────────────────────────────────────────────
 
 class _FileIcon extends StatelessWidget {
   const _FileIcon();

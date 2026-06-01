@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/features/User/application/models/consultation_model.dart';
 
 import 'package:size_config/size_config.dart';
 
 import '../../../config/navigation/nav.dart';
+import '../../../core/get_it_service/get_it_service.dart';
+import 'bloc/consulation_application_cubit.dart';
 import 'consultation_type_screen(2).dart';
 
 class ConnectingToLawyerScreen extends StatefulWidget {
@@ -23,7 +26,7 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
     super.initState();
     Future.delayed(const Duration(seconds: 5), () {
 
-      if(selectedTypeIndex == 0)
+      if(getIt<ConsultationCubit>().selectedConsultationType == ConsultationType.instant)
       Nav.videoCallScreen(context);
       else
        Nav.chat(context);

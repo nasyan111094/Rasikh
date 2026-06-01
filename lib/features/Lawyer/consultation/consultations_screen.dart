@@ -393,6 +393,8 @@ class _ConsultationCard extends StatelessWidget {
         return 'إستشارة فورية';
       case 'scheduled':
         return 'إستشارة مجدولة';
+      case 'written':
+        return 'إستشارة كتابيه';
       default:
         return type;
     }

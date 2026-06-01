@@ -34,6 +34,8 @@ import '../../features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/specializations_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import '../../features/Lawyer/lawyer_Settings/bloc/Specializations_cubit/specializations_cubit.dart';
+import '../../features/User/application/bloc/consulation_application_cubit.dart';
+import '../../features/User/application/repo/consulation_application_repo.dart';
 import '../../features/User/profile/cubit/profile_cubit.dart';
 import '../../features/User/user_register_completion/bloc/user_completion_cubit.dart';
 import '../../features/User/user_register_completion/repo/user_completion_repo.dart';
@@ -149,6 +151,25 @@ Future<void> initializeDependencies() async {
           () => NotificationsCubit(getIt<NotificationsRepo>()),
     );
 
+
+
+
+
+
+
+    getIt.registerLazySingleton<ConsultationRepo>(
+          () => ConsultationRepo(),
+    );
+
+    getIt.registerFactory<ConsultationCubit>(
+          () => ConsultationCubit(),
+    );
+
+
+
+
+
+
     getIt.registerLazySingleton<HelpCenterRepo>(
           () => HelpCenterRepo(),
     );
@@ -169,6 +190,9 @@ Future<void> initializeDependencies() async {
     getIt.registerLazySingleton<LawyerAvailabilityCubit>(
           () => LawyerAvailabilityCubit(getIt<LawyerAvailabilityRepo>()),
     );
+
+
+
 
 // 2. Register ProfileCubit as a factory so each screen gets a fresh instance
 //    when it creates its own BlocProvider.

@@ -41,6 +41,7 @@ dependencies:
   google_fonts:
   webview_flutter:
   app_settings:
+  file_picker:
   # -------------------------------------------
   # Localization & Dependency Injection
   # -------------------------------------------
@@ -63,7 +64,8 @@ dependencies:
   # Functional programming tools including Option, Either, and Task monads.
   dartz: ^0.10.1
   shimmer_animation:
-
+  record: ^6.2.1
+  just_audio: ^0.10.5
 
   # -------------------------------------------
   # UI Utilities & Network

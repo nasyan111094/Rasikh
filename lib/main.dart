@@ -9,6 +9,7 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
+import 'package:rasikh/features/User/application/bloc/consulation_application_cubit.dart';
 import 'package:rasikh/features/User/profile/cubit/profile_cubit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:size_config/size_config.dart';
@@ -87,6 +88,10 @@ Future<void> main() async {
         BlocProvider<AppCubit>(
           create: (_) => getIt<AppCubit>()..setThemeMode(),
         ),
+
+        BlocProvider<ConsultationCubit>(
+          create: (_) => getIt<ConsultationCubit>(),
+        ),
         BlocProvider<HomeCubit>(
           create: (_) => getIt<HomeCubit>(),
         ),
@@ -106,6 +111,7 @@ Future<void> main() async {
           create: (_) => ConsultationsCubit(repo: ConsultationsRepo()),
           child: LawerConsultationsScreen(),
         ),
+
       ],
       child: const AppWithOverlay(),
     ),

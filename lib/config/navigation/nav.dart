@@ -436,11 +436,12 @@ abstract class Nav {
 
   static lawyerDetailsScreen(
       BuildContext context,
+      {required String Id }
       ) async =>
       await _push(
         context,
         PageKey.login,
-        const LawyerDetailsScreen(),
+         LawyerDetailsScreen(lawyerId: Id,),
       );
 
   static endSessionScreen(
