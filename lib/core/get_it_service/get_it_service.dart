@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
+import 'package:rasikh/features/Lawyer/lawyer-home/repo/lawyer_consultations_repo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:rasikh/config/localization/lang_repo.dart';
@@ -28,6 +29,7 @@ import 'package:rasikh/features/User/profile/repo/profile_repo.dart';
 import '../../features/Company/company_register_completion/bloc/company_completion_cubit.dart';
 import '../../features/Company/company_register_completion/repo/company_completion_repo.dart';
 import '../../features/Lawyer/lawyer-home/bloc/avaiabilty_cubit.dart';
+import '../../features/Lawyer/lawyer-home/bloc/lawyer_consultations_cubit.dart';
 import '../../features/Lawyer/lawyer-home/repo/lawer_availability_rpeo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/help_center_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
@@ -161,8 +163,8 @@ Future<void> initializeDependencies() async {
           () => ConsultationRepo(),
     );
 
-    getIt.registerFactory<ConsultationCubit>(
-          () => ConsultationCubit(),
+    getIt.registerLazySingleton<ConsultationApplicationCubit>(
+          () => ConsultationApplicationCubit(),
     );
 
 
@@ -189,6 +191,16 @@ Future<void> initializeDependencies() async {
 // Cubit — lazy singleton so it survives navigation
     getIt.registerLazySingleton<LawyerAvailabilityCubit>(
           () => LawyerAvailabilityCubit(getIt<LawyerAvailabilityRepo>()),
+    );
+
+// Repo — factory so each call gets a fresh instance
+    getIt.registerFactory<LawyerConsultationsRepo>(
+          () => LawyerConsultationsRepo(),
+    );
+
+// Cubit — lazy singleton so it survives navigation
+    getIt.registerLazySingleton<LawyerConsultationsCubit>(
+          () => LawyerConsultationsCubit(getIt<LawyerConsultationsRepo>()),
     );
 
 

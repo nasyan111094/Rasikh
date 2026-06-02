@@ -59,7 +59,7 @@ class _AppointmentBookingScreenState
     return Scaffold(
       appBar: GeneralAppBar(title: "حجز موعد"),
       body: SafeArea(
-        child: BlocBuilder<ConsultationCubit, ConsultationState>(
+        child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
             return Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -97,7 +97,7 @@ class _AppointmentBookingScreenState
 
                         return GestureDetector(
                           onTap: () => context
-                              .read<ConsultationCubit>()
+                              .read<ConsultationApplicationCubit>()
                               .selectDay(index),
                           child: Container(
                             width: 100.w,
@@ -190,7 +190,7 @@ class _AppointmentBookingScreenState
                             state.selectedTimeIndex == index;
                         return GestureDetector(
                           onTap: () => context
-                              .read<ConsultationCubit>()
+                              .read<ConsultationApplicationCubit>()
                               .selectTime(index),
                           child: Container(
                             decoration: BoxDecoration(

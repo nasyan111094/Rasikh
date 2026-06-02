@@ -35,6 +35,8 @@ import 'features/Lawyer/consultation/Bloc/consultations_cubit.dart';
 import 'features/Lawyer/consultation/consultations_screen.dart';
 import 'features/Lawyer/consultation/repo/consultations_repo.dart';
 import 'features/Lawyer/lawyer-home/bloc/avaiabilty_cubit.dart';
+import 'features/Lawyer/lawyer-home/bloc/lawyer_consultations_cubit.dart';
+import 'features/Lawyer/lawyer-home/repo/lawyer_consultations_repo.dart';
 import 'features/Lawyer/lawyer_Settings/Repo/specializations_repo.dart';
 import 'features/Lawyer/lawyer_Settings/bloc/Specializations_cubit/specializations_cubit.dart';
 import 'features/Lawyer/lawyer_Settings/screens/lawyer_specializations_screen.dart';
@@ -89,8 +91,8 @@ Future<void> main() async {
           create: (_) => getIt<AppCubit>()..setThemeMode(),
         ),
 
-        BlocProvider<ConsultationCubit>(
-          create: (_) => getIt<ConsultationCubit>(),
+        BlocProvider<ConsultationApplicationCubit>(
+          create: (_) => getIt<ConsultationApplicationCubit>(),
         ),
         BlocProvider<HomeCubit>(
           create: (_) => getIt<HomeCubit>(),
@@ -109,6 +111,11 @@ Future<void> main() async {
 
         BlocProvider(
           create: (_) => ConsultationsCubit(repo: ConsultationsRepo()),
+          child: LawerConsultationsScreen(),
+        ),
+
+        BlocProvider(
+          create: (_) => LawyerConsultationsCubit(LawyerConsultationsRepo()),
           child: LawerConsultationsScreen(),
         ),
 

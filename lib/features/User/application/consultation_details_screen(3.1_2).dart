@@ -49,7 +49,7 @@ class _ConsultationDetailsScreenState
   @override
   void initState() {
     super.initState();
-    final state = context.read<ConsultationCubit>().state;
+    final state = context.read<ConsultationApplicationCubit>().state;
     _titleController =
         TextEditingController(text: state.consultationTitle);
     _detailsController =
@@ -87,7 +87,7 @@ class _ConsultationDetailsScreenState
     );
     if (result != null && result.files.single.path != null) {
       context
-          .read<ConsultationCubit>()
+          .read<ConsultationApplicationCubit>()
           .addAttachment(File(result.files.single.path!));
     }
   }
@@ -138,7 +138,7 @@ class _ConsultationDetailsScreenState
         _isRecording = false;
         _recordedPath = path;
       });
-      context.read<ConsultationCubit>().setVoiceNote(
+      context.read<ConsultationApplicationCubit>().setVoiceNote(
         File(path),
         _recordingDuration.inSeconds,
       );
@@ -163,7 +163,7 @@ class _ConsultationDetailsScreenState
       _isPlaying = false;
       _recordingDuration = Duration.zero;
     });
-    context.read<ConsultationCubit>().clearVoiceNote();
+    context.read<ConsultationApplicationCubit>().clearVoiceNote();
   }
 
   void _showPermissionDenied() {
@@ -184,7 +184,7 @@ class _ConsultationDetailsScreenState
   }
 
   Future<void> _onRefreshPricing() async {
-    await context.read<ConsultationCubit>().loadPricingPlans();
+    await context.read<ConsultationApplicationCubit>().loadPricingPlans();
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -197,7 +197,7 @@ class _ConsultationDetailsScreenState
     return Scaffold(
       appBar: GeneralAppBar(title: "تفاصيل الإستشارة"),
       body: SafeArea(
-        child: BlocBuilder<ConsultationCubit, ConsultationState>(
+        child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
             return Column(
               children: [
@@ -242,7 +242,7 @@ class _ConsultationDetailsScreenState
                             controller: _titleController,
                             textAlign: TextAlign.right,
                             onChanged: context
-                                .read<ConsultationCubit>()
+                                .read<ConsultationApplicationCubit>()
                                 .updateTitle,
                             decoration: InputDecoration(
                               hintText: 'مثال: نزاع عقد إيجار لشقة سكنية',
@@ -271,7 +271,7 @@ class _ConsultationDetailsScreenState
                             maxLines: 5,
                             textAlign: TextAlign.right,
                             onChanged: context
-                                .read<ConsultationCubit>()
+                                .read<ConsultationApplicationCubit>()
                                 .updateDetails,
                             decoration: InputDecoration(
                               hintText: 'اكتب هنا ...',
@@ -326,7 +326,7 @@ class _ConsultationDetailsScreenState
                           ? () => showDialog(
                         context: context,
                         builder: (_) => BlocProvider.value(
-                          value: context.read<ConsultationCubit>(),
+                          value: context.read<ConsultationApplicationCubit>(),
                           child: const ChooseLawyerMethodDialog(),
                         ),
                       )
@@ -369,7 +369,7 @@ class _ConsultationDetailsScreenState
           SizedBox(height: 8.h),
           TextButton(
             onPressed: () =>
-                context.read<ConsultationCubit>().loadPricingPlans(),
+                context.read<ConsultationApplicationCubit>().loadPricingPlans(),
             child: const Text('إعادة المحاولة'),
           ),
         ],
@@ -400,7 +400,7 @@ class _ConsultationDetailsScreenState
           subtitle: pricing.priceLabel,
           isSelected: state.selectedPricing?.id == pricing.id,
           onTap: () =>
-              context.read<ConsultationCubit>().selectPricing(pricing),
+              context.read<ConsultationApplicationCubit>().selectPricing(pricing),
         ),
       )
           .toList(),
@@ -549,7 +549,7 @@ class _ConsultationDetailsScreenState
             itemBuilder: (context, index) => _AttachmentCard(
               file: state.attachments[index],
               onRemove: () => context
-                  .read<ConsultationCubit>()
+                  .read<ConsultationApplicationCubit>()
                   .removeAttachment(index),
             ),
           ),

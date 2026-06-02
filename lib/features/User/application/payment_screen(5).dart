@@ -198,11 +198,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   Future<void> _handlePay(BuildContext context, ConsultationState state) async {
     // Create consultation via API
-    await context.read<ConsultationCubit>().createConsultation();
+    // await context.read<ConsultationCubit>().createConsultation();
 
     // Re-read state after await
     if (!mounted) return;
-    final newState = context.read<ConsultationCubit>().state;
+    final newState = context.read<ConsultationApplicationCubit>().state;
 
     if (newState.createStatus == ConsultationStatus.failure) {
       _showErrorDialog(context, newState.createError ?? 'حدث خطأ ما');
@@ -229,7 +229,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: const GeneralAppBar(title: "الدفع"),
-        body: BlocBuilder<ConsultationCubit, ConsultationState>(
+        body: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
             final lawyer =
                 state.selectedLawyerDetail ?? state.recommendedLawyer;

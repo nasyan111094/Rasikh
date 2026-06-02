@@ -43,7 +43,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     // Fetch real data
-    context.read<ConsultationCubit>().loadLawyerDetail(widget.lawyerId);
+    context.read<ConsultationApplicationCubit>().loadLawyerDetail(widget.lawyerId);
   }
 
   @override
@@ -59,7 +59,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     if (detail == null) return;
 
     // Store as selected lawyer (LawyerModel base fields are identical)
-    context.read<ConsultationCubit>().selectLawyer(detail);
+    context.read<ConsultationApplicationCubit>().selectLawyer(detail);
 
     if (state.selectedConsultationType == ConsultationType.scheduled) {
       Nav.appointmentBookingScreen(context);
@@ -79,7 +79,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
 
     return Scaffold(
       appBar: GeneralAppBar(title: "تفاصيل المحامي"),
-      body: BlocBuilder<ConsultationCubit, ConsultationState>(
+      body: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
         builder: (context, state) {
           // ── Loading ──────────────────────────────────────────────────────
           if (state.lawyerDetailStatus == ConsultationStatus.loading) {
@@ -96,7 +96,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                   const Gap(12),
                   ElevatedButton(
                     onPressed: () => context
-                        .read<ConsultationCubit>()
+                        .read<ConsultationApplicationCubit>()
                         .loadLawyerDetail(widget.lawyerId),
                     child: const Text('إعادة المحاولة'),
                   ),

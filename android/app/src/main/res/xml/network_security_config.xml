@@ -1,8 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext traffic to the specific API server domain only -->
+    <!-- Allow cleartext traffic to the specific API server domain for both API and media -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">89.117.60.202</domain>
+    </domain-config>
+
+    <!-- Allow cleartext for local development/testing -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">127.0.0.1</domain>
     </domain-config>
 
     <!-- All other domains require HTTPS (default behavior) -->

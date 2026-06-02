@@ -46,25 +46,41 @@ class _HomePageState extends State<HomePage> with RouteAware {
       image:
       'https://cdn.maatloob.com/profile/portfolios/p650x650/img-66c22464c3f9c9-07578467.jpg',
       id: '1',
-      date: '2025-10-01',
+      title: 'Advertisement 1',
+      bannerType: 'client',
+      isActive: true,
+      createdAt: '2025-10-01T00:00:00.000Z',
+      updatedAt: '2025-10-01T00:00:00.000Z',
     ),
     Advertise(
       image:
       'https://files.cdn-files-a.com/uploads/6002121/normal_67e02259d9d54.png',
       id: '2',
-      date: '2025-10-02',
+      title: 'Advertisement 2',
+      bannerType: 'client',
+      isActive: true,
+      createdAt: '2025-10-02T00:00:00.000Z',
+      updatedAt: '2025-10-02T00:00:00.000Z',
     ),
     Advertise(
       image:
       'https://almehleky.sa/wp-content/uploads/2024/08/%D8%A3%D9%81%D8%B6%D9%84-%D9%85%D8%AD%D8%A7%D9%85%D9%8A-%D8%A7%D9%88%D9%86-%D9%84%D8%A7%D9%8A%D9%86-%D9%81%D9%8A-%D8%A7%D9%84%D8%B3%D8%B9%D9%88%D8%AF%D9%8A%D8%A9-%D9%84%D8%B9%D8%A7%D9%85-2024.webp',
       id: '3',
-      date: '2025-10-03',
+      title: 'Advertisement 3',
+      bannerType: 'client',
+      isActive: true,
+      createdAt: '2025-10-03T00:00:00.000Z',
+      updatedAt: '2025-10-03T00:00:00.000Z',
     ),
     Advertise(
       image:
       'https://files.cdn-files-a.com/uploads/6002121/800_67e01fdd5ec86_filter_67e0205c9fa7c.png',
       id: '4',
-      date: '2025-10-04',
+      title: 'Advertisement 4',
+      bannerType: 'client',
+      isActive: true,
+      createdAt: '2025-10-04T00:00:00.000Z',
+      updatedAt: '2025-10-04T00:00:00.000Z',
     ),
   ];
 

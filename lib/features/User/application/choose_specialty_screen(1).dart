@@ -39,7 +39,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<ConsultationCubit>().loadSpecializations();
+    context.read<ConsultationApplicationCubit>().loadSpecializations();
   }
 
   @override
@@ -49,7 +49,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
   }
 
   Future<void> _onRefresh() async {
-    await context.read<ConsultationCubit>().loadSpecializations(
+    await context.read<ConsultationApplicationCubit>().loadSpecializations(
       search:
       searchController.text.isEmpty ? null : searchController.text,
     );
@@ -63,7 +63,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: GeneralAppBar(title: "إختر التخصص"),
-        body: BlocBuilder<ConsultationCubit, ConsultationState>(
+        body: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -119,7 +119,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
                   Gap(16.h),
                   ElevatedButton(
                     onPressed: () =>
-                        context.read<ConsultationCubit>().loadSpecializations(),
+                        context.read<ConsultationApplicationCubit>().loadSpecializations(),
                     child: const Text('إعادة المحاولة'),
                   ),
                 ],
@@ -168,7 +168,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
       controller: searchController,
       onChanged: (value) {
         context
-            .read<ConsultationCubit>()
+            .read<ConsultationApplicationCubit>()
             .loadSpecializations(search: value.isEmpty ? null : value);
       },
       decoration: InputDecoration(
@@ -195,7 +195,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
             onTap: () {
               searchController.text = f;
               context
-                  .read<ConsultationCubit>()
+                  .read<ConsultationApplicationCubit>()
                   .loadSpecializations(search: f);
             },
             child: Container(
@@ -275,10 +275,10 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
           // ✅ Only show selected subs when this IS the selected parent
           isActiveParent: state.selectedSpecialization?.id == spec.id,
           onToggleMain: (expanded) {
-            context.read<ConsultationCubit>().selectSpecialization(spec);
+            context.read<ConsultationApplicationCubit>().selectSpecialization(spec);
           },
           onToggleSub: (sub) => context
-              .read<ConsultationCubit>()
+              .read<ConsultationApplicationCubit>()
           // ✅ Pass parentSpec so the cubit knows which parent owns this sub
               .toggleSubSpecialization(sub as SubSpecializationModel),
         );

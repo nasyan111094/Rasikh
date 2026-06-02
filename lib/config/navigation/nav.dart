@@ -463,14 +463,20 @@ abstract class Nav {
       );
 
   static videoCallScreen(
-      BuildContext context,
-      ) async =>
+      BuildContext context, {
+        required String consultationId,
+        String? lawyerName,
+        String? lawyerPhotoUrl,
+      }) async =>
       await _push(
         context,
-        PageKey.login,
-        const VideoCallScreen(),
+        PageKey.login, // update PageKey if needed
+        VideoCallScreen(
+          consultationId: consultationId,
+          lawyerName: lawyerName,
+          lawyerPhotoUrl: lawyerPhotoUrl,
+        ),
       );
-
   static connectingToLawyerScreen(
       BuildContext context,
       ) async =>

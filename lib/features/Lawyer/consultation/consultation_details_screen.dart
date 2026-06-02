@@ -677,7 +677,12 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
 
   Future<void> _initAudio() async {
     try {
-      await _player.setSourceUrl(_resolvedUrl);
+      // Set source with timeout (60 seconds for network audio)
+      await _player.setSourceUrl(_resolvedUrl).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => Future.error('Source URL loading timeout'),
+      );
+      
       final duration = await _player.getDuration();
       if (duration != null && duration > Duration.zero) {
         if (mounted) setState(() => _total = duration);
@@ -703,7 +708,8 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
       });
 
       if (mounted) setState(() => _isLoading = false);
-    } catch (_) {
+    } catch (e) {
+      print('Audio init error: $e');
       if (mounted) setState(() { _isLoading = false; _hasError = true; });
     }
   }
@@ -734,10 +740,21 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
 
   Future<void> _onSeek(double ms) async {
     try {
-      await _player.seek(Duration(milliseconds: ms.toInt()));
+      // Increase timeout to 60 seconds for network audio operations
+      await _player.seek(Duration(milliseconds: ms.toInt())).timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => Future.error('Seek timeout'),
+      );
       if (_isCompleted) setState(() => _isCompleted = false);
-    } catch (_) {
-      if (mounted) setState(() => _hasError = true);
+    } catch (e) {
+      // Log the error but don't fail - audio playback can continue from current position
+      print('Seek error: $e');
+      if (mounted) {
+        // Only show error on critical failures, not on seek timeouts
+        if (e.toString().contains('404') || e.toString().contains('no such')) {
+          setState(() => _hasError = true);
+        }
+      }
     }
   }
 
@@ -1123,9 +1140,9 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
 
   String _fmtCountdown(Duration d) {
     final h = d.inHours;
-    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    if (h > 0) return '$h:$m:$s';
+    final m = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    if (h > 0) return '${h.toString().padLeft(2, '0')}:$m:$s';
     return '$m:$s';
   }
 

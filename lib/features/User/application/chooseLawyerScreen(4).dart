@@ -48,7 +48,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
   }
 
   Future<void> _onRefresh() async {
-    await context.read<ConsultationCubit>().loadLawyers(
+    await context.read<ConsultationApplicationCubit>().loadLawyers(
       search: searchController.text.isEmpty ? null : searchController.text,
     );
   }
@@ -166,7 +166,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                       onPressed: () {
                         Navigator.pop(context);
                         final sort = sortMap[selectedOption];
-                        context.read<ConsultationCubit>().loadLawyers(
+                        context.read<ConsultationApplicationCubit>().loadLawyers(
                           sortBy: sort?.$1,
                           sortOrder: sort?.$2,
                         );
@@ -196,7 +196,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     final citySearchController = TextEditingController();
 
     // Trigger city load from API
-    context.read<ConsultationCubit>().loadCities();
+    context.read<ConsultationApplicationCubit>().loadCities();
 
     await showModalBottomSheet(
       context: context,
@@ -206,7 +206,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return BlocBuilder<ConsultationCubit, ConsultationState>(
+        return BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (ctx, state) {
             final allCities =
             state.cityNames.isNotEmpty ? state.cityNames : <String>[];
@@ -301,7 +301,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                           onPressed: () {
                             Navigator.pop(ctx);
                             context
-                                .read<ConsultationCubit>()
+                                .read<ConsultationApplicationCubit>()
                                 .loadLawyers(city: selectedOption);
                           },
                           child: Text('تطبيق التصفية',
@@ -373,7 +373,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
             Gap(12.h),
             TextButton(
               onPressed: () =>
-                  context.read<ConsultationCubit>().loadCities(),
+                  context.read<ConsultationApplicationCubit>().loadCities(),
               child: const Text('إعادة المحاولة'),
             ),
           ],
@@ -574,9 +574,9 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
       BuildContext context, ConsultationState state, dynamic lawyer) {
     // ── 1. Normalise lawyer type and select it in the cubit ──────────────
     if (lawyer is LawyerModel) {
-      context.read<ConsultationCubit>().selectLawyer(lawyer);
+      context.read<ConsultationApplicationCubit>().selectLawyer(lawyer);
     } else if (lawyer is LawyerDetailModel) {
-      context.read<ConsultationCubit>().selectLawyer(
+      context.read<ConsultationApplicationCubit>().selectLawyer(
         LawyerModel(
           id: lawyer.id,
           fullName: lawyer.fullName,
@@ -599,7 +599,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     } else {
       // Instant / Written: create the consultation now.
       // The BlocListener will navigate to paymentScreen on success.
-      context.read<ConsultationCubit>().createConsultation();
+      context.read<ConsultationApplicationCubit>().createConsultation();
     }
   }
 
@@ -612,7 +612,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
 
     return Scaffold(
       appBar: const GeneralAppBar(title: "اختر المحامي"),
-      body: BlocListener<ConsultationCubit, ConsultationState>(
+      body: BlocListener<ConsultationApplicationCubit, ConsultationState>(
         // Only react when createStatus actually changes
         listenWhen: (prev, curr) =>
         prev.createStatus != curr.createStatus,
@@ -733,14 +733,14 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                   label: 'إعادة المحاولة',
                   textColor: Colors.white,
                   onPressed: () =>
-                      context.read<ConsultationCubit>().createConsultation(),
+                      context.read<ConsultationApplicationCubit>().createConsultation(),
                 ),
               ),
             );
           }
         },
         child: SafeArea(
-          child: BlocBuilder<ConsultationCubit, ConsultationState>(
+          child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
             builder: (context, state) {
               return Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -757,7 +757,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                       controller: searchController,
                       textAlign: TextAlign.right,
                       onChanged: (value) => context
-                          .read<ConsultationCubit>()
+                          .read<ConsultationApplicationCubit>()
                           .loadLawyers(search: value),
                       decoration: InputDecoration(
                         hintText: 'ابحث عن المحامي المناسب...',
@@ -863,7 +863,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                 Gap(12.h),
                 ElevatedButton(
                   onPressed: () =>
-                      context.read<ConsultationCubit>().loadLawyers(),
+                      context.read<ConsultationApplicationCubit>().loadLawyers(),
                   child: const Text('إعادة المحاولة'),
                 ),
               ],

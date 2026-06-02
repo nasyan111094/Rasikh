@@ -1,14 +1,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // consulation_application_cubit.dart
-// Single cubit driving the entire Create-Consultation flow (steps 1–6).
 //
-// Changes from original:
-//  • fetchSpecializations now calls /specializations/active
-//  • Added loadConsultationTypes() → GET /enums/consultation-types
-//  • Added loadCities()             → GET /enums/cities
-//  • clearVoiceNote uses Object sentinel to properly null voiceNote in copyWith
-//  • "استشر الآن" from LawyerCard/LawyerDetailsScreen: selectLawyer then
-//    navigate appropriately (see selectLawyerAndProceed)
+// Flow summary:
+//  • instant / written  → createConsultation() called from ChooseLawyerScreen
+//                         after selectLawyer(). Payment screen navigated to on
+//                         success via BlocListener in ChooseLawyerScreen.
+//  • scheduled          → selectLawyer() only from ChooseLawyerScreen.
+//                         AppointmentBookingScreen lets user pick time.
+//                         createConsultation() called from AppointmentBookingScreen
+//                         after confirming. Payment screen navigated to on
+//                         success via BlocListener in AppointmentBookingScreen.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:io';
@@ -20,16 +21,12 @@ import '../models/consultation_model.dart';
 import '../repo/consulation_application_repo.dart';
 import 'consulation_application_state.dart';
 
-// Sentinel object used to explicitly null-out nullable fields in copyWith.
-final _$null = Object();
-
-class ConsultationCubit extends Cubit<ConsultationState> {
-  ConsultationCubit() : super(const ConsultationState());
+class ConsultationApplicationCubit extends Cubit<ConsultationState> {
+  ConsultationApplicationCubit() : super(const ConsultationState());
 
   final ConsultationRepo _repo = getIt.get<ConsultationRepo>();
 
   // ── Step-1: Specializations ───────────────────────────────────────────────
-  // Calls GET /api/v1/specializations/active
 
   Future<void> loadSpecializations({String? search}) async {
     emit(state.copyWith(
@@ -69,17 +66,14 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(selectedSubSpecializations: current));
   }
 
-  // ── Enums: Consultation types ────────────────────────────────────────────
-  // Calls GET /api/v1/enums/consultation-types
+  // ── Enums ─────────────────────────────────────────────────────────────────
 
   Future<void> loadConsultationTypes() async {
     emit(state.copyWith(
       consultationTypesStatus: ConsultationStatus.loading,
       consultationTypesError: null,
     ));
-
     final result = await _repo.fetchEnum('consultation-types');
-
     result.fold(
           (error) => emit(state.copyWith(
         consultationTypesStatus: ConsultationStatus.failure,
@@ -92,11 +86,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  // ── Enums: Cities ────────────────────────────────────────────────────────
-  // Calls GET /api/v1/enums/cities
-
   Future<void> loadCities() async {
-    // Skip if already loaded successfully
     if (state.citiesStatus == ConsultationStatus.success &&
         state.cities.isNotEmpty) return;
 
@@ -104,9 +94,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       citiesStatus: ConsultationStatus.loading,
       citiesError: null,
     ));
-
     final result = await _repo.fetchEnum('cities');
-
     result.fold(
           (error) => emit(state.copyWith(
         citiesStatus: ConsultationStatus.failure,
@@ -120,25 +108,26 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   }
 
   // ── Step-2: Consultation type ─────────────────────────────────────────────
-  ConsultationType ? selectedConsultationType  ;
+
+  // Also stored outside state so ConnectingToLawyerScreen can read it
+  // synchronously without needing a BlocBuilder.
+  ConsultationType? selectedConsultationType;
+
   void selectConsultationType(ConsultationType type) {
-    selectedConsultationType = type ;
+    selectedConsultationType = type;
     emit(state.copyWith(selectedConsultationType: type));
   }
 
   // ── Step-3: Pricing + Details ─────────────────────────────────────────────
-  // Calls GET /api/v1/client/pricing filtered by the selected consultation type
 
   Future<void> loadPricingPlans() async {
     emit(state.copyWith(
       pricingStatus: ConsultationStatus.loading,
       pricingError: null,
     ));
-
     final result = await _repo.fetchPricing(
       consultationType: state.selectedConsultationType.value,
     );
-
     result.fold(
           (error) => emit(state.copyWith(
         pricingStatus: ConsultationStatus.failure,
@@ -147,45 +136,31 @@ class ConsultationCubit extends Cubit<ConsultationState> {
           (data) => emit(state.copyWith(
         pricingStatus: ConsultationStatus.success,
         pricingPlans: data,
-        // Auto-select first plan when none is selected
         selectedPricing:
         state.selectedPricing ?? (data.isNotEmpty ? data.first : null),
       )),
     );
   }
 
-  void selectPricing(PricingModel pricing) {
-    emit(state.copyWith(selectedPricing: pricing));
-  }
+  void selectPricing(PricingModel pricing) =>
+      emit(state.copyWith(selectedPricing: pricing));
 
-  void updateTitle(String value) {
-    emit(state.copyWith(consultationTitle: value));
-  }
+  void updateTitle(String value) =>
+      emit(state.copyWith(consultationTitle: value));
 
-  void updateDetails(String value) {
-    emit(state.copyWith(consultationDetails: value));
-  }
+  void updateDetails(String value) =>
+      emit(state.copyWith(consultationDetails: value));
 
-  void setHideClientFromLawyer(bool value) {
-    emit(state.copyWith(hideClientFromLawyer: value));
-  }
+  void setHideClientFromLawyer(bool value) =>
+      emit(state.copyWith(hideClientFromLawyer: value));
 
-  // ── Voice note ────────────────────────────────────────────────────────────
+  void setVoiceNote(File file, int durationSeconds) => emit(state.copyWith(
+    voiceNote: file,
+    voiceNoteDurationSeconds: durationSeconds,
+  ));
 
-  void setVoiceNote(File file, int durationSeconds) {
-    emit(state.copyWith(
-      voiceNote: file,
-      voiceNoteDurationSeconds: durationSeconds,
-    ));
-  }
+  void clearVoiceNote() => emit(_stateWithNullVoiceNote(state));
 
-  /// Clears the voice note.
-  /// Uses a special copyWith overload to set voiceNote = null correctly.
-  void clearVoiceNote() {
-    emit(_stateWithNullVoiceNote(state));
-  }
-
-  /// Returns a new state with voiceNote and voiceNoteDurationSeconds nulled out.
   ConsultationState _stateWithNullVoiceNote(ConsultationState s) {
     return ConsultationState(
       specializationsStatus: s.specializationsStatus,
@@ -207,8 +182,8 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       consultationTitle: s.consultationTitle,
       consultationDetails: s.consultationDetails,
       hideClientFromLawyer: s.hideClientFromLawyer,
-      voiceNote: null, // explicitly null
-      voiceNoteDurationSeconds: null, // explicitly null
+      voiceNote: null,
+      voiceNoteDurationSeconds: null,
       attachments: s.attachments,
       lawyersStatus: s.lawyersStatus,
       lawyers: s.lawyers,
@@ -229,8 +204,6 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       createError: s.createError,
     );
   }
-
-  // ── Attachments ───────────────────────────────────────────────────────────
 
   void addAttachment(File file) {
     if (state.attachments.length >= 5) return;
@@ -255,7 +228,6 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       lawyersStatus: ConsultationStatus.loading,
       lawyersError: null,
     ));
-
     final result = await _repo.fetchLawyers(
       specializationId: state.selectedSpecialization?.id,
       subSpecializationIds: state.selectedSubSpecializations.isNotEmpty
@@ -266,7 +238,6 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       sortBy: sortBy,
       sortOrder: sortOrder,
     );
-
     result.fold(
           (error) => emit(state.copyWith(
         lawyersStatus: ConsultationStatus.failure,
@@ -282,18 +253,15 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   Future<void> loadRecommendedLawyer() async {
     final specId = state.selectedSpecialization?.id;
     if (specId == null) return;
-
     emit(state.copyWith(
       recommendedLawyerStatus: ConsultationStatus.loading,
       recommendedLawyerError: null,
     ));
-
     final result = await _repo.fetchRecommendedLawyer(
       specializationId: specId,
       subSpecializationIds:
       state.selectedSubSpecializations.map((s) => s.id).toList(),
     );
-
     result.fold(
           (error) => emit(state.copyWith(
         recommendedLawyerStatus: ConsultationStatus.failure,
@@ -311,9 +279,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
       lawyerDetailStatus: ConsultationStatus.loading,
       lawyerDetailError: null,
     ));
-
     final result = await _repo.fetchLawyerDetails(lawyerId);
-
     result.fold(
           (error) => emit(state.copyWith(
         lawyerDetailStatus: ConsultationStatus.failure,
@@ -326,21 +292,17 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  void selectLawyer(LawyerModel lawyer) {
-    emit(state.copyWith(selectedLawyer: lawyer));
-  }
+  void selectLawyer(LawyerModel lawyer) =>
+      emit(state.copyWith(selectedLawyer: lawyer));
 
-  /// Called when "استشر الآن" is pressed from LawyerCard OR LawyerDetailsScreen.
-  /// Selects the lawyer and also loads their full detail if not yet loaded.
   Future<void> selectLawyerAndLoadDetail(LawyerModel lawyer) async {
     emit(state.copyWith(selectedLawyer: lawyer));
-    // Only re-fetch if the detail is for a different lawyer or not yet loaded.
     if (state.selectedLawyerDetail?.id != lawyer.id) {
       await loadLawyerDetail(lawyer.id);
     }
   }
 
-  // ── Step-5: Appointment scheduling ───────────────────────────────────────
+  // ── Step-5: Appointment scheduling (scheduled only) ───────────────────────
 
   void selectDay(int index) {
     emit(state.copyWith(selectedDayIndex: index));
@@ -373,10 +335,16 @@ class ConsultationCubit extends Cubit<ConsultationState> {
   }
 
   // ── Step-6: Create consultation ───────────────────────────────────────────
+  //
+  // Called from:
+  //  • ChooseLawyerScreen (_onConsult) for instant / written
+  //  • AppointmentBookingScreen (Next button) for scheduled
+  //
+  // On success the calling screen's BlocListener handles navigation:
+  //  • instant / written  → paymentScreen
+  //  • scheduled          → paymentScreen (same listener pattern)
 
   Future<void> createConsultation() async {
-    // Use selectedLawyer; fall back to recommendedLawyer if user chose
-    // "recommend me the best" path.
     final lawyer =
         state.selectedLawyer ?? _lawyerFromRecommended(state.recommendedLawyer);
 
@@ -384,6 +352,7 @@ class ConsultationCubit extends Cubit<ConsultationState> {
         state.selectedSpecialization == null ||
         state.selectedPricing == null) return;
 
+    // Reset previous result so listeners fire even on retry
     emit(state.copyWith(
       createStatus: ConsultationStatus.loading,
       createError: null,
@@ -420,7 +389,6 @@ class ConsultationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  /// Converts a LawyerDetailModel to a lightweight LawyerModel for the create call.
   LawyerModel? _lawyerFromRecommended(LawyerDetailModel? detail) {
     if (detail == null) return null;
     return LawyerModel(
@@ -439,5 +407,8 @@ class ConsultationCubit extends Cubit<ConsultationState> {
 
   // ── Reset ─────────────────────────────────────────────────────────────────
 
-  void resetFlow() => emit(const ConsultationState());
+  void resetFlow() {
+    selectedConsultationType = null;
+    emit(const ConsultationState());
+  }
 }

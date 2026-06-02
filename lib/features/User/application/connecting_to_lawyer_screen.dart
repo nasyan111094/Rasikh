@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
+import 'package:logger/logger.dart';
 import 'package:rasikh/features/User/application/models/consultation_model.dart';
 
 import 'package:size_config/size_config.dart';
@@ -25,11 +26,18 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
   void initState() {
     super.initState();
     Future.delayed(const Duration(seconds: 5), () {
+      final cubit = getIt<ConsultationApplicationCubit>();
 
-      if(getIt<ConsultationCubit>().selectedConsultationType == ConsultationType.instant)
-      Nav.videoCallScreen(context);
-      else
-       Nav.chat(context);
+      if (cubit.selectedConsultationType == ConsultationType.instant) {
+        Nav.videoCallScreen(
+          context,
+          consultationId: cubit.state.createdConsultation!.id,
+          lawyerName: cubit.state.selectedLawyer?.fullName,
+          lawyerPhotoUrl: cubit.state.selectedLawyer?.photoUrl,
+        );
+      } else {
+        Nav.chat(context);
+      }
     });
     _controller = AnimationController(
       vsync: this,

@@ -29,7 +29,7 @@ class ConsultationTypeScreen extends StatelessWidget {
     return Scaffold(
       appBar: GeneralAppBar(title: "إختر نوع الإستشارة"),
       body: SafeArea(
-        child: BlocBuilder<ConsultationCubit, ConsultationState>(
+        child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
             final selectedType = state.selectedConsultationType;
 
@@ -61,7 +61,7 @@ class ConsultationTypeScreen extends StatelessWidget {
                           isSelected:
                           selectedType == ConsultationType.instant,
                           onTap: () => context
-                              .read<ConsultationCubit>()
+                              .read<ConsultationApplicationCubit>()
                               .selectConsultationType(
                               ConsultationType.instant),
                         ),
@@ -81,7 +81,7 @@ class ConsultationTypeScreen extends StatelessWidget {
                           isSelected:
                           selectedType == ConsultationType.written,
                           onTap: () => context
-                              .read<ConsultationCubit>()
+                              .read<ConsultationApplicationCubit>()
                               .selectConsultationType(
                               ConsultationType.written),
                         ),
@@ -102,7 +102,7 @@ class ConsultationTypeScreen extends StatelessWidget {
                           isSelected:
                           selectedType == ConsultationType.scheduled,
                           onTap: () => context
-                              .read<ConsultationCubit>()
+                              .read<ConsultationApplicationCubit>()
                               .selectConsultationType(
                               ConsultationType.scheduled),
                         ),
@@ -124,7 +124,7 @@ class ConsultationTypeScreen extends StatelessWidget {
                         onPressed: () {
                           // Load pricing for the selected type
                           context
-                              .read<ConsultationCubit>()
+                              .read<ConsultationApplicationCubit>()
                               .loadPricingPlans();
                           Nav.consultationDetailsScreen(context);
                         },

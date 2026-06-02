@@ -110,7 +110,7 @@ class _ChooseLawyerMethodDialogState
                 onPressed: () {
                   Navigator.pop(context);
 
-                  final cubit = context.read<ConsultationCubit>();
+                  final cubit = context.read<ConsultationApplicationCubit>();
 
                   if (selectedOption == 'recommend') {
                     // Fetch recommended and navigate; choose screen shows
