@@ -19,6 +19,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../config/navigation/nav.dart';
+import '../../../config/theme/colors.dart';
 import '../../../core/widgets/auth_stepper.dart';
 import 'bloc/consulation_application_cubit.dart';
 import 'bloc/consulation_application_state.dart';
@@ -70,10 +71,9 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
               child: Column(
                 children: [
                   AuthStepperWidget(activeStep: 1, totalSteps: 5),
-                  Gap(40.h),
+                  Gap(20.h),
                   _buildSearchBar(theme, state),
-                  const Gap(10),
-                  Row(children: [_buildQuickFilters()]),
+
                   const Gap(10),
                   Expanded(
                     child: RefreshIndicator(
@@ -181,54 +181,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
     );
   }
 
-  // ── Quick filters ─────────────────────────────────────────────────────────
 
-  Widget _buildQuickFilters() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.start,
-        children: quickFilters
-            .map((f) => Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: GestureDetector(
-            onTap: () {
-              searchController.text = f;
-              context
-                  .read<ConsultationApplicationCubit>()
-                  .loadSpecializations(search: f);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 14, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(40),
-                border: Border.all(
-                  color: Theme.of(context)
-                      .colorScheme
-                      .primary
-                      .withOpacity(0.4),
-                  width: 1.2,
-                ),
-              ),
-              child: Text(
-                f,
-                style:
-                Theme.of(context).textTheme.labelLarge?.copyWith(
-                  fontWeight: FontWeight.w500,
-                  color: Theme.of(context)
-                      .colorScheme
-                      .onSurface,
-                ),
-              ),
-            ),
-          ),
-        ))
-            .toList(),
-      ),
-    );
-  }
 
   // ── Category list ─────────────────────────────────────────────────────────
 
@@ -369,6 +322,7 @@ class _SpecializationTile extends StatelessWidget {
       child: Theme(
         data: theme.copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
+          tilePadding: EdgeInsets.zero,
           key: PageStorageKey(spec.id),
           initiallyExpanded: isExpanded,
           onExpansionChanged: onToggleMain,
@@ -378,38 +332,64 @@ class _SpecializationTile extends StatelessWidget {
             groupValue: isActiveParent ? spec.id : null,
             onChanged: (_) => onToggleMain(true),
           ),
-          title: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(5.h),
-                decoration: BoxDecoration(
-                  border: Border.all(
+          title: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(5.h),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: isExpanded
+                          ? theme.colorScheme.primary.withOpacity(0.6)
+                          : theme.dividerColor,
+                    ),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Picture(
+                    getAssetIcon("chat.svg"),
+                    width: 40.h,
+                    height: 40.h,
                     color: isExpanded
                         ? theme.colorScheme.primary.withOpacity(0.6)
                         : theme.dividerColor,
                   ),
-                  shape: BoxShape.circle,
                 ),
-                child: Picture(
-                  getAssetIcon("chat.svg"),
-                  width: 40.h,
-                  height: 40.h,
-                  color: isExpanded
-                      ? theme.colorScheme.primary.withOpacity(0.6)
-                      : theme.dividerColor,
+                const Gap(6),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      spec.name,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isExpanded
+                            ? theme.colorScheme.primary
+                            : theme.textTheme.titleMedium?.color,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          "عدد التخصصات الفرعيه : ",
+                          style: theme.textTheme.bodySmall?.copyWith(
+
+                            color: greyD0,
+                          ),
+                        ),
+                        Text(
+                          spec.subSpecializationsCount.toString(),
+                          style: theme.textTheme.titleMedium?.copyWith(
+
+                            color: primary ,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-              const Gap(6),
-              Text(
-                spec.name,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: isExpanded
-                      ? theme.colorScheme.primary
-                      : theme.textTheme.titleMedium?.color,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           children: [
             // spec.subSpecializations is always non-empty here because we

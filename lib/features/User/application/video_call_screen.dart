@@ -24,7 +24,7 @@ import '../../../config/navigation/nav.dart';
 import 'bloc/video_call_cubit.dart';
 import 'bloc/video_call_state.dart';
 
-class VideoCallScreen extends StatelessWidget {
+class VideoCallScreen extends StatefulWidget {
   const VideoCallScreen({
     Key? key,
     required this.consultationId,
@@ -37,12 +37,24 @@ class VideoCallScreen extends StatelessWidget {
   final String? lawyerPhotoUrl;
 
   @override
+  State<VideoCallScreen> createState() => _VideoCallScreenState();
+}
+
+class _VideoCallScreenState extends State<VideoCallScreen> {
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+      context.read<VideoCallCubit>().endSession();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => VideoCallCubit(
-        consultationId: consultationId,
-        lawyerName: lawyerName,
-        lawyerPhotoUrl: lawyerPhotoUrl,
+        consultationId: widget.consultationId,
+        lawyerName: widget.lawyerName,
+        lawyerPhotoUrl: widget.lawyerPhotoUrl,
       )..initialize(),
       child: const _VideoCallView(),
     );
@@ -62,130 +74,117 @@ class _VideoCallView extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return BlocConsumer<VideoCallCubit, VideoCallState>(
-    // Navigate away when session ends
-    listener: (context, state) {
-    if (state.phase == VideoCallPhase.ended) {
-    Nav.endSessionScreen(context);
-    }
-    },
-    builder: (context, state) {
-    // ── Permission gate: if permissions missing, show overlay ─────
-    // This blocks the call from starting until camera + microphone are granted.
-    if (state.phase == VideoCallPhase.permissionDenied ||
-    state.phase == VideoCallPhase.permissionPermanentlyDenied) {
-    return _PermissionDeniedOverlay(
-    permanentlyDenied: state.phase ==
-    VideoCallPhase.permissionPermanentlyDenied,
-    missingPermissions: state.missingPermissions,
-    );
-    }
+      // Navigate away when session ends
+      listener: (context, state) {
+        if (state.phase == VideoCallPhase.ended) {
+          Nav.endSessionScreen(context);
+        }
+      },
+      builder: (context, state) {
+        // ── Permission gate: if permissions missing, show overlay ─────
+        // This blocks the call from starting until camera + microphone are granted.
+        if (state.phase == VideoCallPhase.permissionDenied ||
+            state.phase == VideoCallPhase.permissionPermanentlyDenied) {
+          return _PermissionDeniedOverlay(
+            permanentlyDenied:
+                state.phase == VideoCallPhase.permissionPermanentlyDenied,
+            missingPermissions: state.missingPermissions,
+          );
+        }
 
-    return Scaffold(
-    backgroundColor: colorScheme.background,
-    body: Stack(
-    fit: StackFit.expand,
-    children: [
-    // ── Remote video (full-screen background) ─────────────────────
-    _RemoteVideoView(state: state),
+        return PopScope(
+          canPop: false,
+          child: Scaffold(
+            backgroundColor: colorScheme.background,
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                // ── Remote video (full-screen background) ─────────────────────
+                _RemoteVideoView(state: state),
 
-    // ── Overlay gradient at top ───────────────────────────────────
-    Positioned(
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 160,
-    child: DecoratedBox(
-    decoration: BoxDecoration(
-    gradient: LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [
-    Colors.black.withOpacity(0.5),
-    Colors.transparent,
-    ],
-    ),
-    ),
-    ),
-    ),
+                // ── Overlay gradient at top ───────────────────────────────────
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 160,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.5),
+                          Colors.transparent,
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
-    // ── Top bar: back + title ─────────────────────────────────────
-    Positioned(
-    top: 0,
-    left: 0,
-    right: 0,
-    child: SafeArea(
-    child: Padding(
-    padding: EdgeInsets.symmetric(
-    horizontal: 16.w, vertical: 8.h),
-    child: Row(
-    children: [
-    InkWell(
-    onTap: () => _showEndSessionDialog(context),
-    borderRadius: BorderRadius.circular(12),
-    child: Container(
-    padding: const EdgeInsets.all(10),
-    decoration: BoxDecoration(
-    color: colorScheme.surface.withOpacity(0.9),
-    borderRadius: BorderRadius.circular(12),
-    ),
-    child: Icon(
-    Icons.arrow_back,
-    size: 16,
-    color: colorScheme.onSurface,
-    ),
-    ),
-    ),
-    SizedBox(width: 12.w),
-    Text(
-    'استشارة فورية',
-    style: theme.textTheme.titleMedium?.copyWith(
-    fontSize: 15,
-    fontWeight: FontWeight.w900,
-    color: Colors.white,
-    ),
-    ),
-    ],
-    ),
-    ),
-    ),
-    ),
+                // ── Top bar: back + title ─────────────────────────────────────
+                Positioned(
+                  top: 10.h,
+                  left: 0,
+                  right: 0,
+                  child: SafeArea(
+                    child: Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                      child: Row(
+                        children: [
+                          SizedBox(width: 12.w),
+                          Text(
+                            'استشارة فورية',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontSize: 20.sp,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
 
-    // ── Two-minute warning banner ─────────────────────────────────
-    if (state.twoMinuteWarningActive)
-    Positioned(
-    top: 100,
-    left: 20,
-    right: 20,
-    child: _TwoMinuteWarningBanner(colorScheme: colorScheme),
-    ),
+                // ── Two-minute warning banner ─────────────────────────────────
+                if (state.twoMinuteWarningActive)
+                  Positioned(
+                    top: 100,
+                    left: 20,
+                    right: 20,
+                    child: _TwoMinuteWarningBanner(colorScheme: colorScheme),
+                  ),
 
-    // ── Local preview (floating) ──────────────────────────────────
-    Positioned(
-    top: 100,
-    right: 16,
-    child: _LocalPreviewView(state: state),
-    ),
+                // ── Local preview (floating) ──────────────────────────────────
+                Positioned(
+                  top: 100,
+                  right: 16,
+                  child: _LocalPreviewView(state: state),
+                ),
 
-    // ── Waiting overlay ───────────────────────────────────────────
-    if (state.phase == VideoCallPhase.waitingForLawyer ||
-    state.phase == VideoCallPhase.initializing)
-    _WaitingOverlay(state: state),
+                // ── Waiting overlay ───────────────────────────────────────────
+                if (state.phase == VideoCallPhase.waitingForLawyer ||
+                    state.phase == VideoCallPhase.initializing)
+                  _WaitingOverlay(state: state),
 
-    // ── Error overlay ─────────────────────────────────────────────
-    if (state.phase == VideoCallPhase.error)
-    _ErrorOverlay(message: state.errorMessage),
+                // ── Error overlay ─────────────────────────────────────────────
+                if (state.phase == VideoCallPhase.error)
+                  _ErrorOverlay(message: state.errorMessage),
 
-    // ── Bottom controls ───────────────────────────────────────────
-    Positioned(
-    bottom: 0,
-    left: 0,
-    right: 0,
-    child: _BottomControls(state: state),
-    ),
-    ],
-    ),
-    );
-    },
+                // ── Bottom controls ───────────────────────────────────────────
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: _BottomControls(state: state),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -372,8 +371,7 @@ class _EndSessionDialog {
                             side: BorderSide(color: colorScheme.outline),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
-                            padding:
-                            const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           child: Text(
                             'لا',
@@ -392,8 +390,7 @@ class _EndSessionDialog {
                             backgroundColor: colorScheme.error,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
-                            padding:
-                            const EdgeInsets.symmetric(vertical: 12),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
                           child: Text(
                             'نعم',
@@ -441,6 +438,7 @@ class _EndSessionDialog {
 
 class _RemoteVideoView extends StatelessWidget {
   const _RemoteVideoView({required this.state});
+
   final VideoCallState state;
 
   @override
@@ -449,6 +447,8 @@ class _RemoteVideoView extends StatelessWidget {
     final engine = cubit.engine;
 
     if (engine != null &&
+        state.remoteUid != null &&
+        state.remoteUid != 0 &&
         (state.phase == VideoCallPhase.inProgress ||
             state.phase == VideoCallPhase.twoMinuteWarning)) {
       return AgoraVideoView(
@@ -498,6 +498,7 @@ class _RemoteVideoView extends StatelessWidget {
 
 class _LocalPreviewView extends StatelessWidget {
   const _LocalPreviewView({required this.state});
+
   final VideoCallState state;
 
   @override
@@ -514,20 +515,19 @@ class _LocalPreviewView extends StatelessWidget {
         decoration: BoxDecoration(
           color: colorScheme.surface.withOpacity(0.15),
           borderRadius: BorderRadius.circular(12),
-          border:
-          Border.all(color: colorScheme.onSurface.withOpacity(0.4)),
+          border: Border.all(color: colorScheme.onSurface.withOpacity(0.4)),
         ),
         child: state.isCameraOff || engine == null
             ? Center(
-          child: Icon(Icons.videocam_off,
-              color: Colors.white54, size: 32),
-        )
+                child:
+                    Icon(Icons.videocam_off, color: Colors.white54, size: 32),
+              )
             : AgoraVideoView(
-          controller: VideoViewController(
-            rtcEngine: engine,
-            canvas: const VideoCanvas(uid: 0),
-          ),
-        ),
+                controller: VideoViewController(
+                  rtcEngine: engine,
+                  canvas: const VideoCanvas(uid: 0),
+                ),
+              ),
       ),
     );
   }
@@ -539,6 +539,7 @@ class _LocalPreviewView extends StatelessWidget {
 
 class _WaitingOverlay extends StatelessWidget {
   const _WaitingOverlay({required this.state});
+
   final VideoCallState state;
 
   @override
@@ -573,6 +574,7 @@ class _WaitingOverlay extends StatelessWidget {
 
 class _ErrorOverlay extends StatelessWidget {
   const _ErrorOverlay({this.message});
+
   final String? message;
 
   @override
@@ -612,6 +614,7 @@ class _ErrorOverlay extends StatelessWidget {
 
 class _TwoMinuteWarningBanner extends StatelessWidget {
   const _TwoMinuteWarningBanner({required this.colorScheme});
+
   final ColorScheme colorScheme;
 
   @override
@@ -644,6 +647,7 @@ class _TwoMinuteWarningBanner extends StatelessWidget {
 
 class _BottomControls extends StatelessWidget {
   const _BottomControls({required this.state});
+
   final VideoCallState state;
 
   @override
@@ -677,8 +681,7 @@ class _BottomControls extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Container(
-            padding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
               color: colorScheme.surface.withOpacity(0.15),
               borderRadius: BorderRadius.circular(20),
@@ -708,7 +711,7 @@ class _BottomControls extends StatelessWidget {
                   height: 8,
                   decoration: BoxDecoration(
                     color: state.phase == VideoCallPhase.inProgress ||
-                        state.phase == VideoCallPhase.twoMinuteWarning
+                            state.phase == VideoCallPhase.twoMinuteWarning
                         ? colorScheme.error
                         : Colors.grey,
                     shape: BoxShape.circle,
@@ -721,8 +724,7 @@ class _BottomControls extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               decoration: BoxDecoration(
                 color: colorScheme.surface.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(50),
@@ -764,9 +766,8 @@ class _BottomControls extends StatelessWidget {
                   const SizedBox(width: 18),
                   _ControlButton(
                     onTap: cubit.toggleSpeaker,
-                    icon: state.isSpeakerOn
-                        ? Icons.volume_up
-                        : Icons.volume_off,
+                    icon:
+                        state.isSpeakerOn ? Icons.volume_up : Icons.volume_off,
                     color: colorScheme.surface,
                     iconColor: colorScheme.onSurface,
                     size: 48,

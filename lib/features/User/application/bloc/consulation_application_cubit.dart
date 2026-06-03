@@ -111,7 +111,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
 
   // Also stored outside state so ConnectingToLawyerScreen can read it
   // synchronously without needing a BlocBuilder.
-  ConsultationType? selectedConsultationType;
+  ConsultationType? selectedConsultationType = ConsultationType.instant;
 
   void selectConsultationType(ConsultationType type) {
     selectedConsultationType = type;
