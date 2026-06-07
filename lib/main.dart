@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:agora_chat_sdk/agora_chat_sdk.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -50,6 +51,19 @@ Future<void> main() async {
 
   // ── Register all singletons (includes CacheHelper.init()) ──────────────────
   await initializeDependencies();
+
+  // ── Agora Chat SDK initialization ──────────────────────────────────────────
+  try {
+    final options = ChatOptions(
+      appKey: AppConfig.agoraChatAppKey,
+      autoLogin: false,
+    );
+    await ChatClient.getInstance.init(options);
+    await ChatClient.getInstance.startCallback();
+  } catch (e) {
+    // Log error but continue - chat features will fail gracefully
+    debugPrint('Failed to initialize Agora Chat SDK: $e');
+  }
 
   // ── Portrait lock ──────────────────────────────────────────────────────────
   await SystemChrome.setPreferredOrientations([

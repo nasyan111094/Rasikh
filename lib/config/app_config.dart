@@ -3,6 +3,9 @@ abstract class AppConfig {
   static String baseImgUrl = "http://89.117.60.202:3050";
 
   static String version = 'v1/';
+
+  // Agora Chat SDK
+  static String agoraChatAppKey = '61200025732#200034431';
 }
 
 ///firebase

@@ -3,14 +3,19 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
-import 'package:logger/logger.dart';
 import '../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../core/utils/api/api_handler.dart';
 import '../models/consultation_model.dart';
 
 class LawyerConsultationsEndpoints {
-  static const String availableConsultations = 'lawyer/consultations/instant/available';
-  static String acceptInstant(String id) => 'lawyer/consultations/$id/accept-instant';
+  static const String availableConsultations =
+      'lawyer/consultations/instant/available';
+
+  static String acceptInstant(String id) =>
+      'lawyer/consultations/$id/accept-instant';
+
+  static String acceptWritten(String id) =>
+      'lawyer/consultations/$id/accept-written';
 }
 
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -23,7 +28,10 @@ class LawyerConsultationsEndpoints {
 ///   POST /api/v1/lawyer/consultations/{id}/accept-instant
 ///        → Accepts a pending instant consultation
 ///        → Transitions consultation from pending → active
-///        → Response includes updated consultation with new status
+///
+///   POST /api/v1/lawyer/consultations/{id}/accept-written
+///        → Accepts a pending paid written consultation
+///        → Assigns lawyer and sets status to active
 /// ─────────────────────────────────────────────────────────────────────────────
 
 class LawyerConsultationsRepo {
@@ -33,10 +41,6 @@ class LawyerConsultationsRepo {
   ///
   /// Fetches paginated list of pending instant consultations
   /// that are awaiting lawyer acceptance.
-  ///
-  /// Response contains:
-  /// - consultation list with id, title, details, type, client info
-  /// - pagination metadata (page, limit, total, totalPages)
   Future<Either<String, List<Consultation>>> getAvailableConsultations({
     int page = 1,
     int limit = 10,
@@ -63,49 +67,55 @@ class LawyerConsultationsRepo {
   /// POST accept instant consultation
   ///
   /// Accepts a pending instant consultation request.
-  ///
-  /// Flow:
-  /// 1. Client creates instant consultation (status: pending)
-  /// 2. Lawyer calls this endpoint with consultation ID
-  /// 3. Status changes to active
-  /// 4. Real-time connection established
-  /// 5. Both parties can join the video call
-  ///
   /// Returns: Updated consultation with status="active"
   ///
   /// Errors:
   /// - 400: Consultation is not instant type or already accepted
-  /// - 401: Unauthorized - Invalid or missing JWT token
-  /// - 403: Forbidden - LAWYER role required
-  /// - 404: Consultation not found
-  Future<Either<String, Consultation>> acceptInstantConsultation(String id) async {
-
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-    Logger().i(id) ;
-
-
+  /// - 401: Unauthorized
+  /// - 403: LAWYER role required
+  /// - 404: Not found
+  Future<Either<String, Consultation>> acceptInstantConsultation(
+      String id) async {
     final result = await _adapter.post(
-      "lawyer/consultations/$id/accept-instant",
-      body: {}, // empty body per API spec
+      'lawyer/consultations/$id/accept-instant',
+      body: {},
     );
 
     return result.fold(
           (error) => Left(_extractError(error)),
           (response) {
         final data = response.data as Map<String, dynamic>;
-        final consultationData = data['data']['consultation'] as Map<String, dynamic>;
-        final acceptedConsultation = Consultation.fromJson(consultationData);
-        return Right(acceptedConsultation);
+        final consultationData =
+        data['data']['consultation'] as Map<String, dynamic>;
+        return Right(Consultation.fromJson(consultationData));
+      },
+    );
+  }
+
+  /// POST accept written consultation
+  ///
+  /// Accepts a pending paid written consultation.
+  /// Assigns the lawyer and transitions status to active.
+  ///
+  /// Errors:
+  /// - 400: Consultation is not written type or already accepted
+  /// - 401: Unauthorized
+  /// - 403: LAWYER role required
+  /// - 404: Not found
+  Future<Either<String, Consultation>> acceptWrittenConsultation(
+      String id) async {
+    final result = await _adapter.post(
+      'lawyer/consultations/$id/accept-written',
+      body: {},
+    );
+
+    return result.fold(
+          (error) => Left(_extractError(error)),
+          (response) {
+        final data = response.data as Map<String, dynamic>;
+        final consultationData =
+        data['data']['consultation'] as Map<String, dynamic>;
+        return Right(Consultation.fromJson(consultationData));
       },
     );
   }

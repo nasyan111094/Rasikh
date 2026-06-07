@@ -1,16 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // video_call_screen.dart
-//
-// Full Agora video call UI driven by VideoCallCubit.
-// Receives consultationId (and optional lawyer info) as constructor args.
-//
-// Bugs fixed:
-//  1. Operator precedence in _RemoteVideoView — wrapped || condition in parens.
-//  2. Remote VideoCanvas missing uid — now uses state.remoteUid.
-//  3. Duplicate end-session dialog — extracted into shared _EndSessionDialog.
-//  4. Cubit accessed after Navigator.pop in back-arrow dialog — captured before pop.
-//  5. Permission handling — camera, mic, and audio permissions checked before
-//     engine initialization with graceful denial UI + settings redirect.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
@@ -18,45 +7,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:rasikh/features/User/application/end_session_screen.dart';
+import 'package:rasikh/features/common/layout/layout_screen.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../config/navigation/nav.dart';
 import 'bloc/video_call_cubit.dart';
 import 'bloc/video_call_state.dart';
+import 'dialogs/call_summary_dialog.dart';
 
-class VideoCallScreen extends StatefulWidget {
+class VideoCallScreen extends StatelessWidget {
   const VideoCallScreen({
     Key? key,
     required this.consultationId,
+    required this.lawyerId,
+    required this.clientId,
     this.lawyerName,
     this.lawyerPhotoUrl,
   }) : super(key: key);
 
   final String consultationId;
+
+  /// The IDs of the lawyer and client for this consultation.
+  /// Must be passed from the caller (consultation list / detail screen)
+  /// because the instant-session endpoint does not return them.
+  final String lawyerId;
+  final String clientId;
+
   final String? lawyerName;
   final String? lawyerPhotoUrl;
-
-  @override
-  State<VideoCallScreen> createState() => _VideoCallScreenState();
-}
-
-class _VideoCallScreenState extends State<VideoCallScreen> {
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-      context.read<VideoCallCubit>().endSession();
-  }
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => VideoCallCubit(
-        consultationId: widget.consultationId,
-        lawyerName: widget.lawyerName,
-        lawyerPhotoUrl: widget.lawyerPhotoUrl,
+        consultationId: consultationId,
+        lawyerName: lawyerName,
+        lawyerPhotoUrl: lawyerPhotoUrl,
+        lawyerId: lawyerId,
+        clientId: clientId,
       )..initialize(),
-      child: const _VideoCallView(),
+      child: _VideoCallView(
+        consultationId: consultationId,
+        lawyerId: lawyerId,
+        clientId: clientId,
+      ),
     );
   }
 }
@@ -65,8 +60,24 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 // Internal view — consumes VideoCallCubit
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _VideoCallView extends StatelessWidget {
-  const _VideoCallView();
+class _VideoCallView extends StatefulWidget {
+  const _VideoCallView({
+    required this.consultationId,
+    required this.lawyerId,
+    required this.clientId,
+  });
+
+  final String consultationId;
+  final String lawyerId;
+  final String clientId;
+
+  @override
+  State<_VideoCallView> createState() => _VideoCallViewState();
+}
+
+class _VideoCallViewState extends State<_VideoCallView> {
+  /// Guard: prevents the timer-expiry dialog from being shown more than once.
+  bool _timerExpiredDialogShown = false;
 
   @override
   Widget build(BuildContext context) {
@@ -74,20 +85,38 @@ class _VideoCallView extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return BlocConsumer<VideoCallCubit, VideoCallState>(
-      // Navigate away when session ends
-      listener: (context, state) {
+      listener: (context, state) async {
+        // ── Timer expired: show summary (lawyer) or navigate to end (client)
+        if (state.phase == VideoCallPhase.timerExpired &&
+            !_timerExpiredDialogShown) {
+          _timerExpiredDialogShown = true;
+          await _handleTimerExpired(context);
+          return;
+        }
+
+        // ── Server confirmed session ended ────────────────────────────────
         if (state.phase == VideoCallPhase.ended) {
-          Nav.endSessionScreen(context);
+          final cubit = context.read<VideoCallCubit>();
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(
+              builder: (_) => cubit.isLawyer ? LayoutPage() : EndSessionScreen(
+                consultationId: widget.consultationId,
+                // Use widget fields — guaranteed non-empty from the caller
+                lawyerId: widget.lawyerId,
+                clientId: widget.clientId,
+              ),
+            ),
+                (route) => false,
+          );
         }
       },
       builder: (context, state) {
-        // ── Permission gate: if permissions missing, show overlay ─────
-        // This blocks the call from starting until camera + microphone are granted.
+        // ── Permission gate ───────────────────────────────────────────────
         if (state.phase == VideoCallPhase.permissionDenied ||
             state.phase == VideoCallPhase.permissionPermanentlyDenied) {
           return _PermissionDeniedOverlay(
             permanentlyDenied:
-                state.phase == VideoCallPhase.permissionPermanentlyDenied,
+            state.phase == VideoCallPhase.permissionPermanentlyDenied,
             missingPermissions: state.missingPermissions,
           );
         }
@@ -99,10 +128,10 @@ class _VideoCallView extends StatelessWidget {
             body: Stack(
               fit: StackFit.expand,
               children: [
-                // ── Remote video (full-screen background) ─────────────────────
+                // ── Remote video (full-screen background) ─────────────────
                 _RemoteVideoView(state: state),
 
-                // ── Overlay gradient at top ───────────────────────────────────
+                // ── Top gradient ──────────────────────────────────────────
                 Positioned(
                   top: 0,
                   left: 0,
@@ -122,15 +151,15 @@ class _VideoCallView extends StatelessWidget {
                   ),
                 ),
 
-                // ── Top bar: back + title ─────────────────────────────────────
+                // ── Top bar ───────────────────────────────────────────────
                 Positioned(
                   top: 10.h,
                   left: 0,
                   right: 0,
                   child: SafeArea(
                     child: Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
+                      padding: EdgeInsets.symmetric(
+                          horizontal: 16.w, vertical: 8.h),
                       child: Row(
                         children: [
                           SizedBox(width: 12.w),
@@ -148,37 +177,47 @@ class _VideoCallView extends StatelessWidget {
                   ),
                 ),
 
-                // ── Two-minute warning banner ─────────────────────────────────
+                // ── Two-minute warning banner ─────────────────────────────
                 if (state.twoMinuteWarningActive)
                   Positioned(
-                    top: 100,
+                    top: 70,
                     left: 20,
                     right: 20,
                     child: _TwoMinuteWarningBanner(colorScheme: colorScheme),
                   ),
 
-                // ── Local preview (floating) ──────────────────────────────────
+                // ── Local preview (floating) ──────────────────────────────
                 Positioned(
                   top: 100,
                   right: 16,
                   child: _LocalPreviewView(state: state),
                 ),
 
-                // ── Waiting overlay ───────────────────────────────────────────
+                // ── Waiting overlay ───────────────────────────────────────
                 if (state.phase == VideoCallPhase.waitingForLawyer ||
-                    state.phase == VideoCallPhase.initializing)
+                    state.phase == VideoCallPhase.initializing ||
+                    state.phase == VideoCallPhase.agoraReady ||
+                    state.phase == VideoCallPhase.joiningCall)
                   _WaitingOverlay(state: state),
 
-                // ── Error overlay ─────────────────────────────────────────────
+                // ── Reconnecting overlay ──────────────────────────────────
+                if (state.phase == VideoCallPhase.reconnecting)
+                  _ReconnectingOverlay(
+                      attempts: state.reconnectAttempts, max: 3),
+
+                // ── Error overlay ─────────────────────────────────────────
                 if (state.phase == VideoCallPhase.error)
                   _ErrorOverlay(message: state.errorMessage),
 
-                // ── Bottom controls ───────────────────────────────────────────
+                // ── Bottom controls ───────────────────────────────────────
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: _BottomControls(state: state),
+                  child: _BottomControls(
+                    state: state,
+                    consultationId: widget.consultationId,
+                  ),
                 ),
               ],
             ),
@@ -188,17 +227,53 @@ class _VideoCallView extends StatelessWidget {
     );
   }
 
-  Future<void> _showEndSessionDialog(BuildContext context) async {
+  // ── Handles timer reaching 00:00 ─────────────────────────────────────────
+  Future<void> _handleTimerExpired(BuildContext context) async {
     final cubit = context.read<VideoCallCubit>();
-    final confirmed = await _EndSessionDialog.show(context);
-    if (confirmed == true) {
-      cubit.endSession();
+
+    if (cubit.isLawyer) {
+      await showCallSummaryDialog(
+        context,
+        onSubmit: (summary) async {
+          await cubit.submitCallSummary(summary);
+          await cubit.endSession();
+          if (context.mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LayoutPage()),
+                  (route) => false,
+            );
+          }
+        },
+        onSkip: () async {
+          await cubit.endSession();
+          if (context.mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LayoutPage()),
+                  (route) => false,
+            );
+          }
+        },
+      );
+    } else {
+      final csState = cubit.state;
+
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => cubit.isLawyer ? LayoutPage(): EndSessionScreen(
+            consultationId: widget.consultationId,
+            lawyerId: csState.lawyerId ?? '',
+            clientId: csState.clientId ?? '',
+          ),
+        ),
+            (route) => false,
+      );
+      await cubit.endSession();
     }
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Permission Denied Overlay — shown before the call can start
+// Permission Denied Overlay
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _PermissionDeniedOverlay extends StatelessWidget {
@@ -211,7 +286,7 @@ class _PermissionDeniedOverlay extends StatelessWidget {
   final List<Permission> missingPermissions;
 
   String get _permissionNames {
-    final names = missingPermissions.map((p) {
+    return missingPermissions.map((p) {
       switch (p) {
         case Permission.camera:
           return 'الكاميرا';
@@ -221,7 +296,6 @@ class _PermissionDeniedOverlay extends StatelessWidget {
           return p.toString();
       }
     }).join(' و ');
-    return names;
   }
 
   @override
@@ -284,11 +358,9 @@ class _PermissionDeniedOverlay extends StatelessWidget {
                   )
                 else
                   ElevatedButton.icon(
-                    onPressed: () {
-                      context
-                          .read<VideoCallCubit>()
-                          .requestPermissionsAndInitialize();
-                    },
+                    onPressed: () => context
+                        .read<VideoCallCubit>()
+                        .requestPermissionsAndInitialize(),
                     icon: const Icon(Icons.check_circle_outline),
                     label: const Text('السماح بالصلاحيات'),
                     style: ElevatedButton.styleFrom(
@@ -321,13 +393,60 @@ class _PermissionDeniedOverlay extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FIX 3: Single shared end-session confirmation dialog.
+// End-session confirmation dialog
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _EndSessionDialog {
-  static Future<bool?> show(BuildContext context) {
+  static Future<bool?> show(
+      BuildContext context, {
+        required String consultationId,
+      }) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+
+    Future<void> _handleEndingSession(BuildContext context) async {
+      final cubit = context.read<VideoCallCubit>();
+
+      if (cubit.isLawyer) {
+        await showCallSummaryDialog(
+          context,
+          onSubmit: (summary) async {
+            await cubit.submitCallSummary(summary);
+            await cubit.endSession();
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LayoutPage()),
+                    (route) => false,
+              );
+            }
+          },
+          onSkip: () async {
+            await cubit.endSession();
+            if (context.mounted) {
+              Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(builder: (_) => const LayoutPage()),
+                    (route) => false,
+              );
+            }
+          },
+        );
+      } else {
+        // Always read IDs from cubit state — they come from the server
+        final cubit=context.read<VideoCallCubit>() ;
+        final vsState = cubit.state;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) =>cubit.isLawyer ? LayoutPage() : EndSessionScreen(
+              consultationId: consultationId,
+              lawyerId: vsState.lawyerId ?? '',
+              clientId: vsState.clientId ?? '',
+            ),
+          ),
+              (route) => false,
+        );
+        await cubit.endSession();
+      }
+    }
 
     return showDialog<bool>(
       context: context,
@@ -362,7 +481,6 @@ class _EndSessionDialog {
                   ),
                   const SizedBox(height: 24),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Expanded(
                         child: OutlinedButton(
@@ -371,7 +489,8 @@ class _EndSessionDialog {
                             side: BorderSide(color: colorScheme.outline),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            padding:
+                            const EdgeInsets.symmetric(vertical: 12),
                           ),
                           child: Text(
                             'لا',
@@ -385,12 +504,13 @@ class _EndSessionDialog {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => Navigator.pop(context, true),
+                          onPressed: () => _handleEndingSession(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: colorScheme.error,
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            padding:
+                            const EdgeInsets.symmetric(vertical: 12),
                           ),
                           child: Text(
                             'نعم',
@@ -433,24 +553,25 @@ class _EndSessionDialog {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Remote video — shows Agora remote stream or a placeholder avatar
+// Remote video
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _RemoteVideoView extends StatelessWidget {
   const _RemoteVideoView({required this.state});
-
   final VideoCallState state;
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<VideoCallCubit>();
-    final engine = cubit.engine;
+    final engine = context.read<VideoCallCubit>().engine;
 
-    if (engine != null &&
+    final showLiveVideo = engine != null &&
         state.remoteUid != null &&
         state.remoteUid != 0 &&
         (state.phase == VideoCallPhase.inProgress ||
-            state.phase == VideoCallPhase.twoMinuteWarning)) {
+            state.phase == VideoCallPhase.twoMinuteWarning ||
+            state.phase == VideoCallPhase.timerExpired);
+
+    if (showLiveVideo) {
       return AgoraVideoView(
         controller: VideoViewController.remote(
           rtcEngine: engine,
@@ -493,18 +614,16 @@ class _RemoteVideoView extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Local camera preview (floating card, top-right)
+// Local camera preview
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LocalPreviewView extends StatelessWidget {
   const _LocalPreviewView({required this.state});
-
   final VideoCallState state;
 
   @override
   Widget build(BuildContext context) {
-    final cubit = context.read<VideoCallCubit>();
-    final engine = cubit.engine;
+    final engine = context.read<VideoCallCubit>().engine;
     final colorScheme = Theme.of(context).colorScheme;
 
     return ClipRRect(
@@ -519,15 +638,15 @@ class _LocalPreviewView extends StatelessWidget {
         ),
         child: state.isCameraOff || engine == null
             ? Center(
-                child:
-                    Icon(Icons.videocam_off, color: Colors.white54, size: 32),
-              )
+          child: Icon(Icons.videocam_off,
+              color: Colors.white54, size: 32),
+        )
             : AgoraVideoView(
-                controller: VideoViewController(
-                  rtcEngine: engine,
-                  canvas: const VideoCanvas(uid: 0),
-                ),
-              ),
+          controller: VideoViewController(
+            rtcEngine: engine,
+            canvas: const VideoCanvas(uid: 0),
+          ),
+        ),
       ),
     );
   }
@@ -539,8 +658,20 @@ class _LocalPreviewView extends StatelessWidget {
 
 class _WaitingOverlay extends StatelessWidget {
   const _WaitingOverlay({required this.state});
-
   final VideoCallState state;
+
+  String get _message {
+    switch (state.phase) {
+      case VideoCallPhase.initializing:
+      case VideoCallPhase.agoraReady:
+      case VideoCallPhase.joiningCall:
+        return 'جاري الاتصال…';
+      case VideoCallPhase.waitingForLawyer:
+        return 'في انتظار انضمام المحامي…';
+      default:
+        return 'جاري التحميل…';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -553,12 +684,43 @@ class _WaitingOverlay extends StatelessWidget {
             const CircularProgressIndicator(color: Colors.white),
             const SizedBox(height: 20),
             Text(
-              state.phase == VideoCallPhase.initializing
-                  ? 'جاري الاتصال…'
-                  : 'في انتظار انضمام المحامي…',
+              _message,
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 16,
+                  fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reconnecting overlay
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ReconnectingOverlay extends StatelessWidget {
+  const _ReconnectingOverlay({required this.attempts, required this.max});
+  final int attempts;
+  final int max;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black.withOpacity(0.65),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(color: Colors.orange),
+            const SizedBox(height: 20),
+            Text(
+              'إعادة الاتصال… ($attempts/$max)',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
                   fontWeight: FontWeight.w500),
             ),
           ],
@@ -574,7 +736,6 @@ class _WaitingOverlay extends StatelessWidget {
 
 class _ErrorOverlay extends StatelessWidget {
   const _ErrorOverlay({this.message});
-
   final String? message;
 
   @override
@@ -614,7 +775,6 @@ class _ErrorOverlay extends StatelessWidget {
 
 class _TwoMinuteWarningBanner extends StatelessWidget {
   const _TwoMinuteWarningBanner({required this.colorScheme});
-
   final ColorScheme colorScheme;
 
   @override
@@ -646,15 +806,22 @@ class _TwoMinuteWarningBanner extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _BottomControls extends StatelessWidget {
-  const _BottomControls({required this.state});
-
+  const _BottomControls({
+    required this.state,
+    required this.consultationId,
+  });
   final VideoCallState state;
+  final String consultationId;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final cubit = context.read<VideoCallCubit>();
+
+    // Timer turns red when ≤ 2 minutes remain
+    final timerCritical = state.twoMinuteWarningActive ||
+        (state.remainingSeconds != null && state.remainingSeconds! <= 120);
 
     return Container(
       padding: const EdgeInsets.only(bottom: 40, top: 60),
@@ -671,6 +838,7 @@ class _BottomControls extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Lawyer name
           Text(
             state.lawyerName ?? 'المحامي',
             style: theme.textTheme.titleMedium?.copyWith(
@@ -680,38 +848,54 @@ class _BottomControls extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+
+          // Timer chip
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            padding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: colorScheme.surface.withOpacity(0.15),
+              color: timerCritical
+                  ? colorScheme.error.withOpacity(0.15)
+                  : colorScheme.surface.withOpacity(0.15),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: colorScheme.onSurface.withOpacity(0.25),
+                color: timerCritical
+                    ? colorScheme.error.withOpacity(0.6)
+                    : colorScheme.onSurface.withOpacity(0.25),
                 width: 1,
               ),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '${state.formattedRemaining}   دقيقة',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: state.twoMinuteWarningActive
-                        ? colorScheme.error
-                        : colorScheme.onBackground,
-                    fontSize: 13,
-                    fontWeight: state.twoMinuteWarningActive
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                  ),
+                Icon(
+                  Icons.timer_outlined,
+                  size: 14,
+                  color: timerCritical
+                      ? colorScheme.error
+                      : colorScheme.onBackground.withOpacity(0.7),
                 ),
                 const SizedBox(width: 6),
+                Text(
+                  state.formattedRemaining,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: timerCritical
+                        ? colorScheme.error
+                        : colorScheme.onBackground,
+                    fontSize: 14,
+                    fontWeight: timerCritical
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   width: 8,
                   height: 8,
                   decoration: BoxDecoration(
-                    color: state.phase == VideoCallPhase.inProgress ||
-                            state.phase == VideoCallPhase.twoMinuteWarning
+                    color: state.isSessionActive
                         ? colorScheme.error
                         : Colors.grey,
                     shape: BoxShape.circle,
@@ -720,11 +904,15 @@ class _BottomControls extends StatelessWidget {
               ],
             ),
           ),
+
           const SizedBox(height: 45),
+
+          // Control buttons
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
               decoration: BoxDecoration(
                 color: colorScheme.surface.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(50),
@@ -766,8 +954,9 @@ class _BottomControls extends StatelessWidget {
                   const SizedBox(width: 18),
                   _ControlButton(
                     onTap: cubit.toggleSpeaker,
-                    icon:
-                        state.isSpeakerOn ? Icons.volume_up : Icons.volume_off,
+                    icon: state.isSpeakerOn
+                        ? Icons.volume_up
+                        : Icons.volume_off,
                     color: colorScheme.surface,
                     iconColor: colorScheme.onSurface,
                     size: 48,
@@ -793,9 +982,25 @@ class _BottomControls extends StatelessWidget {
 
   Future<void> _handleEndCall(
       BuildContext context, VideoCallCubit cubit) async {
-    final confirmed = await _EndSessionDialog.show(context);
-    if (confirmed == true) {
-      cubit.endSession();
+    final confirmed = await _EndSessionDialog.show(
+      context,
+      consultationId: consultationId,
+    );
+    if (confirmed != true) return;
+
+    if (cubit.isLawyer) {
+      await showCallSummaryDialog(
+        context,
+        onSubmit: (summary) async {
+          await cubit.submitCallSummary(summary);
+          await cubit.endSession();
+        },
+        onSkip: () async {
+          await cubit.endSession();
+        },
+      );
+    } else {
+      await cubit.endSession();
     }
   }
 }
@@ -823,6 +1028,7 @@ class _ControlButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(size),
       child: Container(
         width: size,
         height: size,

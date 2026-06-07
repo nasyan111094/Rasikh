@@ -1,7 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// video_call_state.dart
-// ─────────────────────────────────────────────────────────────────────────────
-
 import 'package:permission_handler/permission_handler.dart';
 
 import '../repo/video_call_repo.dart';
@@ -34,7 +30,10 @@ enum VideoCallPhase {
   /// Local network drop – attempting to rejoin
   reconnecting,
 
-  /// Session over
+  /// Local countdown hit 00:00 — show summary dialog before fully ending
+  timerExpired,
+
+  /// Session over (navigate away)
   ended,
 
   /// Unrecoverable error
@@ -51,13 +50,15 @@ class VideoCallState {
   final bool twoMinuteWarningActive;
 
   // ── Remote peer ────────────────────────────────────────────────────────────
-  final int? remoteUid;          // Agora UID of the remote peer
-  final bool isRemoteVideoMuted; // Remote peer muted their camera
-  final bool isRemoteAudioMuted; // Remote peer muted their mic
+  final int? remoteUid;
+  final bool isRemoteVideoMuted;
+  final bool isRemoteAudioMuted;
 
   // ── Lawyer info (display) ──────────────────────────────────────────────────
   final String? lawyerName;
   final String? lawyerPhotoUrl;
+  final String? lawyerId;
+  final String? clientId;
 
   // ── Local media ────────────────────────────────────────────────────────────
   final bool isMuted;
@@ -86,6 +87,8 @@ class VideoCallState {
     this.isRemoteAudioMuted = false,
     this.lawyerName,
     this.lawyerPhotoUrl,
+    this.lawyerId,
+    this.clientId,
     this.isMuted = false,
     this.isCameraOff = false,
     this.isSpeakerOn = true,
@@ -108,6 +111,8 @@ class VideoCallState {
     bool? isRemoteAudioMuted,
     String? lawyerName,
     String? lawyerPhotoUrl,
+    String? lawyerId,
+    String? clientId,
     bool? isMuted,
     bool? isCameraOff,
     bool? isSpeakerOn,
@@ -130,6 +135,8 @@ class VideoCallState {
       isRemoteAudioMuted: isRemoteAudioMuted ?? this.isRemoteAudioMuted,
       lawyerName: lawyerName ?? this.lawyerName,
       lawyerPhotoUrl: lawyerPhotoUrl ?? this.lawyerPhotoUrl,
+      lawyerId: lawyerId ?? this.lawyerId,
+      clientId: clientId ?? this.clientId,
       isMuted: isMuted ?? this.isMuted,
       isCameraOff: isCameraOff ?? this.isCameraOff,
       isSpeakerOn: isSpeakerOn ?? this.isSpeakerOn,

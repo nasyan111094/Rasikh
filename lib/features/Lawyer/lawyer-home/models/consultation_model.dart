@@ -105,7 +105,7 @@ class Consultation {
 
   factory Consultation.fromJson(Map<String, dynamic> json) {
     return Consultation(
-      id: json['id']?.toString() ?? '',
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
 
       client: Client.fromJson(json['client'] ?? {}),
       lawyer: Lawyer.fromJson(json['lawyer'] ?? {}),

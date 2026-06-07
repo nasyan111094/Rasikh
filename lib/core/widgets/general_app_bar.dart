@@ -9,10 +9,13 @@ class GeneralAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final VoidCallback? onTapArrow;
 
+  final  bool ?  isBack;
+
   const GeneralAppBar({
     super.key,
     required this.title,
     this.onTapArrow,
+ this.isBack =  true ,
   });
 
   @override
@@ -31,7 +34,7 @@ class GeneralAppBar extends StatelessWidget implements PreferredSizeWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
 
-              Padding(
+             isBack! ? Padding(
                 padding:EdgeInsets.all(16.w),
                 child: InkWell(
                   onTap: onTapArrow ?? (){Navigator.of(context).pop() ; },
@@ -49,7 +52,7 @@ class GeneralAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                   ),
                 ),
-              ),
+              ) : const SizedBox.shrink(),
 
               Expanded(
                 child: Text(

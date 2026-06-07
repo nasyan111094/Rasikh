@@ -444,29 +444,39 @@ abstract class Nav {
          LawyerDetailsScreen(lawyerId: Id,),
       );
 
-  static endSessionScreen(
-      BuildContext context,
-      ) async =>
-      await _push(
-        context,
-        PageKey.login,
-        const EndSessionScreen(),
-      );
 
   static chat(
-      BuildContext context,
-      ) async =>
-      await _push(
-        context,
-        PageKey.login,
-        const ChatScreen(),
-      );
-
-  static videoCallScreen(
       BuildContext context, {
-        required String consultationId,
+
         String? lawyerName,
         String? lawyerPhotoUrl,
+        required String consultationId,
+        String ? lawyerId ,
+        String ?  clientId  ,
+
+
+      }) async =>
+      await _push(
+        context,
+        PageKey.login, // update PageKey if needed
+        ChatScreenSession(
+          consultationId: consultationId,
+          clientId: clientId ?? "",
+          lawyerId: lawyerId ?? "",
+          peerName: lawyerName,
+          peerPhotoUrl: lawyerPhotoUrl,
+        ),
+      );
+  static videoCallScreen(
+      BuildContext context, {
+
+        String? lawyerName,
+        String? lawyerPhotoUrl,
+         required String consultationId,
+         String ? lawyerId ,
+         String ?  clientId  ,
+
+
       }) async =>
       await _push(
         context,
@@ -475,6 +485,9 @@ abstract class Nav {
           consultationId: consultationId,
           lawyerName: lawyerName,
           lawyerPhotoUrl: lawyerPhotoUrl,
+          clientId: clientId ?? "",
+          lawyerId: lawyerId ?? "",
+
         ),
       );
   static connectingToLawyerScreen(

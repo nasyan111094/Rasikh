@@ -27,7 +27,8 @@ class LawyerConsultationsError extends LawyerConsultationsState {
   List<Object?> get props => [message];
 }
 
-// Accept actions
+// ─── Accept Instant ───────────────────────────────────────────────────────────
+
 class AcceptConsultationLoading extends LawyerConsultationsState {
   final String consultationId;
   const AcceptConsultationLoading(this.consultationId);
@@ -45,6 +46,29 @@ class AcceptConsultationSuccess extends LawyerConsultationsState {
 class AcceptConsultationError extends LawyerConsultationsState {
   final String message;
   const AcceptConsultationError(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
+// ─── Accept Written ───────────────────────────────────────────────────────────
+
+class AcceptWrittenConsultationLoading extends LawyerConsultationsState {
+  final String consultationId;
+  const AcceptWrittenConsultationLoading(this.consultationId);
+  @override
+  List<Object?> get props => [consultationId];
+}
+
+class AcceptWrittenConsultationSuccess extends LawyerConsultationsState {
+  final Consultation acceptedConsultation;
+  const AcceptWrittenConsultationSuccess(this.acceptedConsultation);
+  @override
+  List<Object?> get props => [acceptedConsultation];
+}
+
+class AcceptWrittenConsultationError extends LawyerConsultationsState {
+  final String message;
+  const AcceptWrittenConsultationError(this.message);
   @override
   List<Object?> get props => [message];
 }

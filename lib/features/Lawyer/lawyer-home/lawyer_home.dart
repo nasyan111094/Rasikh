@@ -37,7 +37,6 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
     if (profileCubit.cachedProfile == null) {
       profileCubit.getProfile();
     }
-    // Fetch consultations once profile is available, or directly
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LawyerConsultationsCubit>().fetchConsultations();
     });
@@ -59,45 +58,74 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
       body: SafeArea(
         child: BlocListener<LawyerConsultationsCubit, LawyerConsultationsState>(
           listener: (context, state) {
-            // Handle accept consultation success
+            // ── Instant consultation accepted → navigate to video call ──
             if (state is AcceptConsultationSuccess) {
               final accepted = state.acceptedConsultation;
-              
-              // Get lawyer profile for video call screen
-              final profileState = context.read<LawyerProfileCubit>().state;
-              String? lawyerName;
-              String? lawyerPhoto;
-              if (profileState is LawyerProfileLoaded) {
-                lawyerName = profileState.profile.fullName;
-                lawyerPhoto = profileState.profile.photoUrl;
-              }
-              
-              // Show success message
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('تم قبول الاستشارة بنجاح'),
+                  content: Text('تم قبول الاستشارة الفورية بنجاح'),
                   backgroundColor: Colors.green,
                   duration: Duration(seconds: 2),
                 ),
               );
-              
-              // Navigate to video call screen
+
               Future.delayed(const Duration(milliseconds: 500), () {
                 if (mounted) {
                   Nav.videoCallScreen(
                     context,
-                    consultationId: context.read<LawyerConsultationsCubit>().acceptedConsultationId!,
+                    consultationId: context
+                        .read<LawyerConsultationsCubit>()
+                        .acceptedConsultationId!,
                     lawyerName: accepted.client.fullName,
-                    lawyerPhotoUrl: AppConfig.baseImgUrl+(accepted.client.avatar),
+                    lawyerPhotoUrl:
+                    AppConfig.baseImgUrl + accepted.client.avatar,
                   );
                 }
               });
-            } 
-            // Handle accept consultation error
+            }
+
+            // ── Written consultation accepted → navigate to written chat ──
+            else if (state is AcceptWrittenConsultationSuccess) {
+              final accepted = state.acceptedConsultation;
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('تم قبول الاستشارة الكتابية بنجاح'),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+
+              Future.delayed(const Duration(milliseconds: 500), () {
+                if (mounted) {
+                  Nav.chat(
+                    context,
+                    consultationId: accepted.id,
+                    lawyerName: accepted.client.fullName,
+                    lawyerPhotoUrl: AppConfig.baseImgUrl + accepted.client.avatar,
+                  );
+                }
+              });
+            }
+
+            // ── Instant error ──
             else if (state is AcceptConsultationError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('فشل قبول الاستشارة: ${state.message}'),
+                  content: Text('فشل قبول الاستشارة الفورية: ${state.message}'),
+                  backgroundColor: Colors.red,
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            }
+
+            // ── Written error ──
+            else if (state is AcceptWrittenConsultationError) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content:
+                  Text('فشل قبول الاستشارة الكتابية: ${state.message}'),
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 3),
                 ),
@@ -112,19 +140,22 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
               Gap(20.h),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
+                  padding:
+                  EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const _SectionHeader(
                         title: 'استشارات جديدة',
-                        onViewAll: null, // optional, can add pagination screen
+                        onViewAll: null,
                       ),
                       Gap(10.h),
-                      BlocBuilder<LawyerConsultationsCubit, LawyerConsultationsState>(
+                      BlocBuilder<LawyerConsultationsCubit,
+                          LawyerConsultationsState>(
                         builder: (context, state) {
                           if (state is LawyerConsultationsLoading) {
-                            return const Center(child: CircularProgressIndicator());
+                            return const Center(
+                                child: CircularProgressIndicator());
                           } else if (state is LawyerConsultationsError) {
                             return Center(
                               child: Text(
@@ -135,7 +166,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                           } else if (state is LawyerConsultationsLoaded) {
                             if (state.consultations.isEmpty) {
                               return const Center(
-                                child: Text('لا توجد استشارات جديدة حالياً'),
+                                child:
+                                Text('لا توجد استشارات جديدة حالياً'),
                               );
                             }
                             return ListView.separated(
@@ -144,11 +176,14 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                               itemCount: state.consultations.length,
                               separatorBuilder: (_, __) => Gap(10.h),
                               itemBuilder: (context, index) {
-                                final consultation = state.consultations[index];
+                                final consultation =
+                                state.consultations[index];
                                 return _ConsultationCard(
                                   consultation: consultation,
-                                  onAccept: () => _onAccept(context, consultation),
-                                  onDetails: () => _showDetails(consultation),
+                                  onAccept: () =>
+                                      _onAccept(context, consultation),
+                                  onDetails: () =>
+                                      _showDetails(consultation),
                                 );
                               },
                             );
@@ -162,12 +197,14 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                         onViewAll: null,
                       ),
                       Gap(10.h),
-                      // TODO: replace with real appointments data when API ready
-                      const _AppointmentCard(title: 'استشارات كتابية', time: '٢:٣٠ م'),
+                      const _AppointmentCard(
+                          title: 'استشارات كتابية', time: '٢:٣٠ م'),
                       Gap(10.h),
-                      const _AppointmentCard(title: 'استشارات كتابية', time: '٥:٣٠ م'),
+                      const _AppointmentCard(
+                          title: 'استشارات كتابية', time: '٥:٣٠ م'),
                       Gap(24.h),
-                      const _SectionHeader(title: 'آخر حركة مالية', onViewAll: null),
+                      const _SectionHeader(
+                          title: 'آخر حركة مالية', onViewAll: null),
                       Gap(10.h),
                       _TransactionCard(),
                     ],
@@ -182,12 +219,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
   }
 
   void _onAccept(BuildContext context, Consultation consultation) async {
-
-
-
-    final cubit = context.read<LawyerConsultationsCubit>();
-    // Call the cubit method - BlocListener will handle success/error feedback and navigation
-    await cubit.acceptConsultation(consultation);
+    await context.read<LawyerConsultationsCubit>().acceptConsultation(consultation);
   }
 
   void _showDetails(Consultation consultation) {
@@ -222,7 +254,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
   }
 }
 
-// ── Availability Card (unchanged logic, but kept as is) ──────────────────
+// ── Availability Card ────────────────────────────────────────────────────────
 
 class _AvailabilityCard extends StatefulWidget {
   const _AvailabilityCard();
@@ -261,7 +293,8 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
           listener: (context, state) {
             if (state is LawyerProfileLoaded) {
               setState(() {
-                _isAvailable = state.profile.activityStatus == 'available_now';
+                _isAvailable =
+                    state.profile.activityStatus == 'available_now';
               });
             }
           },
@@ -270,12 +303,16 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
           listener: (context, state) {
             if (state is UpdateAvailabilitySuccess) {
               setState(() {
-                _isAvailable = state.currentStatus == LawyerAvailabilityStatus.availableNow;
+                _isAvailable =
+                    state.currentStatus ==
+                        LawyerAvailabilityStatus.availableNow;
               });
             } else if (state is UpdateAvailabilityError) {
               setState(() => _isAvailable = !_isAvailable);
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+                SnackBar(
+                    content: Text(state.message),
+                    backgroundColor: Colors.red),
               );
             }
           },
@@ -286,7 +323,8 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
           final isLoading = state is UpdateAvailabilityLoading;
           return Container(
             padding: EdgeInsets.all(10.w),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(5.h)),
+            decoration:
+            BoxDecoration(borderRadius: BorderRadius.circular(5.h)),
             child: Row(
               children: [
                 AnimatedContainer(
@@ -303,10 +341,12 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('حالة التوفر', style: theme.textTheme.titleMedium),
+                      Text('حالة التوفر',
+                          style: theme.textTheme.titleMedium),
                       Text(
                         'هل أنت متاح الآن للإستشارات الفورية',
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.hintColor),
                       ),
                     ],
                   ),
@@ -316,7 +356,8 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
                   children: [
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 300),
-                      transitionBuilder: (child, anim) => FadeTransition(opacity: anim, child: child),
+                      transitionBuilder: (child, anim) =>
+                          FadeTransition(opacity: anim, child: child),
                       child: isLoading
                           ? SizedBox(
                         key: const ValueKey('loading'),
@@ -331,7 +372,9 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
                         _isAvailable ? 'متاح' : 'غير متاح',
                         key: ValueKey(_isAvailable),
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _isAvailable ? Colors.green : Colors.red,
+                          color: _isAvailable
+                              ? Colors.green
+                              : Colors.red,
                         ),
                       ),
                     ),
@@ -356,7 +399,7 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
   }
 }
 
-// ── Consultation Card (updated to use real data) ─────────────────────────
+// ── Consultation Card ────────────────────────────────────────────────────────
 
 class _ConsultationCard extends StatelessWidget {
   final Consultation consultation;
@@ -372,12 +415,21 @@ class _ConsultationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final typeText = consultation.type == 'instant' ? 'استشارات فورية' : 'استشارات كتابية';
+    final isInstant = consultation.type == 'instant';
+    final typeText = isInstant ? 'استشارة فورية' : 'استشارة كتابية';
+
     final formattedTime = _formatTime(consultation.createdAt);
 
     return BlocBuilder<LawyerConsultationsCubit, LawyerConsultationsState>(
       builder: (context, state) {
-        final isAccepting = state is AcceptConsultationLoading && state.consultationId == consultation.id;
+        // Show loading spinner for whichever type is currently being accepted
+        final isAccepting = (isInstant &&
+            state is AcceptConsultationLoading &&
+            state.consultationId == consultation.id) ||
+            (!isInstant &&
+                state is AcceptWrittenConsultationLoading &&
+                state.consultationId == consultation.id);
+
         return Container(
           padding: EdgeInsets.all(8.w),
           decoration: BoxDecoration(
@@ -391,7 +443,8 @@ class _ConsultationCard extends StatelessWidget {
                 height: 40.w,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: theme.colorScheme.outline, width: 1),
+                  border:
+                  Border.all(color: theme.colorScheme.outline, width: 1),
                 ),
                 child: Center(
                   child: Picture(
@@ -411,14 +464,16 @@ class _ConsultationCard extends StatelessWidget {
                     Gap(4.h),
                     Text(
                       consultation.title,
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.hintColor),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Gap(4.h),
                     Text(
                       formattedTime,
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.hintColor),
                     ),
                   ],
                 ),
@@ -437,20 +492,26 @@ class _ConsultationCard extends StatelessWidget {
                       onPressed: onAccept,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primary,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.h)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.h)),
                         padding: EdgeInsets.symmetric(vertical: 10.h),
                       ),
-                      child: Text('قبول', style: theme.textTheme.titleSmall?.copyWith(color: Colors.white)),
+                      child: Text('قبول',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(color: Colors.white)),
                     ),
                     Gap(10.w),
                     OutlinedButton(
                       onPressed: onDetails,
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: primary),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10.h)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.h)),
                         padding: EdgeInsets.symmetric(vertical: 10.h),
                       ),
-                      child: Text('التفاصيل', style: theme.textTheme.titleSmall?.copyWith(color: primary)),
+                      child: Text('التفاصيل',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(color: primary)),
                     ),
                   ],
                 ],
@@ -471,7 +532,7 @@ class _ConsultationCard extends StatelessWidget {
   }
 }
 
-// ── Section Header (unchanged) ───────────────────────────────────────────
+// ── Section Header ───────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -492,14 +553,15 @@ class _SectionHeader extends StatelessWidget {
           InkWell(
             onTap: onViewAll,
             child: Text('عرض الكل',
-                style: theme.textTheme.bodySmall?.copyWith(color: primary)),
+                style:
+                theme.textTheme.bodySmall?.copyWith(color: primary)),
           ),
       ],
     );
   }
 }
 
-// ── Appointment & Transaction Cards (unchanged) ───────────────────────────
+// ── Appointment Card ─────────────────────────────────────────────────────────
 
 class _AppointmentCard extends StatelessWidget {
   final String title;
@@ -521,12 +583,15 @@ class _AppointmentCard extends StatelessWidget {
           Picture(getAssetIcon('clock.svg'), width: 20.w, height: 20.w),
           Gap(6.w),
           Text(time,
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+              style:
+              theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
         ],
       ),
     );
   }
 }
+
+// ── Transaction Card ─────────────────────────────────────────────────────────
 
 class _TransactionCard extends StatelessWidget {
   @override
@@ -548,7 +613,8 @@ class _TransactionCard extends StatelessWidget {
               border: Border.all(color: greyFA),
               shape: BoxShape.circle,
             ),
-            child: Picture(getAssetIcon('wallet.svg'), width: 20.w, height: 20.w),
+            child:
+            Picture(getAssetIcon('wallet.svg'), width: 20.w, height: 20.w),
           ),
           Gap(10.w),
           Expanded(

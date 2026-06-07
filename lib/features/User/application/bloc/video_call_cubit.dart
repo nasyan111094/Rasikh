@@ -2,14 +2,32 @@
 // video_call_cubit.dart
 //
 // Exact initialisation order:
-//   0. Permission gate (camera + microphone) — NEW
+//   0. Permission gate (camera + microphone)
 //   1. POST  accept-instant
 //   2. GET   instant-session
 //   3. GET   rtc-token
 //   4.       Agora.initialize()
 //   5. POST  join-call
 //   6.       Agora.joinChannel()
-//   7.       Poll GET instant-session every 5 s
+//   7.       Poll GET instant-session every 10 s
+//
+// Timer strategy:
+//   • _localRemainingSeconds is seeded from the server the first time we
+//     receive a non-null remainingSeconds (in _applySessionState or in
+//     _initializeCall, whichever comes first).
+//   • _startLocalTimer() begins the 1-second countdown.
+//   • Polling NEVER overwrites _localRemainingSeconds; it only syncs the
+//     server phase / two-minute-warning flag.
+//   • When the timer hits 0 it emits VideoCallPhase.timerExpired so the UI
+//     can show the summary dialog before fully ending.
+//
+// ID strategy:
+//   • lawyerId / clientId can be passed in via the constructor as an
+//     optional hint (e.g. from the consultation list screen).
+//   • The server is the authoritative source: as soon as the first
+//     instant-session response arrives, any non-null IDs from the server
+//     overwrite the constructor values in state.
+//   • Polling keeps the IDs up-to-date on every tick.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
@@ -22,34 +40,112 @@ import '../repo/video_call_repo.dart';
 import 'video_call_state.dart';
 
 const int _kMaxReconnectAttempts = 3;
-const Duration _kPollInterval = Duration(seconds: 5);
+const Duration _kPollInterval = Duration(seconds: 10);
 
 class VideoCallCubit extends Cubit<VideoCallState> {
   VideoCallCubit({
     required String consultationId,
     String? lawyerName,
     String? lawyerPhotoUrl,
+    String? lawyerId,
+    String? clientId,
   })  : _consultationId = consultationId,
         super(VideoCallState(
-          lawyerName: lawyerName,
-          lawyerPhotoUrl: lawyerPhotoUrl,
-        ));
+        lawyerName: lawyerName,
+        lawyerPhotoUrl: lawyerPhotoUrl,
+        lawyerId: lawyerId,
+        clientId: clientId,
+      ));
 
-// ── Private fields ─────────────────────────────────────────────────────────
+  // ── Private fields ──────────────────────────────────────────────────────
   final String _consultationId;
   final VideoCallRepo _repo = VideoCallRepo();
 
   RtcEngine? _engine;
   Timer? _pollTimer;
+  Timer? _localTimer;
 
-// ── Public getters (needed by the View to render video surfaces) ───────────
+  /// The single source of truth for remaining seconds; never touched by
+  /// polling — only by _startLocalTimer and _seedTimerIfNeeded.
+  int? _localRemainingSeconds;
+
+  /// Guard: once the local timer has been seeded + started we never restart
+  /// it, even if the server later sends a remainingSeconds value.
+  bool _timerStarted = false;
+
+  // ── Public getters ───────────────────────────────────────────────────────
   RtcEngine? get engine => _engine;
+  bool get isLawyer => _repo.userType == 'lawyer';
 
-// ═══════════════════════════════════════════════════════════════════════════
-// PERMISSION GATE  (step 0)
-// ═══════════════════════════════════════════════════════════════════════════
+  // ─────────────────────────────────────────────────────────────────────────
+  // Safe emit helpers
+  // ─────────────────────────────────────────────────────────────────────────
 
-  /// Entry point called by the UI. Checks permissions before touching Agora.
+  /// Emit while always preserving our locally-managed countdown value.
+  void _emitKeepingTimer(VideoCallState newState) {
+    if (isClosed) return;
+    final secs = _localRemainingSeconds ?? state.remainingSeconds;
+    emit(newState.copyWith(remainingSeconds: secs));
+  }
+
+  void _emitError(String message) {
+    if (isClosed) return;
+    _emitKeepingTimer(state.copyWith(
+      phase: VideoCallPhase.error,
+      errorMessage: message,
+    ));
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Seed & start the local timer (idempotent — safe to call multiple times)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Call whenever we first get a non-null remainingSeconds from the server.
+  /// Does nothing if the timer is already running.
+  void _seedTimerIfNeeded(int? serverSeconds) {
+    if (_timerStarted) return;              // already running, don't reseed
+    if (serverSeconds == null) return;      // nothing to seed with yet
+    if (serverSeconds <= 0) return;         // session already over
+
+    _localRemainingSeconds = serverSeconds;
+    _timerStarted = true;
+
+    // Reflect the seeded value immediately in state
+    if (!isClosed) emit(state.copyWith(remainingSeconds: _localRemainingSeconds));
+
+    _localTimer?.cancel();
+    _localTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (isClosed) {
+        _localTimer?.cancel();
+        return;
+      }
+
+      final current = _localRemainingSeconds;
+      if (current == null) return;
+
+      if (current <= 0) {
+        _localTimer?.cancel();
+        _localTimer = null;
+        // Emit 00:00 then signal timer expiry so the UI can show the dialog
+        if (!isClosed) {
+          emit(state.copyWith(
+            remainingSeconds: 0,
+            phase: VideoCallPhase.timerExpired,
+          ));
+        }
+        return;
+      }
+
+      _localRemainingSeconds = current - 1;
+      if (!isClosed) emit(state.copyWith(remainingSeconds: _localRemainingSeconds));
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PERMISSION GATE  (step 0)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /// Entry point called by the UI.
   Future<void> initialize() async {
     final cameraStatus = await Permission.camera.status;
     final micStatus = await Permission.microphone.status;
@@ -70,11 +166,10 @@ class VideoCallCubit extends Cubit<VideoCallState> {
       return;
     }
 
-// Permissions already granted → proceed with Agora init
     await _initializeCall();
   }
 
-  /// Called by the UI when the user taps "Allow" on the permission overlay.
+  /// Called by UI when the user taps "Allow" on the permission overlay.
   Future<void> requestPermissionsAndInitialize() async {
     final results = await [
       Permission.camera,
@@ -90,7 +185,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
       await _initializeCall();
     } else {
       final anyPermanentlyDenied =
-          results.values.any((s) => s.isPermanentlyDenied);
+      results.values.any((s) => s.isPermanentlyDenied);
       emit(state.copyWith(
         phase: anyPermanentlyDenied
             ? VideoCallPhase.permissionPermanentlyDenied
@@ -100,15 +195,12 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     }
   }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// ORIGINAL INITIALISATION (steps 1–7) — now private
-// ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // INITIALISATION (steps 1–7)
+  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> _initializeCall() async {
-// ── Step 1: accept-instant ─────────────────────────────────────────────
-// TODO: add your accept-instant call here if required
-
-// ── Step 2: GET instant-session ────────────────────────────────────────
+    // ── Step 2: GET instant-session ────────────────────────────────────────
     final sessionResult = await _repo.fetchSession(_consultationId);
     if (sessionResult.isLeft()) {
       _emitError(
@@ -118,15 +210,29 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
     final initialSession = sessionResult.fold((l) => null, (r) => r)!;
     if (initialSession.isEnded) {
-      emit(state.copyWith(phase: VideoCallPhase.ended));
+      _emitKeepingTimer(state.copyWith(phase: VideoCallPhase.ended));
       return;
     }
 
-    emit(state.copyWith(
-      remainingSeconds: initialSession.remainingSeconds,
-    ));
+    // ── Hydrate lawyerId / clientId from server (authoritative source) ─────
+    // The server IDs always win; fall back to whatever was passed in the
+    // constructor only when the server returns null.
+    if (initialSession.lawyerId != null || initialSession.clientId != null) {
+      if (!isClosed) {
+        emit(state.copyWith(
+          lawyerId: initialSession.lawyerId ?? state.lawyerId,
+          clientId: initialSession.clientId ?? state.clientId,
+        ));
+      }
+    }
 
-// ── Step 3: GET rtc-token ──────────────────────────────────────────────
+    // Seed the local timer with whatever the server gave us. If the session
+    // is already in_progress the server will return remainingSeconds; if it's
+    // still in the waiting phase it may return null (timer seeds later once
+    // inProgress is confirmed via polling / Agora onUserJoined).
+    _seedTimerIfNeeded(initialSession.remainingSeconds);
+
+    // ── Step 3: GET rtc-token ──────────────────────────────────────────────
     final tokenResult = await _repo.fetchRtcToken(_consultationId);
     if (tokenResult.isLeft()) {
       _emitError(
@@ -135,15 +241,15 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     }
 
     final rtcToken = tokenResult.fold((l) => null, (r) => r)!;
-    emit(state.copyWith(rtcToken: rtcToken));
+    _emitKeepingTimer(state.copyWith(rtcToken: rtcToken));
 
-// ── Step 4: Agora.initialize() ─────────────────────────────────────────
+    // ── Step 4: Agora.initialize() ─────────────────────────────────────────
     final agoraReady = await _initAgora(rtcToken);
     if (!agoraReady) return;
 
-    emit(state.copyWith(phase: VideoCallPhase.agoraReady));
+    _emitKeepingTimer(state.copyWith(phase: VideoCallPhase.agoraReady));
 
-// ── Step 5: POST join-call ─────────────────────────────────────────────
+    // ── Step 5: POST join-call ─────────────────────────────────────────────
     final joinResult = await _repo.joinCall(_consultationId);
     if (joinResult.isLeft()) {
       _emitError(
@@ -151,18 +257,18 @@ class VideoCallCubit extends Cubit<VideoCallState> {
       return;
     }
 
-    emit(state.copyWith(phase: VideoCallPhase.joiningCall));
+    _emitKeepingTimer(state.copyWith(phase: VideoCallPhase.joiningCall));
 
-// ── Step 6: Agora.joinChannel() ────────────────────────────────────────
+    // ── Step 6: Agora.joinChannel() ────────────────────────────────────────
     await _joinAgoraChannel(rtcToken);
 
-// ── Step 7: start polling ──────────────────────────────────────────────
+    // ── Step 7: start polling ──────────────────────────────────────────────
     _startPolling();
   }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// STEP 4 – Agora initialisation
-// ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 4 – Agora initialisation
+  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<bool> _initAgora(RtcTokenModel token) async {
     try {
@@ -190,9 +296,9 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     }
   }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// STEP 6 – Join the Agora channel
-// ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 6 – Join the Agora channel
+  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> _joinAgoraChannel(RtcTokenModel token) async {
     await _engine!.joinChannel(
@@ -209,19 +315,19 @@ class VideoCallCubit extends Cubit<VideoCallState> {
       ),
     );
 
-    emit(state.copyWith(phase: VideoCallPhase.waitingForLawyer));
+    _emitKeepingTimer(state.copyWith(phase: VideoCallPhase.waitingForLawyer));
   }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// AGORA EVENT HANDLERS
-// ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // AGORA EVENT HANDLERS
+  // ═══════════════════════════════════════════════════════════════════════════
 
   void _registerEventHandlers() {
     _engine!.registerEventHandler(RtcEngineEventHandler(
       onJoinChannelSuccess: (connection, elapsed) {},
       onUserJoined: (connection, remoteUid, elapsed) {
         if (isClosed) return;
-        emit(state.copyWith(
+        _emitKeepingTimer(state.copyWith(
           remoteUid: remoteUid,
           phase: VideoCallPhase.inProgress,
           clearError: true,
@@ -229,36 +335,52 @@ class VideoCallCubit extends Cubit<VideoCallState> {
       },
       onUserOffline: (connection, remoteUid, reason) {
         if (isClosed) return;
-        emit(state.copyWith(clearRemoteUid: true));
+        // If the session is still active, show the waiting overlay again
+        // (the lawyer may reconnect). If the session is ending, don't
+        // change the phase so the end-flow is not interrupted.
+        if (state.isSessionActive) {
+          _emitKeepingTimer(state.copyWith(
+            clearRemoteUid: true,
+            phase: VideoCallPhase.waitingForLawyer,
+          ));
+        } else {
+          _emitKeepingTimer(state.copyWith(clearRemoteUid: true));
+        }
       },
       onUserMuteAudio: (connection, remoteUid, muted) {
         if (isClosed) return;
-        emit(state.copyWith(isRemoteAudioMuted: muted));
+        _emitKeepingTimer(state.copyWith(isRemoteAudioMuted: muted));
       },
       onUserMuteVideo: (connection, remoteUid, muted) {
         if (isClosed) return;
-        emit(state.copyWith(isRemoteVideoMuted: muted));
+        _emitKeepingTimer(state.copyWith(isRemoteVideoMuted: muted));
       },
       onNetworkQuality: (connection, remoteUid, txQuality, rxQuality) {
         if (isClosed) return;
         if (remoteUid == 0) {
-          emit(state.copyWith(localNetworkQuality: txQuality.index));
+          _emitKeepingTimer(
+              state.copyWith(localNetworkQuality: txQuality.index));
         } else {
-          emit(state.copyWith(remoteNetworkQuality: rxQuality.index));
+          _emitKeepingTimer(
+              state.copyWith(remoteNetworkQuality: rxQuality.index));
         }
       },
-      onConnectionStateChanged: (connection, connectionState, reason) async {
+      onConnectionStateChanged:
+          (connection, connectionState, reason) async {
         if (isClosed) return;
 
         if (connectionState ==
-                ConnectionStateType.connectionStateReconnecting &&
-            state.phase != VideoCallPhase.ended) {
-          emit(state.copyWith(phase: VideoCallPhase.reconnecting));
+            ConnectionStateType.connectionStateReconnecting &&
+            state.phase != VideoCallPhase.ended &&
+            state.phase != VideoCallPhase.timerExpired) {
+          _emitKeepingTimer(
+              state.copyWith(phase: VideoCallPhase.reconnecting));
         }
 
-        if (connectionState == ConnectionStateType.connectionStateConnected) {
+        if (connectionState ==
+            ConnectionStateType.connectionStateConnected) {
           if (state.phase == VideoCallPhase.reconnecting) {
-            emit(state.copyWith(
+            _emitKeepingTimer(state.copyWith(
               phase: state.remoteUid != null
                   ? VideoCallPhase.inProgress
                   : VideoCallPhase.waitingForLawyer,
@@ -268,7 +390,8 @@ class VideoCallCubit extends Cubit<VideoCallState> {
           }
         }
 
-        if (connectionState == ConnectionStateType.connectionStateFailed) {
+        if (connectionState ==
+            ConnectionStateType.connectionStateFailed) {
           await _handleConnectionFailed();
         }
       },
@@ -276,9 +399,9 @@ class VideoCallCubit extends Cubit<VideoCallState> {
         if (isClosed) return;
         final result = await _repo.fetchRtcToken(_consultationId);
         result.fold(
-          (_) {},
-          (newToken) async {
-            emit(state.copyWith(rtcToken: newToken));
+              (_) {},
+              (newToken) async {
+            _emitKeepingTimer(state.copyWith(rtcToken: newToken));
             await _engine?.renewToken(newToken.token);
           },
         );
@@ -287,9 +410,9 @@ class VideoCallCubit extends Cubit<VideoCallState> {
         if (isClosed) return;
         final result = await _repo.fetchRtcToken(_consultationId);
         result.fold(
-          (_) {},
-          (newToken) async {
-            emit(state.copyWith(rtcToken: newToken));
+              (_) {},
+              (newToken) async {
+            _emitKeepingTimer(state.copyWith(rtcToken: newToken));
             await _engine?.renewToken(newToken.token);
           },
         );
@@ -310,13 +433,14 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     if (isClosed) return;
 
     final attempts = state.reconnectAttempts + 1;
-    emit(state.copyWith(
+    _emitKeepingTimer(state.copyWith(
       reconnectAttempts: attempts,
       phase: VideoCallPhase.reconnecting,
     ));
 
     if (attempts > _kMaxReconnectAttempts) {
-      _emitError('فشل الاتصال بعد $_kMaxReconnectAttempts محاولات إعادة اتصال');
+      _emitError(
+          'فشل الاتصال بعد $_kMaxReconnectAttempts محاولات إعادة اتصال');
       return;
     }
 
@@ -330,15 +454,16 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     }
 
     final newToken = tokenResult.fold((l) => null, (r) => r)!;
-    emit(state.copyWith(rtcToken: newToken));
+    _emitKeepingTimer(state.copyWith(rtcToken: newToken));
     await _joinAgoraChannel(newToken);
   }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// STEP 7 – Server session polling
-// ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STEP 7 – Server session polling
+  // ═══════════════════════════════════════════════════════════════════════════
 
   void _startPolling() {
+    // Immediate first poll
     _repo.pollSession(_consultationId).then((result) {
       result.fold((_) {}, _applySessionState);
     });
@@ -353,11 +478,41 @@ class VideoCallCubit extends Cubit<VideoCallState> {
   void _applySessionState(InstantSessionState session) {
     if (isClosed) return;
 
+    // ── Server says session is over: stop EVERYTHING immediately ─────────
+    // This takes priority over any local phase (including timerExpired).
+    if (session.isEnded) {
+      _pollTimer?.cancel();
+      _pollTimer = null;
+      _localTimer?.cancel();
+      _localTimer = null;
+      _localRemainingSeconds = 0;
+
+      if (!isClosed) {
+        emit(state.copyWith(
+          phase: VideoCallPhase.ended,
+          remainingSeconds: 0,
+          // Preserve IDs even on the final ended state
+          lawyerId: session.lawyerId ?? state.lawyerId,
+          clientId: session.clientId ?? state.clientId,
+        ));
+      }
+
+      // Full hard-stop in background — don't block the state update
+      _cleanup();
+      return;
+    }
+
+    // ── If we are already in a terminal phase, ignore further polls ───────
+    if (state.phase == VideoCallPhase.timerExpired ||
+        state.phase == VideoCallPhase.ended) return;
+
+    // ── Seed local timer the first time the server gives us seconds ───────
+    _seedTimerIfNeeded(session.remainingSeconds);
+
+    // ── Derive phase transition ───────────────────────────────────────────
     VideoCallPhase? newPhase;
 
-    if (session.isEnded) {
-      newPhase = VideoCallPhase.ended;
-    } else if (session.isInProgress &&
+    if (session.isInProgress &&
         state.phase == VideoCallPhase.waitingForLawyer) {
       newPhase = VideoCallPhase.inProgress;
     } else if (session.instantTwoMinuteWarningActive &&
@@ -368,70 +523,102 @@ class VideoCallCubit extends Cubit<VideoCallState> {
       newPhase = VideoCallPhase.inProgress;
     }
 
-    emit(state.copyWith(
+    // ── Update state — always keep IDs in sync from server ────────────────
+    _emitKeepingTimer(state.copyWith(
       phase: newPhase,
-      remainingSeconds: session.remainingSeconds,
       twoMinuteWarningActive: session.instantTwoMinuteWarningActive,
+      lawyerId: session.lawyerId ?? state.lawyerId,
+      clientId: session.clientId ?? state.clientId,
     ));
-
-    if (session.isEnded) _cleanup();
   }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// LOCAL CONTROLS
-// ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOCAL CONTROLS
+  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> toggleMute() async {
     final muted = !state.isMuted;
     await _engine?.muteLocalAudioStream(muted);
-    emit(state.copyWith(isMuted: muted));
+    _emitKeepingTimer(state.copyWith(isMuted: muted));
   }
 
   Future<void> toggleCamera() async {
     final off = !state.isCameraOff;
     await _engine?.muteLocalVideoStream(off);
-    emit(state.copyWith(isCameraOff: off));
+    _emitKeepingTimer(state.copyWith(isCameraOff: off));
   }
 
   Future<void> toggleSpeaker() async {
     final on = !state.isSpeakerOn;
     await _engine?.setEnableSpeakerphone(on);
-    emit(state.copyWith(isSpeakerOn: on));
+    _emitKeepingTimer(state.copyWith(isSpeakerOn: on));
   }
 
   Future<void> flipCamera() async {
     await _engine?.switchCamera();
-    emit(state.copyWith(isFrontCamera: !state.isFrontCamera));
+    _emitKeepingTimer(state.copyWith(isFrontCamera: !state.isFrontCamera));
   }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// END SESSION (user-initiated)
-// ═══════════════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════════════
+  // END SESSION
+  // ═══════════════════════════════════════════════════════════════════════════
 
+  /// Hard-end: cleanup + emit ended. Used by user-initiated end and by the
+  /// summary dialog after the lawyer submits (or skips) the summary.
   Future<void> endSession() async {
     await _cleanup();
-    emit(state.copyWith(phase: VideoCallPhase.ended));
+    if (!isClosed) emit(state.copyWith(phase: VideoCallPhase.ended));
   }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// CLEANUP
-// ═══════════════════════════════════════════════════════════════════════════
+  Future<void> submitCallSummary(String summary,
+      {bool endAsNoShow = false}) async {
+    final result = await _repo.submitCallSummary(
+      _consultationId,
+      summary,
+      endAsNoShow: endAsNoShow,
+    );
+    result.fold(
+          (error) => _emitError('فشل إرسال الملخص: $error'),
+          (_) {},
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CLEANUP
+  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> _cleanup() async {
+    // Stop timers first — no more ticks or polls during teardown
     _pollTimer?.cancel();
     _pollTimer = null;
+    _localTimer?.cancel();
+    _localTimer = null;
 
-    await _engine?.leaveChannel();
-    await _engine?.release();
-    _engine = null;
-  }
+    final engine = _engine;
+    _engine = null; // null immediately so no other method can touch it
 
-  void _emitError(String message) {
-    if (isClosed) return;
-    emit(state.copyWith(
-      phase: VideoCallPhase.error,
-      errorMessage: message,
-    ));
+    if (engine == null) return;
+
+    try {
+      // 1. Mute local tracks instantly — camera/mic indicator off NOW
+      await engine.muteLocalAudioStream(true);
+      await engine.muteLocalVideoStream(true);
+
+      // 2. Stop camera preview
+      await engine.stopPreview();
+
+      // 3. Disable video & audio subsystems
+      await engine.disableVideo();
+      await engine.disableAudio();
+
+      // 4. Leave channel — sends offline signal to remote peer
+      await engine.leaveChannel();
+
+      // 5. Full engine release — frees camera, mic, speaker hardware
+      await engine.release();
+    } catch (_) {
+      // Swallow any teardown errors — session ends regardless
+    }
   }
 
   @override

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/features/User/application/models/consultation_model.dart';
+import 'package:rasikh/features/User/profile/cubit/profile_cubit.dart';
 
 import 'package:size_config/size_config.dart';
 
@@ -20,7 +21,8 @@ class ConnectingToLawyerScreen extends StatefulWidget {
 
 class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+
+    late AnimationController _controller;
 
   @override
   void initState() {
@@ -34,9 +36,19 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
           consultationId: cubit.state.createdConsultation!.id,
           lawyerName: cubit.state.selectedLawyer?.fullName,
           lawyerPhotoUrl: cubit.state.selectedLawyer?.photoUrl,
+          lawyerId: cubit.state.selectedLawyer?.id,
+          clientId: getIt<ProfileCubit>().profile!.id,
+
         );
       } else {
-        Nav.chat(context);
+        Nav.chat(
+          context,
+          consultationId: '${cubit.state.createdConsultation!.id}',
+          lawyerId: cubit.state.selectedLawyer?.id,
+          clientId: getIt<ProfileCubit>().profile!.id,
+          lawyerName: cubit.state.selectedLawyer?.fullName,
+          lawyerPhotoUrl: cubit.state.selectedLawyer?.photoUrl,
+        );
       }
     });
     _controller = AnimationController(

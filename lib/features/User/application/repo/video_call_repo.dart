@@ -45,6 +45,10 @@ class InstantSessionState {
   final bool instantTwoMinuteWarningActive;
   final bool canLawyerEndAsNoShow;
 
+  // ── IDs hydrated from the server ──────────────────────────────────────────
+  final String? lawyerId;
+  final String? clientId;
+
   const InstantSessionState({
     required this.consultationId,
     required this.serverTime,
@@ -54,6 +58,8 @@ class InstantSessionState {
     this.sessionEndsAt,
     this.instantTwoMinuteWarningActive = false,
     this.canLawyerEndAsNoShow = false,
+    this.lawyerId,
+    this.clientId,
   });
 
   factory InstantSessionState.fromJson(Map<String, dynamic> json) =>
@@ -71,9 +77,11 @@ class InstantSessionState {
         instantTwoMinuteWarningActive:
         json['instantTwoMinuteWarningActive'] as bool? ?? false,
         canLawyerEndAsNoShow: json['canLawyerEndAsNoShow'] as bool? ?? false,
+        lawyerId: json['lawyerId'] as String?,
+        clientId: json['clientId'] as String?,
       );
 
-  bool get isInProgress => phase == 'in_progress';
+  bool get isInProgress => phase == 'in_progress' || phase == 'in_session';
   bool get isWaiting =>
       phase == 'waiting_call' || phase == 'waiting' || phase == 'accepted';
   bool get isEnded =>
@@ -85,18 +93,16 @@ class InstantSessionState {
 class VideoCallRepo {
   final DioAdapterBase _dio = getIt.get<ApiHandler>().dioAdapterBase;
 
-  String get _userType =>
+  String get userType =>
       getIt<CacheHelper>().cachedVendorType == VendorType.user
           ? 'client'
           : 'lawyer';
-
-
 
   // ── Step 2: instant-session (initial fetch) ────────────────────────────
   Future<Either<String, InstantSessionState>> fetchSession(
       String consultationId) async {
     final result = await _dio.get(
-      '$_userType/consultations/$consultationId/instant-session',
+      '$userType/consultations/$consultationId/instant-session',
     );
     if (result.isRight) {
       final data = result.right.data['data'] as Map<String, dynamic>;
@@ -109,7 +115,7 @@ class VideoCallRepo {
   Future<Either<String, RtcTokenModel>> fetchRtcToken(
       String consultationId) async {
     final result = await _dio.get(
-      '$_userType/consultations/$consultationId/rtc-token',
+      '$userType/consultations/$consultationId/rtc-token',
     );
     if (result.isRight) {
       final data = result.right.data['data'] as Map<String, dynamic>;
@@ -121,7 +127,7 @@ class VideoCallRepo {
   // ── Step 5: join-call ──────────────────────────────────────────────────
   Future<Either<String, bool>> joinCall(String consultationId) async {
     final result = await _dio.post(
-      '$_userType/consultations/$consultationId/instant-session/join-call',
+      '$userType/consultations/$consultationId/instant-session/join-call',
       body: {},
     );
     if (result.isRight) return const Right(true);
@@ -132,7 +138,7 @@ class VideoCallRepo {
   Future<Either<String, InstantSessionState>> pollSession(
       String consultationId) async {
     final result = await _dio.get(
-      '$_userType/consultations/$consultationId/instant-session',
+      '$userType/consultations/$consultationId/instant-session',
     );
     if (result.isRight) {
       final data = result.right.data['data'] as Map<String, dynamic>;
@@ -144,9 +150,9 @@ class VideoCallRepo {
   // ── Lawyer-only ────────────────────────────────────────────────────────
   Future<Either<String, bool>> notifyLawyerReconnected(
       String consultationId) async {
-    if (_userType != 'lawyer') return const Left('Only lawyer can call this');
+    if (userType != 'lawyer') return const Left('Only lawyer can call this');
     final result = await _dio.post(
-      '$_userType/consultations/$consultationId/rtc/reconnected',
+      '$userType/consultations/$consultationId/rtc/reconnected',
       body: {},
     );
     if (result.isRight) return const Right(true);
@@ -155,10 +161,69 @@ class VideoCallRepo {
 
   Future<Either<String, bool>> notifyLawyerDisconnected(
       String consultationId) async {
-    if (_userType != 'lawyer') return const Left('Only lawyer can call this');
+    if (userType != 'lawyer') return const Left('Only lawyer can call this');
     final result = await _dio.post(
-      '$_userType/consultations/$consultationId/rtc/disconnected',
+      '$userType/consultations/$consultationId/rtc/disconnected',
       body: {},
+    );
+    if (result.isRight) return const Right(true);
+    return Left(result.left.toString());
+  }
+
+  Future<Either<String, bool>> submitCallSummary(
+      String consultationId,
+      String summary, {
+        bool endAsNoShow = false,
+      }) async {
+    if (userType != 'lawyer') return const Left('Only lawyer can call this');
+    final result = await _dio.post(
+      'lawyer/consultations/$consultationId/complete',
+      body: {
+        'summary': summary,
+        'endAsNoShow': endAsNoShow,
+      },
+    );
+    if (result.isRight) return const Right(true);
+    return Left(result.left.toString());
+  }
+
+  // ── Client: submit rating ──────────────────────────────────────────────
+  Future<Either<String, bool>> submitRating({
+    required String consultationId,
+    required String lawyerId,
+    required String clientId,
+    required int stars,
+    String? comment,
+  }) async {
+    final result = await _dio.post(
+      'client/ratings',
+      body: {
+        'consultationId': consultationId,
+        'lawyerId': lawyerId,
+        'clientId': clientId,
+        'stars': stars,
+        if (comment != null && comment.isNotEmpty) 'comment': comment,
+      },
+    );
+    if (result.isRight) return const Right(true);
+    return Left(result.left.toString());
+  }
+
+  // ── Client: open dispute ───────────────────────────────────────────────
+  Future<Either<String, bool>> openDispute({
+    required String consultationId,
+    required String reason,
+    required String description,
+    List<String> attachments = const [],
+  }) async {
+    final result = await _dio.post(
+      'client/disputes',
+      body: {
+        'consultation': consultationId,
+        'reason': reason,
+        'description': description,
+        'attachments': attachments,
+      },
     );
     if (result.isRight) return const Right(true);
     return Left(result.left.toString());
