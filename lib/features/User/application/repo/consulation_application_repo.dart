@@ -19,6 +19,7 @@ import '../../../../config/app_config.dart';
 import '../../../../core/get_it_service/get_it_service.dart';
 import '../../../../core/utils/api/api_handler.dart';
 import '../models/consultation_model.dart';
+import '../models/bookable_slot_model.dart';
 
 
 class ConsultationRepo {
@@ -56,6 +57,35 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
+
+  // ── 8. GET /api/v1/lawyers/{lawyerId}/availability/slots ──────────────────
+  // Returns discrete bookable slots filtered by duration
+  // from and to are ISO datetime strings in Asia/Riyadh timezone
+  // durationMin filters for slots that have ceil(durationMin/15) consecutive periods
+
+  Future<Either<String, BookableSlotsResponse>> fetchBookableSlots({
+    required String lawyerId,
+    required DateTime from,
+    required DateTime to,
+    int? durationMinutes,
+  }) async {
+    final queryParams = <String, dynamic>{
+      'from': from.toIso8601String(),
+      'to': to.toIso8601String(),
+      if (durationMinutes != null) 'durationMin': durationMinutes,
+    };
+
+    final result = await _dio.get(
+      'lawyers/$lawyerId/availability/slots',
+      queryParameters: queryParams,
+    );
+
+    if (result.isRight) {
+      final data = result.right.data as Map<String, dynamic>;
+      return Right(BookableSlotsResponse.fromJson(data));
+    }
+    return Left(result.left.toString());
+  }
   // ── 2. GET /api/v1/enums/{type} ──────────────────────────────────────────
   // Fetches key-value enum pairs for a given type.
   // Used for: 'consultation-types', 'cities', and any future enum.

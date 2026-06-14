@@ -1,9 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // features/consultations/data/repos/consultations_repo.dart
 //
-// Handles all consultation endpoints:
-//   GET  /api/v1/consultations        → fetch paginated consultations
-//   GET  /api/v1/consultations/{id}   → fetch consultation details
+// Endpoints:
+//   GET /api/v1/lawyer/consultations          → paginated list (lawyer)
+//   GET /api/v1/client/consultations          → paginated list (client)
+//   GET /api/v1/lawyer/consultations/{id}     → details (lawyer)
+//   GET /api/v1/client/consultations/{id}     → details (client)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:dartz/dartz.dart';
@@ -16,63 +18,61 @@ import '../../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../../core/utils/api/api_handler.dart';
 import '../models/consultation_model.dart';
 
-// ── Endpoint constants ────────────────────────────────────────────────────────
+// ── Endpoint Resolver ─────────────────────────────────────────────────────────
 
-class _ConsultationsEndpoints {
-  static const String lawyerConsultations = 'lawyer/consultations';
+class _Endpoints {
+  _Endpoints._();
 
-  static String lawyerConsultationDetails(String id) => 'lawyer/consultations/$id';
+  static bool get _isLawyer =>
+      getIt<CacheHelper>().cachedVendorType == VendorType.lawyer;
 
+  static String get list =>
+      _isLawyer ? 'lawyer/consultations' : 'client/consultations';
 
-  static const String clientConsultations = 'client/consultations';
-
-  static String clientConsultationDetails(String id) => 'client/consultations/$id';
+  static String details(String id) =>
+      _isLawyer ? 'lawyer/consultations/$id' : 'client/consultations/$id';
 }
-
-
-
 
 // ── Repository ────────────────────────────────────────────────────────────────
 
 class ConsultationsRepo {
-  final DioAdapterBase _adapter = getIt<ApiHandler>().dioAdapterBase;
+  ConsultationsRepo() : _adapter = getIt<ApiHandler>().dioAdapterBase;
 
-  // ── GET paginated consultations ────────────────────────────────────────────
+  final DioAdapterBase _adapter;
+
+  // ── Fetch paginated consultations ─────────────────────────────────────────
 
   Future<Either<String, ConsultationsModel>> getConsultations({
     int page = 1,
     int limit = 3,
     ConsultationStatus? status,
   }) async {
-    final queryParameters = <String, String>{
+    final query = <String, String>{
       'page': page.toString(),
       'limit': limit.toString(),
+      if (status != null && status != ConsultationStatus.none)
+        'status': status.apiValue,
     };
 
-    if (status != null && status != ConsultationStatus.none) {
-      queryParameters['status'] = status!.apiValue;
-    }
-
     final result = await _adapter.get(
-      getIt<CacheHelper>().cachedVendorType ==VendorType.lawyer?_ConsultationsEndpoints.lawyerConsultations:_ConsultationsEndpoints.clientConsultations,
-      queryParameters: queryParameters,
+      _Endpoints.list,
+      queryParameters: query,
     );
 
     if (result.isRight) {
-      final data = result.right.data;
-      return Right(ConsultationsModel.fromJson(data as Map<String, dynamic>));
+      return Right(
+        ConsultationsModel.fromJson(result.right.data as Map<String, dynamic>),
+      );
     }
     return Left(_extractError(result.left));
   }
 
-  // ── GET consultation details ───────────────────────────────────────────────
+  // ── Fetch consultation details ─────────────────────────────────────────────
 
   Future<Either<String, ConsultationModel>> getConsultationDetails({
     required String id,
   }) async {
-    final result = await _adapter.get(
-      getIt<CacheHelper>().cachedVendorType ==VendorType.lawyer? _ConsultationsEndpoints.lawyerConsultationDetails(id): _ConsultationsEndpoints.clientConsultationDetails(id),
-    );
+    final result = await _adapter.get(_Endpoints.details(id));
 
     if (result.isRight) {
       final data = result.right.data;
@@ -84,19 +84,19 @@ class ConsultationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Error helper ───────────────────────────────────────────────────────────
+  // ── Error helper ──────────────────────────────────────────────────────────
 
-  String _extractError(dynamic left) {
+  String _extractError(dynamic error) {
     try {
-      if (left is DioException) {
-        final data = left.response?.data;
+      if (error is DioException) {
+        final data = error.response?.data;
         if (data is Map) {
           return data['message']?.toString() ??
               data['error']?['details']?.toString() ??
               'حدث خطأ غير متوقع';
         }
       }
-      return left.toString();
+      return error.toString();
     } catch (_) {
       return 'حدث خطأ غير متوقع';
     }

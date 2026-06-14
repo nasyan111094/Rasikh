@@ -8,6 +8,7 @@
 import 'dart:io';
 
 import '../models/consultation_model.dart';
+import '../models/bookable_slot_model.dart';
 
 enum ConsultationStatus { initial, loading, success, failure }
 
@@ -67,6 +68,12 @@ class ConsultationState {
   final int selectedTimeIndex;
   final DateTime? startTime;
   final DateTime? endTime;
+
+  // ── Bookable slots for scheduled consultations ──────────────────────────────
+  final ConsultationStatus bookableSlotsStatus;
+  final BookableSlotsResponse? bookableSlots;
+  final String? bookableSlotsError;
+  final BookableSlotModel? selectedBookableSlot;
 
   // ── Step-6: Create consultation ───────────────────────────────────────────
   final ConsultationStatus createStatus;
@@ -130,6 +137,12 @@ class ConsultationState {
     this.startTime,
     this.endTime,
 
+    // Bookable slots
+    this.bookableSlotsStatus = ConsultationStatus.initial,
+    this.bookableSlots,
+    this.bookableSlotsError,
+    this.selectedBookableSlot,
+
     // Create
     this.createStatus = ConsultationStatus.initial,
     this.createdConsultation,
@@ -192,6 +205,12 @@ class ConsultationState {
     DateTime? startTime,
     DateTime? endTime,
 
+    // Bookable slots
+    ConsultationStatus? bookableSlotsStatus,
+    BookableSlotsResponse? bookableSlots,
+    String? bookableSlotsError,
+    BookableSlotModel? selectedBookableSlot,
+
     // Create
     ConsultationStatus? createStatus,
     CreatedConsultationModel? createdConsultation,
@@ -253,6 +272,11 @@ class ConsultationState {
         selectedTimeIndex: selectedTimeIndex ?? this.selectedTimeIndex,
         startTime: startTime ?? this.startTime,
         endTime: endTime ?? this.endTime,
+
+        bookableSlotsStatus: bookableSlotsStatus ?? this.bookableSlotsStatus,
+        bookableSlots: bookableSlots ?? this.bookableSlots,
+        bookableSlotsError: bookableSlotsError ?? this.bookableSlotsError,
+        selectedBookableSlot: selectedBookableSlot ?? this.selectedBookableSlot,
 
         createStatus: createStatus ?? this.createStatus,
         createdConsultation: createdConsultation ?? this.createdConsultation,

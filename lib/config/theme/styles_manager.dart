@@ -89,6 +89,13 @@ TextStyle getBoldPrimary16Style() {
     primary,
   );
 }
+TextStyle getBoldPrimary20Style() {
+  return _getTextStyle(
+    20,
+    FontWeight.w700,
+    primary,
+  );
+}
 
 TextStyle getBoldPrimary14Style() {
   return _getTextStyle(
@@ -114,13 +121,6 @@ TextStyle getW700White16Style() {
   );
 }
 
-TextStyle getBoldPrimary20Style() {
-  return _getTextStyle(
-    20,
-    FontWeight.w700,
-    primary,
-  );
-}
 
 TextStyle getBoldBlack12Style() {
   return _getTextStyle(

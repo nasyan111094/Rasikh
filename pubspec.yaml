@@ -55,7 +55,7 @@ dependencies:
   # Lightweight event bus for decoupled event communication.
   event_bus: ^2.0.1
   agora_rtc_engine: ^6.5.4
-  agora_chat_sdk: ^1.0.2
+  agora_chat_sdk: ^1.3.3
 
   # -------------------------------------------
   # Data Structures & Functional Programming

@@ -20,6 +20,7 @@ import 'package:rasikh/features/common/Auth/repo/auth_repo.dart';
 import 'package:rasikh/features/common/splash/bloc/splash_bloc.dart';
 
 import 'package:rasikh/features/Lawyer/lawer_register_compilation/Repo/lawyer_register_complation_repo.dart';
+import 'package:rasikh/features/Lawyer/lawyer-appointments/repo/lawyer_appointments_repo.dart';
 import 'package:rasikh/features/Lawyer/lawer_register_compilation/cubit/lawyer_registeration_complation_cubit.dart';
 
 import 'package:rasikh/features/User/home/cubit/home_cubit.dart';
@@ -202,6 +203,10 @@ Future<void> initializeDependencies() async {
     getIt.registerLazySingleton<LawyerConsultationsCubit>(
           () => LawyerConsultationsCubit(getIt<LawyerConsultationsRepo>()),
     );
+
+    // ── Lawyer Appointments repo (used by LawyerAppointmentsScreen via getIt) ──
+    // Register as factory so each consumer gets a fresh instance when requested
+    getIt.registerFactory<LawyerAppointmentsRepo>(() => LawyerAppointmentsRepo());
 
 
 

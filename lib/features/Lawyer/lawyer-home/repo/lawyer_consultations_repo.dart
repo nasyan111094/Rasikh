@@ -6,6 +6,7 @@ import 'package:dio_adapter/dio_adapter.dart';
 import '../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../core/utils/api/api_handler.dart';
 import '../models/consultation_model.dart';
+import '../models/nearest.dart';
 
 class LawyerConsultationsEndpoints {
   static const String availableConsultations =
@@ -141,5 +142,32 @@ class LawyerConsultationsRepo {
     } catch (_) {
       return 'حدث خطأ غير متوقع';
     }
+  }
+
+  // في الـ endpoints class
+  static const String upcomingScheduled =
+      'lawyer/consultations/scheduled/upcoming';
+
+// ── GET upcoming scheduled (max 3) ──────────────────────────────────────────
+  Future<Either<String, List<ScheduledConsultation>>>
+  getUpcomingScheduled() async {
+    final result =
+    await _adapter.get(upcomingScheduled);
+
+    return result.fold(
+          (error) => Left(_extractError(error)),
+          (response) {
+        final body = response.data as Map<String, dynamic>;
+        // shape: { "data": { "data": [...] } }
+        final inner = body['data'];
+        final List<dynamic> list = (inner is Map ? inner['data'] : inner) ?? [];
+        return Right(
+          list
+              .cast<Map<String, dynamic>>()
+              .map(ScheduledConsultation.fromJson)
+              .toList(),
+        );
+      },
+    );
   }
 }

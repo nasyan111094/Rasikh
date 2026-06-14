@@ -322,13 +322,14 @@ class _SpecializationTile extends StatelessWidget {
       child: Theme(
         data: theme.copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          tilePadding: EdgeInsets.zero,
           key: PageStorageKey(spec.id),
           initiallyExpanded: isExpanded,
           onExpansionChanged: onToggleMain,
+          tilePadding: EdgeInsets.zero,
+          childrenPadding: EdgeInsets.zero,
+          expandedCrossAxisAlignment: CrossAxisAlignment.start,
           trailing: Radio<String>(
             value: spec.id,
-            // ✅ Only mark as selected when this is the active parent
             groupValue: isActiveParent ? spec.id : null,
             onChanged: (_) => onToggleMain(true),
           ),
@@ -373,15 +374,13 @@ class _SpecializationTile extends StatelessWidget {
                         Text(
                           "عدد التخصصات الفرعيه : ",
                           style: theme.textTheme.bodySmall?.copyWith(
-
                             color: greyD0,
                           ),
                         ),
                         Text(
                           spec.subSpecializationsCount.toString(),
                           style: theme.textTheme.titleMedium?.copyWith(
-
-                            color: primary ,
+                            color: primary,
                           ),
                         ),
                       ],
@@ -392,71 +391,88 @@ class _SpecializationTile extends StatelessWidget {
             ),
           ),
           children: [
-            // spec.subSpecializations is always non-empty here because we
-            // filtered at the list level, but we keep the guard for safety.
             if (spec.subSpecializations.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Gap(8),
-                    Text(
-                      'اختر التخصص الفرعي',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      'يمكنك اختيار أكثر من تخصص إذا لزم الأمر.',
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.hintColor),
-                    ),
-                    const Gap(8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: spec.subSpecializations.map((sub) {
-                        // ✅ Only highlight subs if this is the active parent
-                        final selected =
-                            isActiveParent && selectedSubIds.contains(sub.id);
-                        return GestureDetector(
-                          onTap: () => onToggleSub(sub),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            curve: Curves.easeInOut,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 8),
-                            margin: const EdgeInsets.symmetric(
-                                horizontal: 4, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: selected
-                                  ? theme.colorScheme.primary.withOpacity(0.15)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(30),
-                              border: Border.all(
-                                color: selected
-                                    ? theme.colorScheme.primary.withOpacity(0.6)
-                                    : theme.dividerColor.withOpacity(0.3),
-                                width: 1.2,
-                              ),
-                            ),
-                            child: Text(
-                              sub.name,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: selected
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurface,
-                                fontWeight: selected
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding:  EdgeInsets.symmetric(horizontal: 16.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Gap(8),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          const CircleAvatar(
+                            radius: 8,
+                            backgroundColor: primary,
+                          ) ,
+                          Gap(10.w) ,
+                          Text(
+                            'اختر التخصص الفرعي',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        );
-                      }).toList(),
-                    ),
-                    const Gap(12),
-                  ],
+                        ],
+                      ),
+                      Gap(6.h) ,
+
+                      Text(
+                        'يمكنك اختيار أكثر من تخصص إذا لزم الأمر.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.hintColor,
+                        ),
+                      ),
+                      const Gap(8),
+                      Wrap(
+                        textDirection: TextDirection.rtl,
+                        alignment: WrapAlignment.start,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: spec.subSpecializations.map((sub) {
+                          final selected =
+                              isActiveParent && selectedSubIds.contains(sub.id);
+
+                          return GestureDetector(
+                            onTap: () => onToggleSub(sub),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              curve: Curves.easeInOut,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? theme.colorScheme.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(30),
+                                border: Border.all(
+                                  color: selected
+                                      ? theme.colorScheme.primary
+                                      : theme.dividerColor.withOpacity(0.3),
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: Text(
+                                sub.name,
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: selected
+                                      ? theme.colorScheme.onPrimary
+                                      : theme.colorScheme.onSurface,
+                                  fontWeight: selected
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const Gap(12),
+                    ],
+                  ),
                 ),
               ),
           ],

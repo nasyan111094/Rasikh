@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rasikh/features/Lawyer/lawyer_Settings/bloc/help_center/contact_cubit.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 
+import '../../../../core/get_it_service/get_it_service.dart';
+import '../../../Lawyer/lawyer_Settings/Repo/help_center_repo.dart';
+import '../models/faq_model.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
 
 class FaqScreen extends StatelessWidget {
@@ -8,55 +14,86 @@ class FaqScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    return BlocProvider(
+      create: (_) => ContactCubit(getIt<HelpCenterRepo>())..fetchFaqs(),
+      child: const _FaqView(),
+    );
+  }
+}
 
-    final faqs = <FaqItem>[
-      FaqItem(
-        q: 'كيف أقدر أختار المحامي المناسب لقضيتي؟',
-        a: 'يمكنك تصفح قائمة المحامين المتاحين في التطبيق، حيث يتم عرض التخصصات والخبرات لكل محامي بشكل واضح، كما يمكنك قراءة تقييمات العملاء السابقين لمساعدتك في اتخاذ القرار المناسب.',
-      ),
-      FaqItem(
-        q: 'هل استشارتي تبقى سرية وآمنة؟',
-        a: 'نعم، جميع الاستشارات تتم بسرية تامة ووفق معايير الأمان المعتمدة.',
-      ),
-      FaqItem(
-        q: 'كم تستغرق مدة الرد على الاستشارة؟',
-        a: 'عادةً يتم الرد خلال 24–48 ساعة، وقد تختلف المدة حسب ضغط الطلبات.',
-      ),
-      FaqItem(
-        q: 'هل أقدر أتابع قضيتي من التطبيق مباشرة؟',
-        a: 'نعم، يمكنك متابعة حالة القضية وتحديثاتها واستلام الإشعارات من داخل التطبيق.',
-      ),
-    ];
+// ─────────────────────────────────────────────────────────────────────────────
 
+class _FaqView extends StatelessWidget {
+  const _FaqView();
+
+  @override
+  Widget build(BuildContext context) {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-
         appBar: const HeaderCapsuleAppBar(
           title: 'الأسئلة الشائعة',
           showBottomDivider: true,
         ),
-        body: ListView.separated(
-          padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 16.h),
-          itemBuilder: (context, index) => _FaqTile(item: faqs[index]),
-          separatorBuilder: (_, __) => SizedBox(height: 10.h),
-          itemCount: faqs.length,
+        body: BlocConsumer<ContactCubit, ContactState>(
+          listenWhen: (_, s) => s is FaqFailure,
+          listener: (context, state) {
+            if (state is FaqFailure) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(state.message),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          },
+          builder: (context, state) {
+            if (state is FaqLoading) return const _FaqShimmer();
+
+            if (state is FaqFailure) {
+              return _ErrorBody(
+                message: state.message,
+                onRetry: () => context.read<ContactCubit>().fetchFaqs(),
+              );
+            }
+
+            if (state is FaqLoaded) {
+              if (state.faqs.isEmpty) {
+                return Center(
+                  child: Text(
+                    'لا توجد أسئلة متاحة حالياً',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () => context.read<ContactCubit>().refreshFaqs(),
+                child: ListView.separated(
+                  padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 16.h),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: state.faqs.length,
+                  separatorBuilder: (_, __) => SizedBox(height: 10.h),
+                  itemBuilder: (context, index) =>
+                      _FaqTile(item: state.faqs[index]),
+                ),
+              );
+            }
+
+            return const SizedBox.shrink();
+          },
         ),
       ),
     );
   }
 }
 
-class FaqItem {
-  final String q;
-  final String a;
-  FaqItem({required this.q, required this.a});
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Tile
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _FaqTile extends StatefulWidget {
-  final FaqItem item;
+  final FaqModel item;
   const _FaqTile({required this.item});
 
   @override
@@ -77,7 +114,6 @@ class _FaqTileState extends State<_FaqTile> {
 
     return Container(
       decoration: BoxDecoration(
-
         borderRadius: BorderRadius.circular(cardRadius),
         border: Border.all(color: borderColor, width: 1.w),
       ),
@@ -86,10 +122,10 @@ class _FaqTileState extends State<_FaqTile> {
         child: ExpansionTile(
           onExpansionChanged: (v) => setState(() => _expanded = v),
           maintainState: true,
-          tilePadding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
-          childrenPadding: EdgeInsets.fromLTRB(12.w, 0, 12.w, 18.h),
-
-
+          tilePadding:
+          EdgeInsets.symmetric(horizontal: 12.w, vertical: 6.h),
+          childrenPadding:
+          EdgeInsets.fromLTRB(12.w, 0, 12.w, 18.h),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(cardRadius),
           ),
@@ -100,11 +136,10 @@ class _FaqTileState extends State<_FaqTile> {
           title: Padding(
             padding: EdgeInsets.symmetric(vertical: 6.h),
             child: Text(
-              widget.item.q,
+              widget.item.question,
               style: textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
                 fontSize: 14.w,
-                color: textTheme.titleMedium?.color,
               ),
             ),
           ),
@@ -117,7 +152,7 @@ class _FaqTileState extends State<_FaqTile> {
               ),
               padding: EdgeInsets.all(12.w),
               child: Text(
-                widget.item.a,
+                widget.item.answer,
                 textAlign: TextAlign.right,
                 style: textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w400,
@@ -134,34 +169,102 @@ class _FaqTileState extends State<_FaqTile> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shimmer
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FaqShimmer extends StatelessWidget {
+  const _FaqShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: ListView.separated(
+        padding: EdgeInsets.fromLTRB(16.w, 20.h, 16.w, 16.h),
+        itemCount: 4,
+        separatorBuilder: (_, __) => SizedBox(height: 10.h),
+        itemBuilder: (_, __) => Container(
+          height: 64.h,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16.w),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Error body
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ErrorBody extends StatelessWidget {
+  const _ErrorBody({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: EdgeInsets.all(24.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline,
+                size: 56.w, color: Colors.red.shade300),
+            SizedBox(height: 12.w),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: Colors.red.shade400),
+            ),
+            SizedBox(height: 20.w),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('إعادة المحاولة'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plus/Minus toggle
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _CapsulePlusMinus extends StatelessWidget {
   final bool isExpanded;
   const _CapsulePlusMinus({required this.isExpanded});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final plusBg = colorScheme.surfaceVariant.withOpacity(0.4);
-    final plusIcon = theme.iconTheme.color ?? colorScheme.onSurface;
-    final minusBg = colorScheme.primary;
-    final minusIcon = colorScheme.onPrimary;
-
+    final colorScheme = Theme.of(context).colorScheme;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
       curve: Curves.easeInOut,
       width: 32.w,
       height: 32.w,
       decoration: BoxDecoration(
-        color: isExpanded ? minusBg : plusBg,
+        color: isExpanded
+            ? colorScheme.primary
+            : colorScheme.surfaceVariant.withOpacity(0.4),
         borderRadius: BorderRadius.circular(8.w),
       ),
       alignment: Alignment.center,
       child: Icon(
         isExpanded ? Icons.remove_rounded : Icons.add_rounded,
         size: 20.w,
-        color: isExpanded ? minusIcon : plusIcon,
+        color: isExpanded
+            ? colorScheme.onPrimary
+            : (Theme.of(context).iconTheme.color ?? colorScheme.onSurface),
       ),
     );
   }

@@ -4,13 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/config/app_config.dart';
-import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/widgets/general_divider.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/config/theme/colors.dart';
-
+import 'package:rasikh/features/Lawyer/lawyer-home/models/nearest.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
+
 import '../../../config/navigation/nav.dart';
 import '../../User/home/widgets/custom_app_bar_widget.dart';
 import '../lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
@@ -38,8 +39,18 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
       profileCubit.getProfile();
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<LawyerConsultationsCubit>().fetchConsultations();
+      final cubit = context.read<LawyerConsultationsCubit>();
+      cubit.fetchConsultations();
+      cubit.fetchUpcomingScheduled();
     });
+  }
+
+  Future<void> _onRefresh() async {
+    final cubit = context.read<LawyerConsultationsCubit>();
+    await Future.wait([
+      cubit.fetchConsultations(),
+      cubit.fetchUpcomingScheduled(),
+    ]);
   }
 
   @override
@@ -103,7 +114,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                     context,
                     consultationId: accepted.id,
                     lawyerName: accepted.client.fullName,
-                    lawyerPhotoUrl: AppConfig.baseImgUrl + accepted.client.avatar,
+                    lawyerPhotoUrl:
+                    AppConfig.baseImgUrl + accepted.client.avatar,
                   );
                 }
               });
@@ -113,7 +125,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
             else if (state is AcceptConsultationError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('فشل قبول الاستشارة الفورية: ${state.message}'),
+                  content:
+                  Text('فشل قبول الاستشارة الفورية: ${state.message}'),
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 3),
                 ),
@@ -139,75 +152,139 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
               const GeneralDivider(),
               Gap(20.h),
               Expanded(
-                child: SingleChildScrollView(
-                  padding:
-                  EdgeInsets.symmetric(horizontal: 16.w, vertical: 16.h),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const _SectionHeader(
-                        title: 'استشارات جديدة',
-                        onViewAll: null,
-                      ),
-                      Gap(10.h),
-                      BlocBuilder<LawyerConsultationsCubit,
-                          LawyerConsultationsState>(
-                        builder: (context, state) {
-                          if (state is LawyerConsultationsLoading) {
-                            return const Center(
-                                child: CircularProgressIndicator());
-                          } else if (state is LawyerConsultationsError) {
-                            return Center(
-                              child: Text(
-                                'حدث خطأ: ${state.message}',
-                                style: const TextStyle(color: Colors.red),
-                              ),
-                            );
-                          } else if (state is LawyerConsultationsLoaded) {
-                            if (state.consultations.isEmpty) {
-                              return const Center(
-                                child:
-                                Text('لا توجد استشارات جديدة حالياً'),
+                child: RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: EdgeInsets.symmetric(
+                        horizontal: 16.w, vertical: 16.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── New Consultations Section ──────────────────────
+                        const _SectionHeader(
+                          title: 'استشارات جديدة',
+                          onViewAll: null,
+                        ),
+                        Gap(10.h),
+                        BlocBuilder<LawyerConsultationsCubit,
+                            LawyerConsultationsState>(
+                          buildWhen: (_, s) =>
+                          s is LawyerConsultationsLoading ||
+                              s is LawyerConsultationsLoaded ||
+                              s is LawyerConsultationsError ||
+                              s is AcceptConsultationLoading ||
+                              s is AcceptWrittenConsultationLoading ||
+                              s is AcceptConsultationSuccess ||
+                              s is AcceptWrittenConsultationSuccess ||
+                              s is AcceptConsultationError ||
+                              s is AcceptWrittenConsultationError,
+                          builder: (context, state) {
+                            if (state is LawyerConsultationsLoading) {
+                              return const _ConsultationsShimmer();
+                            }
+                            if (state is LawyerConsultationsError) {
+                              return Center(
+                                child: Text(
+                                  'حدث خطأ: ${state.message}',
+                                  style:
+                                  const TextStyle(color: Colors.red),
+                                ),
                               );
                             }
-                            return ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: state.consultations.length,
-                              separatorBuilder: (_, __) => Gap(10.h),
-                              itemBuilder: (context, index) {
-                                final consultation =
-                                state.consultations[index];
-                                return _ConsultationCard(
-                                  consultation: consultation,
-                                  onAccept: () =>
-                                      _onAccept(context, consultation),
-                                  onDetails: () =>
-                                      _showDetails(consultation),
+                            if (state is LawyerConsultationsLoaded) {
+                              if (state.consultations.isEmpty) {
+                                return const Center(
+                                  child: Text('لا توجد استشارات جديدة حالياً'),
                                 );
-                              },
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                      Gap(24.h),
-                      const _SectionHeader(
-                        title: 'أقرب 3 مواعيد اليوم',
-                        onViewAll: null,
-                      ),
-                      Gap(10.h),
-                      const _AppointmentCard(
-                          title: 'استشارات كتابية', time: '٢:٣٠ م'),
-                      Gap(10.h),
-                      const _AppointmentCard(
-                          title: 'استشارات كتابية', time: '٥:٣٠ م'),
-                      Gap(24.h),
-                      const _SectionHeader(
-                          title: 'آخر حركة مالية', onViewAll: null),
-                      Gap(10.h),
-                      _TransactionCard(),
-                    ],
+                              }
+                              return ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: state.consultations.length,
+                                separatorBuilder: (_, __) => Gap(10.h),
+                                itemBuilder: (context, index) {
+                                  final consultation =
+                                  state.consultations[index];
+                                  return _ConsultationCard(
+                                    consultation: consultation,
+                                    onAccept: () =>
+                                        _onAccept(context, consultation),
+                                    onDetails: () =>
+                                        _showDetails(consultation),
+                                  );
+                                },
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+
+                        Gap(24.h),
+
+                        // ── Upcoming Appointments Section ──────────────────
+                        const _SectionHeader(
+                          title: 'أقرب 3 مواعيد اليوم',
+                          onViewAll: null,
+                        ),
+                        Gap(10.h),
+                        BlocBuilder<LawyerConsultationsCubit,
+                            LawyerConsultationsState>(
+                          buildWhen: (_, s) =>
+                          s is UpcomingScheduledLoading ||
+                              s is UpcomingScheduledLoaded ||
+                              s is UpcomingScheduledError,
+                          builder: (context, state) {
+                            if (state is UpcomingScheduledLoading) {
+                              return const _UpcomingShimmer();
+                            }
+                            if (state is UpcomingScheduledError) {
+                              return Center(
+                                child: Text(
+                                  state.message,
+                                  style:
+                                  const TextStyle(color: Colors.red),
+                                ),
+                              );
+                            }
+                            if (state is UpcomingScheduledLoaded) {
+                              if (state.appointments.isEmpty) {
+                                return Text(
+                                  'لا توجد مواعيد قادمة',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodyMedium
+                                      ?.copyWith(
+                                      color:
+                                      Theme.of(context).hintColor),
+                                );
+                              }
+                              return Column(
+                                children: [
+                                  for (int i = 0;
+                                  i < state.appointments.length;
+                                  i++) ...[
+                                    _AppointmentCard(
+                                        appointment: state.appointments[i]),
+                                    if (i < state.appointments.length - 1)
+                                      Gap(10.h),
+                                  ],
+                                ],
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+
+                        Gap(24.h),
+
+                        // ── Last Transaction Section ───────────────────────
+                        const _SectionHeader(
+                            title: 'آخر حركة مالية', onViewAll: null),
+                        Gap(10.h),
+                        _TransactionCard(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -219,7 +296,9 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
   }
 
   void _onAccept(BuildContext context, Consultation consultation) async {
-    await context.read<LawyerConsultationsCubit>().acceptConsultation(consultation);
+    await context
+        .read<LawyerConsultationsCubit>()
+        .acceptConsultation(consultation);
   }
 
   void _showDetails(Consultation consultation) {
@@ -303,9 +382,8 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
           listener: (context, state) {
             if (state is UpdateAvailabilitySuccess) {
               setState(() {
-                _isAvailable =
-                    state.currentStatus ==
-                        LawyerAvailabilityStatus.availableNow;
+                _isAvailable = state.currentStatus ==
+                    LawyerAvailabilityStatus.availableNow;
               });
             } else if (state is UpdateAvailabilityError) {
               setState(() => _isAvailable = !_isAvailable);
@@ -341,8 +419,7 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('حالة التوفر',
-                          style: theme.textTheme.titleMedium),
+                      Text('حالة التوفر', style: theme.textTheme.titleMedium),
                       Text(
                         'هل أنت متاح الآن للإستشارات الفورية',
                         style: theme.textTheme.bodySmall
@@ -417,12 +494,10 @@ class _ConsultationCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isInstant = consultation.type == 'instant';
     final typeText = isInstant ? 'استشارة فورية' : 'استشارة كتابية';
-
     final formattedTime = _formatTime(consultation.createdAt);
 
     return BlocBuilder<LawyerConsultationsCubit, LawyerConsultationsState>(
       builder: (context, state) {
-        // Show loading spinner for whichever type is currently being accepted
         final isAccepting = (isInstant &&
             state is AcceptConsultationLoading &&
             state.consultationId == consultation.id) ||
@@ -553,8 +628,7 @@ class _SectionHeader extends StatelessWidget {
           InkWell(
             onTap: onViewAll,
             child: Text('عرض الكل',
-                style:
-                theme.textTheme.bodySmall?.copyWith(color: primary)),
+                style: theme.textTheme.bodySmall?.copyWith(color: primary)),
           ),
       ],
     );
@@ -564,9 +638,16 @@ class _SectionHeader extends StatelessWidget {
 // ── Appointment Card ─────────────────────────────────────────────────────────
 
 class _AppointmentCard extends StatelessWidget {
-  final String title;
-  final String time;
-  const _AppointmentCard({required this.title, required this.time});
+  final ScheduledConsultation appointment;
+  const _AppointmentCard({required this.appointment});
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour;
+    final m = dt.minute.toString().padLeft(2, '0');
+    final period = h >= 12 ? 'م' : 'ص';
+    final hour = h > 12 ? h - 12 : (h == 0 ? 12 : h);
+    return '$hour:$m $period';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -579,13 +660,78 @@ class _AppointmentCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(child: Text(title, style: theme.textTheme.titleMedium)),
+          Expanded(
+            child: Text(appointment.title,
+                style: theme.textTheme.titleMedium,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          ),
           Picture(getAssetIcon('clock.svg'), width: 20.w, height: 20.w),
           Gap(6.w),
-          Text(time,
-              style:
-              theme.textTheme.bodySmall?.copyWith(color: theme.hintColor)),
+          Text(
+            _formatTime(appointment.startTime),
+            style:
+            theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Consultations Shimmer ────────────────────────────────────────────────────
+
+class _ConsultationsShimmer extends StatelessWidget {
+  const _ConsultationsShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Column(
+        children: List.generate(
+          3,
+              (i) => Padding(
+            padding: EdgeInsets.only(bottom: i < 2 ? 10.h : 0),
+            child: Container(
+              height: 88.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14.h),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Upcoming Shimmer ─────────────────────────────────────────────────────────
+
+class _UpcomingShimmer extends StatelessWidget {
+  const _UpcomingShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Column(
+        children: List.generate(
+          3,
+              (i) => Padding(
+            padding: EdgeInsets.only(bottom: i < 2 ? 10.h : 0),
+            child: Container(
+              height: 56.h,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14.h),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

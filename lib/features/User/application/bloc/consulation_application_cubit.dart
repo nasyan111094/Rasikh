@@ -15,11 +15,13 @@
 import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/get_it_service/get_it_service.dart';
 import '../models/consultation_model.dart';
 import '../repo/consulation_application_repo.dart';
 import 'consulation_application_state.dart';
+import '../models/bookable_slot_model.dart';
 
 class ConsultationApplicationCubit extends Cubit<ConsultationState> {
   ConsultationApplicationCubit() : super(const ConsultationState());
@@ -332,6 +334,58 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     final end = start.add(Duration(minutes: durationMin));
 
     emit(state.copyWith(startTime: start, endTime: end));
+  }
+
+  // ── Bookable slots fetching ───────────────────────────────────────────────
+  // Fetch available slots for a lawyer within a date range
+  // typically from today to today+7 days
+
+  Future<void> fetchBookableSlots({
+    required String lawyerId,
+    DateTime? from,
+    DateTime? to,
+    int? durationMinutes,
+  }) async {
+    emit(state.copyWith(
+      bookableSlotsStatus: ConsultationStatus.loading,
+      bookableSlotsError: null,
+    ));
+
+    final fromDate = from ?? DateTime.now();
+    final toDate = to ?? DateTime.now().add(const Duration(days: 7));
+
+    // Round to start of day (use logical time, not UTC)
+    final fromRounded = DateTime(fromDate.year, fromDate.month, fromDate.day);
+    final toRounded = DateTime(toDate.year, toDate.month, toDate.day, 23, 59, 59);
+
+    final duration = durationMinutes ?? (state.selectedPricing?.duration ?? 30);
+
+    final result = await _repo.fetchBookableSlots(
+      lawyerId: lawyerId,
+      from: fromRounded,
+      to: toRounded,
+      durationMinutes: duration,
+    );
+
+    result.fold(
+          (error) => emit(state.copyWith(
+        bookableSlotsStatus: ConsultationStatus.failure,
+        bookableSlotsError: error,
+      )),
+          (slots) => emit(state.copyWith(
+        bookableSlotsStatus: ConsultationStatus.success,
+        bookableSlots: slots,
+      )),
+    );
+  }
+
+  // Select a bookable slot and derive startTime/endTime
+  void selectBookableSlot(BookableSlotModel slot) {
+    emit(state.copyWith(
+      selectedBookableSlot: slot,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    ));
   }
 
   // ── Step-6: Create consultation ───────────────────────────────────────────

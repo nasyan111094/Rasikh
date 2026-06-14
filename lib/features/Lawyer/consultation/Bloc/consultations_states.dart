@@ -2,50 +2,56 @@
 // features/consultations/logic/states/consultations_states.dart
 // ─────────────────────────────────────────────────────────────────────────────
 
-
+import '../models/consultation_model.dart';
 
 // ── List Screen States ────────────────────────────────────────────────────────
 
-import '../models/consultation_model.dart';
+abstract class ConsultationsState {
+  const ConsultationsState();
+}
 
-abstract class ConsultationsState {}
+/// Initial state — nothing has been fetched yet.
+class ConsultationsInitial extends ConsultationsState {
+  const ConsultationsInitial();
+}
 
-/// Initial state before any action
-class ConsultationsInitial extends ConsultationsState {}
+/// Full-screen shimmer shown on first fetch or after a filter change.
+class ConsultationsLoading extends ConsultationsState {
+  const ConsultationsLoading();
+}
 
-/// Shimmer loading on first fetch or filter change
-class ConsultationsLoading extends ConsultationsState {}
-
-/// Silent refresh (pull-to-refresh) — keeps old data visible
+/// Silent refresh (pull-to-refresh) — current list stays visible beneath the
+/// refresh indicator while new data is being fetched.
 class ConsultationsRefreshing extends ConsultationsState {
   final List<ConsultationModel> currentConsultations;
   final ConsultationStatus selectedStatus;
 
-  ConsultationsRefreshing({
+  const ConsultationsRefreshing({
     required this.currentConsultations,
     required this.selectedStatus,
   });
 }
 
-/// Paginating — loading next page while showing current list
+/// Appending the next page — current list stays visible, a shimmer card is
+/// appended at the bottom as a loading indicator.
 class ConsultationsPaginating extends ConsultationsState {
   final List<ConsultationModel> currentConsultations;
   final ConsultationStatus selectedStatus;
 
-  ConsultationsPaginating({
+  const ConsultationsPaginating({
     required this.currentConsultations,
     required this.selectedStatus,
   });
 }
 
-/// Data loaded successfully
+/// Data loaded successfully with at least one item.
 class ConsultationsLoaded extends ConsultationsState {
   final List<ConsultationModel> consultations;
   final ConsultationStatus selectedStatus;
   final bool hasMorePages;
   final int currentPage;
 
-  ConsultationsLoaded({
+  const ConsultationsLoaded({
     required this.consultations,
     required this.selectedStatus,
     required this.hasMorePages,
@@ -53,56 +59,50 @@ class ConsultationsLoaded extends ConsultationsState {
   });
 }
 
-/// Empty list
+/// Fetch returned an empty list.
 class ConsultationsEmpty extends ConsultationsState {
   final ConsultationStatus selectedStatus;
 
-  ConsultationsEmpty({required this.selectedStatus});
+  const ConsultationsEmpty({required this.selectedStatus});
 }
 
-/// Error occurred
+/// A network or server error occurred.
 class ConsultationsError extends ConsultationsState {
   final String message;
   final ConsultationStatus selectedStatus;
 
-  ConsultationsError({
+  const ConsultationsError({
     required this.message,
     required this.selectedStatus,
   });
 }
 
-// ── Filter Sheet States ───────────────────────────────────────────────────────
-
-abstract class ConsultationsFilterState {}
-
-class ConsultationsFilterInitial extends ConsultationsFilterState {}
-
-class ConsultationsFilterChanged extends ConsultationsFilterState {
-  final ConsultationStatus selected;
-
-  ConsultationsFilterChanged({required this.selected});
-}
-
 // ── Details Screen States ─────────────────────────────────────────────────────
 
-abstract class ConsultationDetailsState {}
+abstract class ConsultationDetailsState {
+  const ConsultationDetailsState();
+}
 
-/// Initial state
-class ConsultationDetailsInitial extends ConsultationDetailsState {}
+/// Initial state before [ConsultationDetailsCubit.fetchDetails] is called.
+class ConsultationDetailsInitial extends ConsultationDetailsState {
+  const ConsultationDetailsInitial();
+}
 
-/// Shimmer loading
-class ConsultationDetailsLoading extends ConsultationDetailsState {}
+/// Full-screen shimmer while the detail request is in flight.
+class ConsultationDetailsLoading extends ConsultationDetailsState {
+  const ConsultationDetailsLoading();
+}
 
-/// Details loaded
+/// Details fetched successfully.
 class ConsultationDetailsLoaded extends ConsultationDetailsState {
   final ConsultationModel consultation;
 
-  ConsultationDetailsLoaded({required this.consultation});
+  const ConsultationDetailsLoaded({required this.consultation});
 }
 
-/// Error
+/// A network or server error occurred while loading details.
 class ConsultationDetailsError extends ConsultationDetailsState {
   final String message;
 
-  ConsultationDetailsError({required this.message});
+  const ConsultationDetailsError({required this.message});
 }

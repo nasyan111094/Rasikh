@@ -1,3 +1,5 @@
+import 'package:rasikh/config/app_config.dart';
+
 class AdvertismentResponseModel {
   AdvertismentResponseModel({
     required this.data,
@@ -5,7 +7,7 @@ class AdvertismentResponseModel {
     required this.message,
   });
   late final List<Advertise> data;
-  late final bool status;
+  late final bool? status;
   late final String message;
 
   AdvertismentResponseModel.fromJson(Map<String, dynamic> json) {
@@ -42,7 +44,7 @@ class Advertise {
   late final String updatedAt;
 
   Advertise.fromJson(Map<String, dynamic> json) {
-    image = json['image'] ?? '';
+    image = AppConfig.baseImgUrl + json['image'] ?? '';
     id = json['_id'] ?? '';
     title = json['title'] ?? '';
     bannerType = json['bannerType'] ?? '';

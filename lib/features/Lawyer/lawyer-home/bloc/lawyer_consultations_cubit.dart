@@ -3,6 +3,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../models/consultation_model.dart';
+import '../models/nearest.dart';
 import '../repo/lawyer_consultations_repo.dart';
 import 'lawyer_consultations_state.dart';
 
@@ -58,6 +59,20 @@ class LawyerConsultationsCubit extends Cubit<LawyerConsultationsState> {
         } else {
           emit(AcceptConsultationSuccess(accepted));
         }
+      },
+    );
+  }
+
+  List<ScheduledConsultation> _upcomingAppointments = [];
+
+  Future<void> fetchUpcomingScheduled() async {
+    emit(UpcomingScheduledLoading());
+    final result = await _repo.getUpcomingScheduled();
+    result.fold(
+          (error) => emit(UpcomingScheduledError(error)),
+          (list) {
+        _upcomingAppointments = list;
+        emit(UpcomingScheduledLoaded(list));
       },
     );
   }

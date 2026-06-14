@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/consultation/consultations_screen.dart
+// features/consultations/presentation/screens/consultations_screen.dart
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
@@ -10,18 +10,25 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/config/theme/colors.dart';
+import 'package:rasikh/core/cache/cache_helper.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/features/Lawyer/consultation/widgets/consultation_shimmer.dart';
+import 'package:rasikh/features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../../core/widgets/app_bar_without_icon_button.dart';
 import '../../../../core/widgets/general_divider.dart';
 import '../../../../core/widgets/gradiant_button.dart';
-
+import '../../../config/navigation/nav.dart';
 import 'Bloc/consultation_details_cubit.dart';
 import 'Bloc/consultations_cubit.dart';
 import 'Bloc/consultations_states.dart';
 import 'consultation_details_screen.dart';
 import 'models/consultation_model.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Screen
+// ─────────────────────────────────────────────────────────────────────────────
 
 class LawerConsultationsScreen extends StatefulWidget {
   const LawerConsultationsScreen({super.key});
@@ -32,7 +39,7 @@ class LawerConsultationsScreen extends StatefulWidget {
 }
 
 class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
-  final ScrollController _scrollController = ScrollController();
+  final _scrollController = ScrollController();
 
   @override
   void initState() {
@@ -47,20 +54,20 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
     super.dispose();
   }
 
+  // ── Scroll listener: trigger pagination near the bottom ──────────────────
+
   void _onScroll() {
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final current = _scrollController.offset;
-    if (current >= maxScroll - 200) {
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 200) {
       context.read<ConsultationsCubit>().loadMoreConsultations();
     }
   }
 
-  Future<void> _onRefresh() async {
-    await context.read<ConsultationsCubit>().refreshConsultations();
-  }
+  Future<void> _onRefresh() =>
+      context.read<ConsultationsCubit>().refreshConsultations();
 
   void _openFilterSheet(ConsultationStatus current) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -74,95 +81,23 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Scaffold(
-      body: Directionality(
-        textDirection: Directionality.of(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AppBarWithoutBackIconButton(theme: theme, title: "إستشاراتي"),
-            BlocBuilder<ConsultationsCubit, ConsultationsState>(
-              builder: (context, state) {
-                final status = _resolveStatus(state);
-                return _FilterHeader(
-                  selectedStatus: status??ConsultationStatus.none,
-                  onFilterTap: () => _openFilterSheet(status??ConsultationStatus.none),
-                );
-              },
-            ),
-            GeneralDivider(height: 10.h),
-            Expanded(
-              child: BlocBuilder<ConsultationsCubit, ConsultationsState>(
-                builder: (context, state) {
-                  if (state is ConsultationsLoading) {
-                    return const ConsultationsListShimmer();
-                  }
-
-                  if (state is ConsultationsError) {
-                    return _ErrorView(
-                      message: state.message,
-                      onRetry: () =>
-                          context.read<ConsultationsCubit>().fetchConsultations(),
-                    );
-                  }
-
-                  if (state is ConsultationsEmpty) {
-                    return _EmptyView(status: state.selectedStatus);
-                  }
-
-                  final consultations = _resolveConsultations(state);
-                  final isPaginating = state is ConsultationsPaginating;
-
-                  return RefreshIndicator(
-                    onRefresh: _onRefresh,
-                    color: theme.colorScheme.primary,
-                    child: ListView.builder(
-                      controller: _scrollController,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 16.w,
-                        vertical: 12.h,
-                      ),
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      itemCount: consultations.length + (isPaginating ? 1 : 0),
-                      itemBuilder: (context, index) {
-                        if (index == consultations.length) {
-                          return const ConsultationCardShimmer();
-                        }
-
-                        final item = consultations[index];
-                        return _ConsultationCard(
-                          consultation: item,
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => BlocProvider(
-                                create: (_) => ConsultationDetailsCubit(
-                                  repo: context.read<ConsultationsCubit>().repo,
-                                ),
-                                child: LawyerConsultationDetailsScreen(
-                                  consultationId: item.id,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
+  void _navigateToDetails(BuildContext context, ConsultationModel item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => BlocProvider(
+          create: (_) => ConsultationDetailsCubit(
+            repo: context.read<ConsultationsCubit>().repo,
+          ),
+          child: LawyerConsultationDetailsScreen(consultationId: item.id),
         ),
       ),
     );
   }
 
-  ConsultationStatus? _resolveStatus(ConsultationsState state) {
+  // ── State helpers ─────────────────────────────────────────────────────────
+
+  ConsultationStatus _resolveStatus(ConsultationsState state) {
     if (state is ConsultationsLoaded) return state.selectedStatus;
     if (state is ConsultationsRefreshing) return state.selectedStatus;
     if (state is ConsultationsPaginating) return state.selectedStatus;
@@ -177,9 +112,111 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
     if (state is ConsultationsPaginating) return state.currentConsultations;
     return [];
   }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: Directionality(
+        textDirection: Directionality.of(context),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppBarWithoutBackIconButton(theme: theme, title: 'إستشاراتي'),
+            // Filter header always reflects the active status chip.
+            BlocBuilder<ConsultationsCubit, ConsultationsState>(
+              builder: (context, state) {
+                final status = _resolveStatus(state);
+                return _FilterHeader(
+                  selectedStatus: status,
+                  onFilterTap: () => _openFilterSheet(status),
+                );
+              },
+            ),
+            GeneralDivider(height: 10.h),
+            Expanded(
+              child: BlocBuilder<ConsultationsCubit, ConsultationsState>(
+                builder: (context, state) =>
+                    _buildBody(context, state, theme),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(
+      BuildContext context,
+      ConsultationsState state,
+      ThemeData theme,
+      ) {
+    if (state is ConsultationsLoading) {
+      return const ConsultationsListShimmer();
+    }
+
+    if (state is ConsultationsError) {
+      return _ErrorView(
+        message: state.message,
+        onRetry: () =>
+            context.read<ConsultationsCubit>().fetchConsultations(),
+      );
+    }
+
+    if (state is ConsultationsEmpty) {
+      return _EmptyView(status: state.selectedStatus);
+    }
+
+    final consultations = _resolveConsultations(state);
+    final isPaginating = state is ConsultationsPaginating;
+
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      color: theme.colorScheme.primary,
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: consultations.length + (isPaginating ? 1 : 0),
+        itemBuilder: (context, index) {
+          // Last slot: pagination shimmer card.
+          if (index == consultations.length) {
+            return const ConsultationCardShimmer();
+          }
+          final item = consultations[index];
+          return _ConsultationCard(
+            consultation: item,
+            onTap: ()
+            {
+              if(item.isActive == true)
+                {
+                  if(item.type == "written")
+                    {
+                      Nav.chat(context, consultationId: item.id , clientId: item.client?.id , lawyerId: getIt<LawyerProfileCubit>().cachedProfile?.id , lawyerName: getIt<LawyerProfileCubit>().cachedProfile?.fullName , lawyerPhotoUrl: getIt<LawyerProfileCubit>().cachedProfile?.photoUrl  ) ;
+                    }
+                  else
+                    {
+                     Nav.videoCallScreen(context, consultationId: item.id , clientId: item.client?.id , lawyerId: getIt<LawyerProfileCubit>().cachedProfile?.id , lawyerName: getIt<LawyerProfileCubit>().cachedProfile?.fullName , lawyerPhotoUrl: getIt<LawyerProfileCubit>().cachedProfile?.photoUrl  ) ;
+                    }
+                }
+              else
+                {
+                  _navigateToDetails(context, item) ;
+                }
+            },
+          );
+        },
+      ),
+    );
+  }
 }
 
-// ── Filter Header ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter Header
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _FilterHeader extends StatelessWidget {
   final ConsultationStatus selectedStatus;
@@ -195,8 +232,6 @@ class _FilterHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black;
-    final highlightColor = theme.colorScheme.secondary;
-    final cardColor = theme.cardColor.withOpacity(isDark ? 0.15 : 1);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
@@ -210,7 +245,7 @@ class _FilterHeader extends StatelessWidget {
                 fontSize: 16.sp,
               ),
               children: [
-                const TextSpan(text: "تصفية حسب : "),
+                const TextSpan(text: 'تصفية حسب : '),
                 TextSpan(
                   text: selectedStatus.label,
                   style: TextStyle(
@@ -228,7 +263,6 @@ class _FilterHeader extends StatelessWidget {
               width: 38.w,
               height: 38.h,
               decoration: BoxDecoration(
-
                 borderRadius: BorderRadius.circular(10.w),
                 border: Border.all(
                   color: theme.primaryColor.withOpacity(0.2),
@@ -243,16 +277,15 @@ class _FilterHeader extends StatelessWidget {
               ),
             ),
           ),
-
-
         ],
       ),
     );
   }
 }
 
-// ── Consultation Card ─────────────────────────────────────────────────────────
-// Single unified card that adapts based on the consultation data.
+// ─────────────────────────────────────────────────────────────────────────────
+// Consultation Card
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ConsultationCard extends StatelessWidget {
   final ConsultationModel consultation;
@@ -263,6 +296,38 @@ class _ConsultationCard extends StatelessWidget {
     required this.onTap,
   });
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  String _typeLabel(String type) {
+    switch (type) {
+      case 'instant':
+        return 'إستشارة فورية';
+      case 'scheduled':
+        return 'إستشارة مجدولة';
+      case 'written':
+        return 'إستشارة كتابيه';
+      default:
+        return type;
+    }
+  }
+
+  String _formatDate(DateTime? dt) {
+    if (dt == null) return '—';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  }
+
+  String _formatTime(DateTime? dt) {
+    if (dt == null) return '—';
+    final local = dt.toLocal(); // ✅ حوّل لتوقيت الجهاز
+    final hour = local.hour;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'مساءً' : 'صباحًا';
+    final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+    return '$displayHour:$minute $period';
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -270,14 +335,10 @@ class _ConsultationCard extends StatelessWidget {
     final borderColor = isDark ? Colors.grey.shade700 : Colors.grey.shade300;
     final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
 
-    // Price label: convert halala → SAR string
+    final startDt = consultation.effectiveStartDateTime;
     final periodLabel = consultation.durationMin != null
-        ? '${consultation.durationMin!.toStringAsFixed(0)} ${'دقيقه'}'
+        ? '${consultation.durationMin} دقيقه'
         : '—';
-
-    final date = consultation.effectiveStartDateTime;
-    final dateLabel = _formatDate(date);
-    final timeLabel = _formatTime(date);
 
     return GestureDetector(
       onTap: onTap,
@@ -295,14 +356,13 @@ class _ConsultationCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Header row ────────────────────────────────────────
+                  // ── Header: type label + status badge ─────────────────
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Consultation type (instant / scheduled)
                           Text(
                             _typeLabel(consultation.type),
                             style: theme.textTheme.bodyMedium?.copyWith(
@@ -313,24 +373,27 @@ class _ConsultationCard extends StatelessWidget {
                           ),
                           if (consultation.specialization != null) ...[
                             SizedBox(height: 4.h),
-                            Row(children: [    Text(
-                              "التخصص: ",
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                color: Colors.grey,
-                                fontSize: 12.sp,
-                              ),
-                            ),
-                              Text(
-                                "${consultation.specialization!.name}",
-                                style: theme.textTheme.titleSmall?.copyWith(
-                                  fontSize: 12.sp,
+                            Row(
+                              children: [
+                                Text(
+                                  'التخصص: ',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    color: Colors.grey,
+                                    fontSize: 12.sp,
+                                  ),
                                 ),
-                              ),],) ,
+                                Text(
+                                  consultation.specialization!.name,
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontSize: 12.sp,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ],
                       ),
                       _StatusBadge(status: consultation.status),
-
                     ],
                   ),
                   GeneralDivider(height: 20.h),
@@ -355,10 +418,10 @@ class _ConsultationCard extends StatelessWidget {
 
                   GeneralDivider(height: 20.h),
 
-                  // ── Time & Price ──────────────────────────────────────
+                  // ── Date / time / duration row ─────────────────────────
                   _TimePriceRow(
-                    date: dateLabel,
-                    time: timeLabel,
+                    date: _formatDate(startDt),
+                    time: _formatTime(startDt),
                     period: periodLabel,
                     textColor: textColor,
                   ),
@@ -368,16 +431,17 @@ class _ConsultationCard extends StatelessWidget {
               ),
             ),
 
-            // ── Bottom action button ──────────────────────────────────
-            if (consultation.status == ConsultationStatus.upcoming)
-              _UpcomingSessionButton(consultation: consultation, onEnter: onTap)
+            // ── Bottom action ─────────────────────────────────────────
+            if (consultation.isUpcoming)
+              _UpcomingSessionButton(
+                consultation: consultation,
+                onEnter: onTap,
+              )
             else
               SizedBox(
                 width: double.infinity,
                 child: GradiantButton(
-                  text: consultation.status == ConsultationStatus.active
-                      ? "أدخل الجلسه"
-                      : "عرض التفاصيل",
+                  text: consultation.isActive ? 'أدخل الجلسه' : 'عرض التفاصيل',
                   onTap: onTap,
                 ),
               ),
@@ -386,40 +450,16 @@ class _ConsultationCard extends StatelessWidget {
       ),
     );
   }
-
-  String _typeLabel(String type) {
-    switch (type) {
-      case 'instant':
-        return 'إستشارة فورية';
-      case 'scheduled':
-        return 'إستشارة مجدولة';
-      case 'written':
-        return 'إستشارة كتابيه';
-      default:
-        return type;
-    }
-  }
-
-  /// Formats a [DateTime] that is already in local time (no re-parsing needed).
-  String _formatDate(DateTime? dt) {
-    if (dt == null) return '—';
-    return '${dt.day}/${dt.month}/${dt.year}';
-  }
-  String _formatTime(DateTime? dt) {
-    if (dt == null) return '—';
-
-    final hour = dt.hour;
-    final minute = dt.minute.toString().padLeft(2, '0');
-
-    final period = hour >= 12 ? 'مساءً' : 'صباحًا';
-    final displayHour = hour % 12 == 0 ? 12 : hour % 12;
-
-    return '$displayHour:$minute $period';
-  }
 }
 
-// ── Upcoming Session Button with Countdown ────────────────────────────────────
-// Shows a live countdown and enables "أدخل الجلسه" only when time has come.
+// ─────────────────────────────────────────────────────────────────────────────
+// Upcoming Session Countdown Button (card variant)
+//
+// • Counts down to [effectiveStartDateTime] using epoch-ms arithmetic,
+//   which is completely timezone-safe regardless of device locale.
+// • Once the countdown reaches zero the gradient "أدخل الجلسه" button becomes
+//   tappable; before that it shows a live HH:MM:SS (or MM:SS) ticker.
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _UpcomingSessionButton extends StatefulWidget {
   final ConsultationModel consultation;
@@ -436,30 +476,40 @@ class _UpcomingSessionButton extends StatefulWidget {
 
 class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
   Timer? _timer;
+
+  /// `null`  → no start time available, enable button immediately.
+  /// Zero    → countdown finished, enable button.
+  /// Positive → still counting down.
   Duration? _remaining;
 
   @override
   void initState() {
     super.initState();
-    _updateRemaining();
+    _tick();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) _updateRemaining();
+      if (mounted) _tick();
     });
   }
 
-  void _updateRemaining() {
+  void _tick() {
     final dt = widget.consultation.effectiveStartDateTime;
     if (dt == null) {
       setState(() => _remaining = null);
+      _timer?.cancel();
       return;
     }
-    // Use epoch milliseconds diff — completely timezone-safe.
-    // dt is UTC (parsed from "Z" string), DateTime.now() epoch is always absolute.
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    final startMs = dt.millisecondsSinceEpoch;
+
+    // ✅ استخدم UTC في الطرفين عشان يتطابقوا
+    final nowMs = DateTime.now().toUtc().millisecondsSinceEpoch;
+    final startMs = dt.toUtc().millisecondsSinceEpoch;
     final diffMs = startMs - nowMs;
-    setState(() => _remaining =
-    diffMs <= 0 ? Duration.zero : Duration(milliseconds: diffMs));
+
+    if (diffMs <= 0) {
+      setState(() => _remaining = Duration.zero);
+      _timer?.cancel();
+    } else {
+      setState(() => _remaining = Duration(milliseconds: diffMs));
+    }
   }
 
   @override
@@ -468,37 +518,29 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
     super.dispose();
   }
 
-  bool get _canEnter => _remaining != null && _remaining! == Duration.zero;
+  bool get _sessionStarted =>
+      _remaining == null || _remaining == Duration.zero;
 
-  String _fmt(Duration d) {
+  /// Formats a duration as `HH:MM:SS` when >= 1 hour, otherwise `MM:SS`.
+  String _formatCountdown(Duration d) {
     final h = d.inHours;
     final m = (d.inMinutes % 60).toString().padLeft(2, '0');
     final s = (d.inSeconds % 60).toString().padLeft(2, '0');
-    if (h > 0) return '${h.toString().padLeft(2, '0')}:$m:$s';
-    return '$m:$s';
+    return h > 0 ? '${h.toString().padLeft(2, '0')}:$m:$s' : '$m:$s';
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_sessionStarted) {
+      return SizedBox(
+        width: double.infinity,
+        child: GradiantButton(text: 'أدخل الجلسه', onTap: widget.onEnter),
+      );
+    }
+
     final theme = Theme.of(context);
-    final primary = theme.colorScheme.primary;
+    final primaryColor = theme.colorScheme.primary;
 
-    // Session already started or no time info → always enabled
-    if (_remaining == null) {
-      return SizedBox(
-        width: double.infinity,
-        child: GradiantButton(text: "أدخل الجلسه", onTap: widget.onEnter),
-      );
-    }
-
-    if (_canEnter) {
-      return SizedBox(
-        width: double.infinity,
-        child: GradiantButton(text: "أدخل الجلسه", onTap: widget.onEnter),
-      );
-    }
-
-    // Countdown mode — button disabled
     return ClipRRect(
       borderRadius: const BorderRadius.only(
         bottomLeft: Radius.circular(14),
@@ -507,14 +549,12 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
       child: Container(
         width: double.infinity,
         padding: EdgeInsets.symmetric(vertical: 13.h),
-        decoration: BoxDecoration(
-          color: primary.withOpacity(0.07),
-        ),
+        color: primaryColor.withOpacity(0.07),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              "تبدأ الجلسة خلال",
+              'تبدأ الجلسة خلال',
               style: TextStyle(
                 color: Colors.grey.shade500,
                 fontSize: 11.sp,
@@ -525,12 +565,12 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.timer_outlined, size: 16.sp, color: primary),
+                Icon(Icons.timer_outlined, size: 16.sp, color: primaryColor),
                 SizedBox(width: 6.w),
                 Text(
-                  _fmt(_remaining!),
+                  _formatCountdown(_remaining!),
                   style: TextStyle(
-                    color: primary,
+                    color: primaryColor,
                     fontSize: 16.sp,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.5,
@@ -546,7 +586,9 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
   }
 }
 
-// ── Client Info Row ───────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Client Info Row
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ClientInfoRow extends StatelessWidget {
   final ConsultationClient client;
@@ -559,20 +601,19 @@ class _ClientInfoRow extends StatelessWidget {
     final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
 
     return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: [ CircleAvatar(
-        radius: 22.w,
-        backgroundColor: Colors.grey.shade200,
-        child: Text(
-          client.fullName.isNotEmpty ? client.fullName[0] : '?',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.primary,
-            fontSize: 16.sp,
+      children: [
+        CircleAvatar(
+          radius: 22.w,
+          backgroundColor: Colors.grey.shade200,
+          child: Text(
+            client.fullName.isNotEmpty ? client.fullName[0] : '?',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.primary,
+              fontSize: 16.sp,
+            ),
           ),
         ),
-      ),
-
         SizedBox(width: 10.w),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -600,7 +641,9 @@ class _ClientInfoRow extends StatelessWidget {
   }
 }
 
-// ── Status Badge ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Status Badge
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _StatusBadge extends StatelessWidget {
   final ConsultationStatus status;
@@ -636,29 +679,12 @@ class _StatusBadge extends StatelessWidget {
         return Colors.red.shade700;
       case ConsultationStatus.disputes:
         return Colors.orange.shade700;
-
       case ConsultationStatus.none:
         return Colors.black;
-
     }
   }
 
-  String? get _textLabel{
-    switch (status) {
-      case ConsultationStatus.active:
-        return "نشطه";
-      case ConsultationStatus.upcoming:
-        return "قادمه";
-      case ConsultationStatus.completed:
-        return "مكتمله";
-      case ConsultationStatus.cancelled:
-        return "ملغاه";
-      case ConsultationStatus.disputes:
-        return "نزاعات";
-      default: status.label  ;
-
-    }
-  }
+  String get _label => status.label;
 
   @override
   Widget build(BuildContext context) {
@@ -669,7 +695,7 @@ class _StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(50.w),
       ),
       child: Text(
-        _textLabel ?? "غير معروف",
+        _label,
         style: TextStyle(
           color: _textColor,
           fontWeight: FontWeight.bold,
@@ -680,7 +706,10 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-// ── Time & Price Row ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Time / Date / Duration Row
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _TimePriceRow extends StatelessWidget {
   final String date;
   final String time;
@@ -701,86 +730,72 @@ class _TimePriceRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        Column(
-          children: [
-            Text(
-              "التاريخ",
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: Colors.grey, fontSize: 12.sp),
-            ),
-            Gap(5.h) ,
-            Text(
-              date,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: textColor,
-                fontSize: 14.sp,
-              ),
-            ),
-          ],
-        ),
-
-        Container(
-          height: 30.h,
-          width: 2.w,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(50.w),
-          ),
-        ),
-
-        Column(
-          children: [
-            Text(
-              "وقت البدء",
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: Colors.grey, fontSize: 12.sp),
-            ),
-            Gap(5.h) ,
-            Text(
-              time,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: textColor,
-                fontSize: 14.sp,
-              ),
-            ),
-          ],
-        ),
-
-        Container(
-          height: 30.h,
-          width: 2.w,
-          decoration: BoxDecoration(
-            color: theme.colorScheme.primary.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(50.w),
-          ),
-        ),
-
-        Column(
-          children: [
-            Text(
-              "مدة الجلسه",
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: Colors.grey, fontSize: 12.sp),
-            ),
-            Gap(5.h) ,
-            Text(
-              period,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: theme.colorScheme.primary,
-                fontSize: 14.sp,
-              ),
-            ),
-          ],
+        _InfoCell(label: 'التاريخ', value: date, valueColor: textColor),
+        _Divider(),
+        _InfoCell(label: 'وقت البدء', value: time, valueColor: textColor),
+        _Divider(),
+        _InfoCell(
+          label: 'مدة الجلسه',
+          value: period,
+          valueColor: theme.colorScheme.primary,
         ),
       ],
     );
   }
 }
 
-// ── Filter Bottom Sheet ───────────────────────────────────────────────────────
+class _InfoCell extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+
+  const _InfoCell({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      children: [
+        Text(
+          label,
+          style: theme.textTheme.bodySmall
+              ?.copyWith(color: Colors.grey, fontSize: 12.sp),
+        ),
+        Gap(5.h),
+        Text(
+          value,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+            fontSize: 14.sp,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 30.h,
+      width: 2.w,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(50.w),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filter Bottom Sheet
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _FilterBottomSheet extends StatefulWidget {
   final ConsultationStatus selected;
@@ -818,6 +833,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Drag handle
           Container(
             width: 40.w,
             height: 4.h,
@@ -827,6 +843,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
               borderRadius: BorderRadius.circular(50),
             ),
           ),
+          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -843,7 +860,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 ),
               ),
               Text(
-                "تصفية حسب",
+                'تصفية حسب',
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   fontSize: 18.sp,
@@ -852,73 +869,19 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
             ],
           ),
           SizedBox(height: 16.h),
-          ...ConsultationStatus.values.map(
-                (s) => GestureDetector(
-              onTap: () => setState(() => _selected = s),
-              child: Container(
-                width: double.infinity,
-                margin: EdgeInsets.only(bottom: 10.h),
-                padding:
-                EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12.w),
-                  border: Border.all(
-                    color: _selected == s
-                        ? theme.colorScheme.primary
-                        : Colors.grey.shade300,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      s.label,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _selected == s
-                            ? theme.colorScheme.primary
-                            : null,
-                        fontWeight: _selected == s
-                            ? FontWeight.bold
-                            : FontWeight.normal,
-                        fontSize: 15.sp,
-                      ),
-                    ),
-                    Container(
-                      width: 22.w,
-                      height: 22.h,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _selected == s
-                              ? theme.colorScheme.primary
-                              : Colors.grey.shade400,
-                          width: 2,
-                        ),
-                      ),
-                      child: _selected == s
-                          ? Center(
-                        child: Container(
-                          width: 12.w,
-                          height: 12.h,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      )
-                          : null,
-                    ),
 
-                  ],
-                ),
-              ),
-            ),
-          ),
+          // Status options
+          ...ConsultationStatus.values.map((s) => _StatusOption(
+            status: s,
+            isSelected: _selected == s,
+            onTap: () => setState(() => _selected = s),
+          )),
+
           SizedBox(height: 8.h),
           SizedBox(
             width: double.infinity,
             child: GradiantButton(
-              text: "تطبيق التصفية",
+              text: 'تطبيق التصفية',
               onTap: () => widget.onApply(_selected),
             ),
           ),
@@ -928,7 +891,80 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
   }
 }
 
-// ── Error View ────────────────────────────────────────────────────────────────
+class _StatusOption extends StatelessWidget {
+  final ConsultationStatus status;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _StatusOption({
+    required this.status,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final activeColor = theme.colorScheme.primary;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        margin: EdgeInsets.only(bottom: 10.h),
+        padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12.w),
+          border: Border.all(
+            color: isSelected ? activeColor : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              status.label,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isSelected ? activeColor : null,
+                fontWeight:
+                isSelected ? FontWeight.bold : FontWeight.normal,
+                fontSize: 15.sp,
+              ),
+            ),
+            // Radio indicator
+            Container(
+              width: 22.w,
+              height: 22.h,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: isSelected ? activeColor : Colors.grey.shade400,
+                  width: 2,
+                ),
+              ),
+              child: isSelected
+                  ? Center(
+                child: Container(
+                  width: 12.w,
+                  height: 12.h,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: activeColor,
+                  ),
+                ),
+              )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Error View
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
   final String message;
@@ -954,7 +990,7 @@ class _ErrorView extends StatelessWidget {
                   ?.copyWith(color: Colors.grey.shade600),
             ),
             SizedBox(height: 16.h),
-            GradiantButton(text: "إعادة المحاولة", onTap: onRetry),
+            GradiantButton(text: 'إعادة المحاولة', onTap: onRetry),
           ],
         ),
       ),
@@ -962,7 +998,9 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-// ── Empty View ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Empty View
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _EmptyView extends StatelessWidget {
   final ConsultationStatus status;
@@ -978,11 +1016,10 @@ class _EmptyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.inbox_outlined,
-                size: 64.w, color: Colors.grey.shade300),
+            Icon(Icons.inbox_outlined, size: 64.w, color: Colors.grey.shade300),
             SizedBox(height: 12.h),
             Text(
-              "لا توجد استشارات ${status.label}",
+              'لا توجد استشارات ${status.label}',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: Colors.grey.shade500,
                 fontSize: 15.sp,

@@ -1059,33 +1059,43 @@ class _ChatInputField extends StatelessWidget {
 
           // Text field
           Expanded(
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
-              decoration: BoxDecoration(
-                color: theme.dividerColor,
-                borderRadius: BorderRadius.circular(25.h),
-              ),
-              child: TextField(
-                controller: controller,
-                enabled: enabled,
-                textAlign: TextAlign.right,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) {
-                  if (enabled && !isSending) onSend();
-                },
-                decoration: InputDecoration(
-                  hintText: enabled
-                      ? 'اكتب الرسالة هنا...'
-                      : 'الجلسة غير نشطة',
-                  hintStyle: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.hintColor,
-                    fontSize: 14.sp,
-                  ),
-                  fillColor: theme.dividerColor,
-                  filled: true,
-                  border: InputBorder.none,
+            child: TextFormField(
+              controller: controller,
+              enabled: enabled,
+              textAlign: TextAlign.right,
+              textInputAction: TextInputAction.send,
+              onFieldSubmitted: (_) {
+                if (enabled && !isSending) onSend();
+              },
+              decoration: InputDecoration(
+                hintText: enabled
+                    ? 'اكتب الرسالة هنا...'
+                    : 'الجلسة غير نشطة',
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.hintColor,
+                  fontSize: 14.sp,
                 ),
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25.h),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25.h),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25.h),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: EdgeInsets.symmetric(horizontal: 16.w),
               ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'الرجاء إدخال رسالة';
+                }
+                return null;
+              },
             ),
           ),
           SizedBox(width: 12.w),
@@ -1264,7 +1274,7 @@ class _TimerChip extends StatelessWidget {
         color: isCritical
             ? cs.error.withOpacity(0.15)
             : cs.surface.withOpacity(0.95),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(5),
         border: Border.all(
           color: isCritical
               ? cs.error.withOpacity(0.6)

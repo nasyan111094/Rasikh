@@ -16,7 +16,7 @@ import 'package:rasikh/core/widgets/custom_dotted_container.dart';
 import 'package:rasikh/core/widgets/fields/prefix_text_filed_icon.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/user_selector/general_app_button.dart';
-import 'package:rasikh/features/Lawyer/adding_work_appointment/widgets/date_picker_field.dart';
+import 'package:rasikh/features/Lawyer/lawyer-appointments/widgets/date_picker_field.dart';
 import 'package:rasikh/features/common/account_type_selection/screens/account_type_screen.dart';
 import 'package:size_config/size_config.dart';
 

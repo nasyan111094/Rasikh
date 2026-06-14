@@ -6,6 +6,7 @@ import 'package:dio_adapter/dio_adapter.dart';
 
 import '../../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../../core/utils/api/api_handler.dart';
+import '../../../User/profile/models/faq_model.dart';
 import '../models/help_center_models.dart';
 
 // ── Endpoint constants ────────────────────────────────────────────────────────
@@ -73,5 +74,22 @@ class HelpCenterRepo {
     } catch (_) {
       return 'حدث خطأ غير متوقع';
     }
+  }
+
+  static const String faqs = 'content/public/faqs'; // داخل _HelpCenterEndpoints
+
+  Future<Either<String, List<FaqModel>>> getFaqs() async {
+    final result = await _adapter.get(faqs);
+
+    if (result.isRight) {
+      final data = result.right.data['data'] as List<dynamic>? ?? [];
+      return Right(
+        data
+            .cast<Map<String, dynamic>>()
+            .map(FaqModel.fromJson)
+            .toList(),
+      );
+    }
+    return Left(_extractError(result.left));
   }
 }

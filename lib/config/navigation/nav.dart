@@ -22,7 +22,7 @@ import 'package:rasikh/features/common/Auth/screens/otp_page.dart';
 import '../../Shared/bottom_sheets/terms_and_condition_sheet.dart';
 
 import '../../features/Company/company_register_completion/pages/company_completion_page.dart';
-import '../../features/Lawyer/adding_work_appointment/adding_work_appointment_screen.dart';
+import '../../features/Lawyer/lawyer-appointments/adding_work_appointment_screen.dart';
 import '../../features/Lawyer/lawer_register_compilation/screens/lawyer_license_page.dart';
 import '../../features/Lawyer/lawer_register_compilation/screens/lawyer_personal_info_page.dart';
 import '../../features/Lawyer/lawer_register_compilation/screens/lawyer_qualifications_page.dart';
@@ -404,12 +404,12 @@ abstract class Nav {
   // ─────────────────────────────────────────────
 
   static addWorkAppointment(
-      BuildContext context,
+      BuildContext context, { String ? slotId}
       ) async =>
       await _push(
         context,
         PageKey.login,
-        const AddingWorkAppointmentScreen(),
+        AddingWorkAppointmentScreen(slotId: slotId),
       );
 
   static lawyerAppointmentsScreen(

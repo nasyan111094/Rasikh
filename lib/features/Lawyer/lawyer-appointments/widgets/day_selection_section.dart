@@ -6,16 +6,58 @@ import 'package:rasikh/core/widgets/picture.dart';
 import 'package:size_config/size_config.dart';
 
 class DaySelectionSection extends StatefulWidget {
-  const DaySelectionSection({super.key});
+  /// [initialSelected] contains indexes 0..6 corresponding to the next 7 days
+  /// starting today. [onChanged] is called whenever the selection changes.
+  const DaySelectionSection({
+    super.key,
+    this.initialSelected,
+    this.onChanged,
+  });
+
+  final Set<int>? initialSelected;
+  final ValueChanged<Set<int>>? onChanged;
 
   @override
   State<DaySelectionSection> createState() => _DaySelectionSectionState();
 }
 
 class _DaySelectionSectionState extends State<DaySelectionSection> {
-  final Set<int> selectedDayIndexes = {};
-  final List<DateTime> upcomingDays =
-  List.generate(7, (i) => DateTime.now().add(Duration(days: i)));
+  // ── State is owned here — never re-assigned from props mid-build ──────────
+  late Set<int> _selectedDayIndexes;
+  late final List<DateTime> _upcomingDays;
+
+  @override
+  void initState() {
+    super.initState();
+    // Deep-copy so external mutations to the passed Set don't bleed in
+    _selectedDayIndexes = Set<int>.from(widget.initialSelected ?? <int>{});
+    _upcomingDays =
+        List.generate(7, (i) => DateTime.now().add(Duration(days: i)));
+  }
+
+  /// Called by the parent when it restores prefill data asynchronously
+  /// (e.g. after fetching from cache in initState via addPostFrameCallback).
+  @override
+  void didUpdateWidget(DaySelectionSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialSelected != null &&
+        widget.initialSelected != oldWidget.initialSelected) {
+      setState(() {
+        _selectedDayIndexes = Set<int>.from(widget.initialSelected!);
+      });
+    }
+  }
+
+  void _toggleDay(int index) {
+    setState(() {
+      if (_selectedDayIndexes.contains(index)) {
+        _selectedDayIndexes.remove(index);
+      } else {
+        _selectedDayIndexes.add(index);
+      }
+    });
+    widget.onChanged?.call(Set<int>.from(_selectedDayIndexes));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,22 +68,16 @@ class _DaySelectionSectionState extends State<DaySelectionSection> {
       height: 130.h,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: upcomingDays.length,
+        itemCount: _upcomingDays.length,
         separatorBuilder: (_, __) => Gap(8.w),
         itemBuilder: (context, index) {
-          final isSelected = selectedDayIndexes.contains(index);
-          final day = upcomingDays[index];
+          final isSelected = _selectedDayIndexes.contains(index);
+          final day = _upcomingDays[index];
           final dayName = DateFormat('EEEE', 'ar').format(day);
           final date = DateFormat('dd MMM', 'ar').format(day);
 
           return GestureDetector(
-            onTap: () {
-              setState(() {
-                isSelected
-                    ? selectedDayIndexes.remove(index)
-                    : selectedDayIndexes.add(index);
-              });
-            },
+            onTap: () => _toggleDay(index),
             child: _DayCard(
               isSelected: isSelected,
               dayName: dayName,
@@ -55,6 +91,8 @@ class _DaySelectionSectionState extends State<DaySelectionSection> {
     );
   }
 }
+
+// ── Stateless day card ────────────────────────────────────────────────────────
 
 class _DayCard extends StatelessWidget {
   final bool isSelected;
@@ -73,13 +111,17 @@ class _DayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       width: 95.w,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12.h),
+        color: isSelected
+            ? colorScheme.primary.withOpacity(0.06)
+            : Colors.transparent,
         border: Border.all(
           color: isSelected ? colorScheme.primary : theme.dividerColor,
-          width: 1.3.w,
+          width: isSelected ? 1.8.w : 1.3.w,
         ),
       ),
       child: Column(
@@ -89,7 +131,9 @@ class _DayCard extends StatelessWidget {
             padding: EdgeInsets.all(12.h),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: theme.dividerColor.withOpacity(.3),
+              color: isSelected
+                  ? colorScheme.primary.withOpacity(0.12)
+                  : theme.dividerColor.withOpacity(0.3),
             ),
             child: Picture(
               getAssetIcon("Calendar.svg"),
@@ -103,6 +147,7 @@ class _DayCard extends StatelessWidget {
             dayName,
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w600,
+              fontSize: 13.sp,
               color: isSelected ? colorScheme.primary : theme.hintColor,
             ),
           ),
@@ -110,6 +155,7 @@ class _DayCard extends StatelessWidget {
           Text(
             date,
             style: theme.textTheme.titleSmall?.copyWith(
+              fontSize: 11.sp,
               color: isSelected ? colorScheme.primary : theme.hintColor,
             ),
           ),

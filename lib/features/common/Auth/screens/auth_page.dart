@@ -228,7 +228,7 @@ class _AuthPageState extends State<AuthPage>
                                   },
                                 ),
 
-                                Gap(20.h),
+                                Gap(40.h),
 
                                 // Switch view row
                                 Center(

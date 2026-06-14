@@ -16,7 +16,7 @@ import 'bloc/video_call_cubit.dart';
 import 'bloc/video_call_state.dart';
 import 'dialogs/call_summary_dialog.dart';
 
-class VideoCallScreen extends StatelessWidget {
+class VideoCallScreen extends StatefulWidget {
   const VideoCallScreen({
     Key? key,
     required this.consultationId,
@@ -38,19 +38,31 @@ class VideoCallScreen extends StatelessWidget {
   final String? lawyerPhotoUrl;
 
   @override
+  State<VideoCallScreen> createState() => _VideoCallScreenState();
+}
+
+class _VideoCallScreenState extends State<VideoCallScreen> {
+
+  @override
+  void initState() {
+    // TODO: implement initState
+
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => VideoCallCubit(
-        consultationId: consultationId,
-        lawyerName: lawyerName,
-        lawyerPhotoUrl: lawyerPhotoUrl,
-        lawyerId: lawyerId,
-        clientId: clientId,
+        consultationId: widget.consultationId,
+        lawyerName: widget.lawyerName,
+        lawyerPhotoUrl: widget.lawyerPhotoUrl,
+        lawyerId: widget.lawyerId,
+        clientId: widget.clientId,
       )..initialize(),
       child: _VideoCallView(
-        consultationId: consultationId,
-        lawyerId: lawyerId,
-        clientId: clientId,
+        consultationId: widget.consultationId,
+        lawyerId: widget.lawyerId,
+        clientId: widget.clientId,
       ),
     );
   }

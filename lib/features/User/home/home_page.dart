@@ -41,48 +41,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
     context.read<HomeCubit>().getAdevertisingDataWithDataBase();
   }
 
-  final List<Advertise> advertiseList = [
-    Advertise(
-      image:
-      'https://cdn.maatloob.com/profile/portfolios/p650x650/img-66c22464c3f9c9-07578467.jpg',
-      id: '1',
-      title: 'Advertisement 1',
-      bannerType: 'client',
-      isActive: true,
-      createdAt: '2025-10-01T00:00:00.000Z',
-      updatedAt: '2025-10-01T00:00:00.000Z',
-    ),
-    Advertise(
-      image:
-      'https://files.cdn-files-a.com/uploads/6002121/normal_67e02259d9d54.png',
-      id: '2',
-      title: 'Advertisement 2',
-      bannerType: 'client',
-      isActive: true,
-      createdAt: '2025-10-02T00:00:00.000Z',
-      updatedAt: '2025-10-02T00:00:00.000Z',
-    ),
-    Advertise(
-      image:
-      'https://almehleky.sa/wp-content/uploads/2024/08/%D8%A3%D9%81%D8%B6%D9%84-%D9%85%D8%AD%D8%A7%D9%85%D9%8A-%D8%A7%D9%88%D9%86-%D9%84%D8%A7%D9%8A%D9%86-%D9%81%D9%8A-%D8%A7%D9%84%D8%B3%D8%B9%D9%88%D8%AF%D9%8A%D8%A9-%D9%84%D8%B9%D8%A7%D9%85-2024.webp',
-      id: '3',
-      title: 'Advertisement 3',
-      bannerType: 'client',
-      isActive: true,
-      createdAt: '2025-10-03T00:00:00.000Z',
-      updatedAt: '2025-10-03T00:00:00.000Z',
-    ),
-    Advertise(
-      image:
-      'https://files.cdn-files-a.com/uploads/6002121/800_67e01fdd5ec86_filter_67e0205c9fa7c.png',
-      id: '4',
-      title: 'Advertisement 4',
-      bannerType: 'client',
-      isActive: true,
-      createdAt: '2025-10-04T00:00:00.000Z',
-      updatedAt: '2025-10-04T00:00:00.000Z',
-    ),
-  ];
+
 
   @override
   Widget build(BuildContext context) {
@@ -107,11 +66,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
             listener: (context, state) {},
             builder: (context, state) {
               if (state is HomeLoadingState) {
-                return SizedBox(
-                  height: 220.h,
-                  width: double.infinity,
-                  child: Center(child: AdsSlider(imageUrls: advertiseList)),
-                );
+                return const LoadingWidget();
               } else if (state is HomeFailedState) {
                 return SizedBox(
                   height: MediaQuery.of(context).size.height * 0.2,

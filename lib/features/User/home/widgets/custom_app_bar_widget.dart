@@ -151,22 +151,7 @@ class CustomAppBar<C extends StateStreamable<S>, S>
                   // Nav.searchPage(context);
                 }
               },
-              childWidget: Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: colors.primary.withOpacity(0.4),
-                    width: 1.5,
-                  ),
-                ),
-                child: Picture(
-                  getAssetIcon('search.svg'),
-                  width: 24.h,
-                  height: 24.h,
-                  color: colors.primary,
-                ),
-              ),
+              childWidget:SizedBox(),
             ),
 
             Gap(10.w),

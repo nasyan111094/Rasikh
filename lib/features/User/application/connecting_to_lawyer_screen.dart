@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/features/User/application/models/consultation_model.dart';
+import 'package:rasikh/features/User/application/repo/chat_session_repo.dart';
+import 'package:rasikh/features/User/application/repo/video_call_repo.dart';
 import 'package:rasikh/features/User/profile/cubit/profile_cubit.dart';
 
 import 'package:size_config/size_config.dart';
@@ -23,43 +27,92 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
     with SingleTickerProviderStateMixin {
 
     late AnimationController _controller;
+    Timer? _pollingTimer;
+    final ChatSessionRepo _chatRepo = ChatSessionRepo();
+    final VideoCallRepo _videoRepo = VideoCallRepo();
 
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 5), () {
-      final cubit = getIt<ConsultationApplicationCubit>();
-
-      if (cubit.selectedConsultationType == ConsultationType.instant) {
-        Nav.videoCallScreen(
-          context,
-          consultationId: cubit.state.createdConsultation!.id,
-          lawyerName: cubit.state.selectedLawyer?.fullName,
-          lawyerPhotoUrl: cubit.state.selectedLawyer?.photoUrl,
-          lawyerId: cubit.state.selectedLawyer?.id,
-          clientId: getIt<ProfileCubit>().profile!.id,
-
-        );
-      } else {
-        Nav.chat(
-          context,
-          consultationId: '${cubit.state.createdConsultation!.id}',
-          lawyerId: cubit.state.selectedLawyer?.id,
-          clientId: getIt<ProfileCubit>().profile!.id,
-          lawyerName: cubit.state.selectedLawyer?.fullName,
-          lawyerPhotoUrl: cubit.state.selectedLawyer?.photoUrl,
-        );
-      }
-    });
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
     )..repeat();
+
+    // Start polling for lawyer join
+    _startPolling();
+  }
+
+  void _startPolling() {
+    final cubit = getIt<ConsultationApplicationCubit>();
+    final consultationId = cubit.state.createdConsultation!.id;
+    final consultationType = cubit.selectedConsultationType;
+
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      bool lawyerJoined = false;
+
+      if (consultationType == ConsultationType.written) {
+        // Poll written session for chat
+        final result = await _chatRepo.fetchSession(consultationId);
+        if (result.isRight()) {
+          final session = result.fold((l) => null, (r) => r)!;
+          lawyerJoined = session.isWaiting || session.isInProgress;
+        }
+      } else {
+        // Poll instant session for video call
+        final result = await _videoRepo.fetchSession(consultationId);
+        if (result.isRight()) {
+          final session = result.fold((l) => null, (r) => r)!;
+          lawyerJoined = session.isWaiting || session.isInProgress;
+        }
+      }
+
+      if (lawyerJoined && mounted) {
+        timer.cancel();
+        _navigateToSession(consultationType!, consultationId);
+      }
+    });
+  }
+
+  void _navigateToSession(ConsultationType type, String consultationId) {
+    final cubit = getIt<ConsultationApplicationCubit>();
+    final profile = getIt<ProfileCubit>().profile;
+
+    if (profile == null) {
+      Logger().e('Profile is null , cannot navigate to session');
+      return;
+    }
+
+    if (type == ConsultationType.instant) {
+      Nav.videoCallScreen(
+        context,
+        consultationId: consultationId,
+        lawyerName: cubit.state.selectedLawyer?.fullName,
+        lawyerPhotoUrl: cubit.state.selectedLawyer?.photoUrl,
+        lawyerId: cubit.state.selectedLawyer?.id,
+        clientId: profile.id,
+      );
+    } else {
+      Nav.chat(
+        context,
+        consultationId: consultationId,
+        lawyerId: cubit.state.selectedLawyer?.id,
+        clientId: profile.id,
+        lawyerName: cubit.state.selectedLawyer?.fullName,
+        lawyerPhotoUrl: cubit.state.selectedLawyer?.photoUrl,
+      );
+    }
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 

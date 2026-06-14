@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:rasikh/features/Lawyer/lawyer-appointments/lawyer_appointments_screen.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import 'package:rasikh/features/User/application/bloc/consulation_application_cubit.dart';
@@ -35,6 +36,8 @@ import 'core/theme/theme_cubit/theme_states.dart';
 import 'features/Lawyer/consultation/Bloc/consultations_cubit.dart';
 import 'features/Lawyer/consultation/consultations_screen.dart';
 import 'features/Lawyer/consultation/repo/consultations_repo.dart';
+import 'features/Lawyer/lawyer-appointments/bloc/lawyer_appointments_cubit.dart';
+import 'features/Lawyer/lawyer-appointments/repo/lawyer_appointments_repo.dart';
 import 'features/Lawyer/lawyer-home/bloc/avaiabilty_cubit.dart';
 import 'features/Lawyer/lawyer-home/bloc/lawyer_consultations_cubit.dart';
 import 'features/Lawyer/lawyer-home/repo/lawyer_consultations_repo.dart';
@@ -131,6 +134,11 @@ Future<void> main() async {
         BlocProvider(
           create: (_) => LawyerConsultationsCubit(LawyerConsultationsRepo()),
           child: LawerConsultationsScreen(),
+        ),
+
+        BlocProvider(
+          create: (_) => LawyerAppointmentsCubit(LawyerAppointmentsRepo()),
+          child: LawyerAppointmentsScreen(),
         ),
 
       ],
