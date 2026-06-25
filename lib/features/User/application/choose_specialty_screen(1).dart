@@ -12,8 +12,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/config/theme/styles_manager.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
+import 'package:rasikh/core/widgets/error_state_widget.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
+import 'package:rasikh/core/widgets/gradiant_button.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
@@ -21,6 +24,8 @@ import 'package:size_config/size_config.dart';
 import '../../../config/navigation/nav.dart';
 import '../../../config/theme/colors.dart';
 import '../../../core/widgets/auth_stepper.dart';
+import '../../../core/widgets/errors/app_error_widget.dart';
+import '../../../core/widgets/no_data_widget.dart';
 import 'bloc/consulation_application_cubit.dart';
 import 'bloc/consulation_application_state.dart';
 import 'models/consultation_model.dart'
@@ -40,6 +45,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
   @override
   void initState() {
     super.initState();
+    context.read<ConsultationApplicationCubit>().resetFlow();
     context.read<ConsultationApplicationCubit>().loadSpecializations();
   }
 
@@ -51,9 +57,8 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
 
   Future<void> _onRefresh() async {
     await context.read<ConsultationApplicationCubit>().loadSpecializations(
-      search:
-      searchController.text.isEmpty ? null : searchController.text,
-    );
+          search: searchController.text.isEmpty ? null : searchController.text,
+        );
   }
 
   @override
@@ -73,7 +78,6 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
                   AuthStepperWidget(activeStep: 1, totalSteps: 5),
                   Gap(20.h),
                   _buildSearchBar(theme, state),
-
                   const Gap(10),
                   Expanded(
                     child: RefreshIndicator(
@@ -104,27 +108,15 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
         return ListView(
           children: [
             SizedBox(height: 80.h),
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error_outline,
-                      color: theme.colorScheme.error, size: 48),
-                  Gap(12.h),
-                  Text(
-                    state.specializationsError ?? 'حدث خطأ ما',
-                    style: theme.textTheme.bodyMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  Gap(16.h),
-                  ElevatedButton(
-                    onPressed: () =>
-                        context.read<ConsultationApplicationCubit>().loadSpecializations(),
-                    child: const Text('إعادة المحاولة'),
-                  ),
-                ],
+            Container(
+              height: 500.h,
+              child: Expanded(
+                child: ErrorStateWidget(title: state.specializationsError ?? 'حدث خطأ ما'  , actionLabel: "إعادة المحاوله", onAction: () => context
+                    .read<ConsultationApplicationCubit>()
+                    .loadSpecializations()),
               ),
             ),
+
           ],
         );
 
@@ -173,15 +165,17 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
       },
       decoration: InputDecoration(
         hintText: 'ادخل كلمة مفتاحية مثل تنفيذ أو أموال ...',
-        prefixIcon: const Icon(Icons.search_rounded),
+        hintStyle: theme.textTheme.labelLarge?.copyWith(color: theme.hintColor),
+        prefixIcon: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Picture(getAssetIcon("search.svg"),
+              width: 10, height: 10, color: theme.hintColor),
+        ),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        contentPadding:
-        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
     );
   }
-
-
 
   // ── Category list ─────────────────────────────────────────────────────────
 
@@ -191,23 +185,16 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
         .where((s) => s.subSpecializations.isNotEmpty)
         .toList();
 
+    // ✅ Empty after successful load
     if (items.isEmpty) {
       return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: 80.h),
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.search_off, size: 48, color: theme.hintColor),
-                Gap(12.h),
-                Text(
-                  'لم يتم العثور على نتائج',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.hintColor),
-                ),
-              ],
-            ),
+          const NoDataWidget(
+            icon: Icons.search_off_rounded,
+            title: 'لم يتم العثور على نتائج',
+            message: 'حاول تعديل كلمات البحث أو الفلاتر المستخدمة',
           ),
         ],
       );
@@ -222,13 +209,14 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
         return _SpecializationTile(
           spec: spec,
           isExpanded: isExpanded,
-          selectedSubIds: state.selectedSubSpecializations
-              .map((s) => s.id)
-              .toSet(),
+          selectedSubIds:
+          state.selectedSubSpecializations.map((s) => s.id).toSet(),
           // ✅ Only show selected subs when this IS the selected parent
           isActiveParent: state.selectedSpecialization?.id == spec.id,
           onToggleMain: (expanded) {
-            context.read<ConsultationApplicationCubit>().selectSpecialization(spec);
+            context
+                .read<ConsultationApplicationCubit>()
+                .selectSpecialization(spec);
           },
           onToggleSub: (sub) => context
               .read<ConsultationApplicationCubit>()
@@ -250,7 +238,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
             : null,
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith<Color?>(
-                (states) {
+            (states) {
               if (states.contains(WidgetState.disabled)) {
                 return theme.colorScheme.surfaceContainerHighest
                     .withOpacity(0.4);
@@ -258,13 +246,11 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
               return theme.colorScheme.primary;
             },
           ),
-          foregroundColor:
-          WidgetStateProperty.all(theme.colorScheme.onPrimary),
-          padding: WidgetStateProperty.all(
-              const EdgeInsets.symmetric(vertical: 14)),
+          foregroundColor: WidgetStateProperty.all(theme.colorScheme.onPrimary),
+          padding:
+              WidgetStateProperty.all(const EdgeInsets.symmetric(vertical: 14)),
           shape: WidgetStateProperty.all(
-            RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14)),
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
           elevation: WidgetStateProperty.all(0),
         ),
@@ -306,6 +292,7 @@ class _SpecializationTile extends StatelessWidget {
   });
 
   @override
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
@@ -321,160 +308,155 @@ class _SpecializationTile extends StatelessWidget {
       ),
       child: Theme(
         data: theme.copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          key: PageStorageKey(spec.id),
-          initiallyExpanded: isExpanded,
-          onExpansionChanged: onToggleMain,
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: EdgeInsets.zero,
-          expandedCrossAxisAlignment: CrossAxisAlignment.start,
-          trailing: Radio<String>(
-            value: spec.id,
-            groupValue: isActiveParent ? spec.id : null,
-            onChanged: (_) => onToggleMain(true),
-          ),
-          title: Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.w),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.all(5.h),
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: isExpanded
-                          ? theme.colorScheme.primary.withOpacity(0.6)
-                          : theme.dividerColor,
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Picture(
-                    getAssetIcon("chat.svg"),
-                    width: 40.h,
-                    height: 40.h,
-                    color: isExpanded
-                        ? theme.colorScheme.primary.withOpacity(0.6)
-                        : theme.dividerColor,
-                  ),
-                ),
-                const Gap(6),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        // ✅ Fully controlled expand/collapse — NOT ExpansionTile.
+        // ExpansionTile only reads `initiallyExpanded` once and then keeps
+        // its own internal state, so other tiles never visually collapse
+        // when a new one is selected. Driving everything off `isExpanded`
+        // (single source of truth = Cubit's selectedSpecialization)
+        // guarantees only one tile is ever open at a time.
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () {
+                // Toggle: if already open, close it; otherwise open it
+                // (which implicitly closes whichever other tile was open).
+                onToggleMain(!isExpanded);
+              },
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
+                child: Row(
                   children: [
-                    Text(
-                      spec.name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isExpanded
-                            ? theme.colorScheme.primary
-                            : theme.textTheme.titleMedium?.color,
+                    Container(
+                      padding: EdgeInsets.all(5.h),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isExpanded
+                              ? theme.colorScheme.primary.withOpacity(0.6)
+                              : theme.dividerColor,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: CircleAvatar(
+                        radius: 20.h,
+                        backgroundColor: Colors.transparent,
+                        child: Picture(
+                          spec.iconUrl ?? "",
+                          width: 40.h,
+                          height: 40.h,
+                          color: isExpanded
+                              ? theme.colorScheme.primary.withOpacity(0.6)
+                              : theme.dividerColor,
+                        ),
                       ),
                     ),
-                    Row(
-                      children: [
-                        Text(
-                          "عدد التخصصات الفرعيه : ",
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: greyD0,
-                          ),
-                        ),
-                        Text(
-                          spec.subSpecializationsCount.toString(),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          children: [
-            if (spec.subSpecializations.isNotEmpty)
-              Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding:  EdgeInsets.symmetric(horizontal: 16.w),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Gap(8),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                    const Gap(6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const CircleAvatar(
-                            radius: 8,
-                            backgroundColor: primary,
-                          ) ,
-                          Gap(10.w) ,
                           Text(
-                            'اختر التخصص الفرعي',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w600,
+                            spec.name,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isExpanded
+                                  ? theme.colorScheme.primary
+                                  : theme.textTheme.titleMedium?.color,
                             ),
+                          ),
+                          Text(
+                            spec.description ?? "",
+                            style: theme.textTheme.bodySmall?.copyWith(color: greyD0),
                           ),
                         ],
                       ),
-                      Gap(6.h) ,
-
-                      Text(
-                        'يمكنك اختيار أكثر من تخصص إذا لزم الأمر.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.hintColor,
-                        ),
-                      ),
-                      const Gap(8),
-                      Wrap(
-                        textDirection: TextDirection.rtl,
-                        alignment: WrapAlignment.start,
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: spec.subSpecializations.map((sub) {
-                          final selected =
-                              isActiveParent && selectedSubIds.contains(sub.id);
-
-                          return GestureDetector(
-                            onTap: () => onToggleSub(sub),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              curve: Curves.easeInOut,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: selected
-                                    ? theme.colorScheme.primary
-                                    : Colors.transparent,
-                                borderRadius: BorderRadius.circular(30),
-                                border: Border.all(
-                                  color: selected
-                                      ? theme.colorScheme.primary
-                                      : theme.dividerColor.withOpacity(0.3),
-                                  width: 1.2,
-                                ),
-                              ),
-                              child: Text(
-                                sub.name,
-                                style: theme.textTheme.labelLarge?.copyWith(
-                                  color: selected
-                                      ? theme.colorScheme.onPrimary
-                                      : theme.colorScheme.onSurface,
-                                  fontWeight: selected
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                      const Gap(12),
-                    ],
-                  ),
+                    ),
+                    Radio<String>(
+                      value: spec.id,
+                      groupValue: isActiveParent ? spec.id : null,
+                      onChanged: (_) => onToggleMain(!isExpanded),
+                    ),
+                  ],
                 ),
               ),
+            ),
+            // ✅ Smooth animation while staying entirely controlled by isExpanded
+            ClipRect(
+              child: AnimatedSize(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                alignment: Alignment.topCenter,
+                child: isExpanded && spec.subSpecializations.isNotEmpty
+                    ? Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Gap(8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const CircleAvatar(radius: 8, backgroundColor: primary),
+                            Gap(10.w),
+                            Text(
+                              'اختر التخصص الفرعي',
+                              style: theme.textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Gap(6.h),
+                        Text(
+                          'يمكنك اختيار أكثر من تخصص إذا لزم الأمر.',
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.hintColor),
+                        ),
+                        const Gap(8),
+                        Wrap(
+                          textDirection: TextDirection.rtl,
+                          alignment: WrapAlignment.start,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: spec.subSpecializations.map((sub) {
+                            final selected = isActiveParent && selectedSubIds.contains(sub.id);
+                            return GestureDetector(
+                              onTap: () => onToggleSub(sub),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 200),
+                                curve: Curves.easeInOut,
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: selected ? theme.colorScheme.primary : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(30),
+                                  border: Border.all(
+                                    color: selected
+                                        ? theme.colorScheme.primary
+                                        : theme.dividerColor.withOpacity(0.3),
+                                    width: 1.2,
+                                  ),
+                                ),
+                                child: Text(
+                                  sub.name,
+                                  style: theme.textTheme.labelLarge?.copyWith(
+                                    color: selected ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+                                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                        const Gap(12),
+                      ],
+                    ),
+                  ),
+                )
+                    : const SizedBox(width: double.infinity, height: 0),
+              ),
+            ),
           ],
         ),
       ),

@@ -8,11 +8,12 @@ TextStyle _getTextStyle(
   double fontSize,
   FontWeight fontWeight,
   Color color,
+  {String fontFamily = "almarai"}
 ) {
   return TextStyle(
     fontSize: fontSize.sp.sp,
     fontWeight: fontWeight,
-    fontFamily: almarai,
+    fontFamily: fontFamily,
     color: color,
   );
 }
@@ -367,6 +368,7 @@ TextStyle getRegularBlack14Style() {
     14,
     FontWeight.w400,
     Colors.black,
+
   );
 }
 

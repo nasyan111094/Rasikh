@@ -168,9 +168,9 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
             ),
           ],
 
-          Gap(40.h),
 
-          // ── Session duration / gap row ──────────────────────────────────
+
+/*          // ── Session duration / gap row ──────────────────────────────────
           Row(
             children: [
               Expanded(
@@ -199,7 +199,7 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
                 ),
               ),
             ],
-          ),
+          ),*/
 
           Gap(40.h),
 

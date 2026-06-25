@@ -7,6 +7,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
+import 'package:rasikh/features/User/application/bloc/consulation_application_cubit.dart';
 import 'package:rasikh/features/User/application/end_session_screen.dart';
 import 'package:rasikh/features/common/layout/layout_screen.dart';
 import 'package:size_config/size_config.dart';
@@ -24,6 +26,9 @@ class VideoCallScreen extends StatefulWidget {
     required this.clientId,
     this.lawyerName,
     this.lawyerPhotoUrl,
+
+     this.consultationType ,
+
   }) : super(key: key);
 
   final String consultationId;
@@ -37,6 +42,8 @@ class VideoCallScreen extends StatefulWidget {
   final String? lawyerName;
   final String? lawyerPhotoUrl;
 
+  final String ? consultationType  ;
+
   @override
   State<VideoCallScreen> createState() => _VideoCallScreenState();
 }
@@ -45,7 +52,7 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
+    super.initState();
 
   }
 
@@ -54,10 +61,12 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
     return BlocProvider(
       create: (_) => VideoCallCubit(
         consultationId: widget.consultationId,
+        consultationtype: widget.consultationType ,
         lawyerName: widget.lawyerName,
         lawyerPhotoUrl: widget.lawyerPhotoUrl,
         lawyerId: widget.lawyerId,
         clientId: widget.clientId,
+
       )..initialize(),
       child: _VideoCallView(
         consultationId: widget.consultationId,
@@ -444,11 +453,11 @@ class _EndSessionDialog {
         );
       } else {
         // Always read IDs from cubit state — they come from the server
-        final cubit=context.read<VideoCallCubit>() ;
+        final cubit = context.read<VideoCallCubit>();
         final vsState = cubit.state;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (_) =>cubit.isLawyer ? LayoutPage() : EndSessionScreen(
+            builder: (_) => cubit.isLawyer ? LayoutPage() : EndSessionScreen(
               consultationId: consultationId,
               lawyerId: vsState.lawyerId ?? '',
               clientId: vsState.clientId ?? '',

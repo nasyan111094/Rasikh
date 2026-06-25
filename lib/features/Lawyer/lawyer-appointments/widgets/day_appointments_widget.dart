@@ -85,9 +85,12 @@ class DayAppointments extends StatelessWidget {
 
           // ── Slot list ─────────────────────────────────────────────────
           ...day.slots.map(
-            (slot) => Padding(
+                (slot) => Padding(
               padding: EdgeInsets.only(bottom: 8.h),
-              child: AppointmentItem(slot: slot),
+              // dayIndex is passed through so the edit screen can pre-select
+              // the right day instantly, without depending on the cubit's
+              // cache still being warm when it opens.
+              child: AppointmentItem(slot: slot, dayIndex: day.dayIndex),
             ),
           ),
 

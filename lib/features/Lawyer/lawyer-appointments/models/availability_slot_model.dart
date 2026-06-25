@@ -24,8 +24,11 @@ class AvailabilitySlot {
       id: json['id'] as String,
       startTime: json['startTime'] as String,
       endTime: json['endTime'] as String,
-      sessionDurationMinutes: json['sessionDurationMinutes'] as int,
-      gapMinutes: json['gapMinutes'] as int,
+      // Server now runs a fixed 15-min session + 5-min gap grid for every
+      // slot. These keys are still echoed back today, but we fall back to
+      // the fixed grid defaults defensively in case that ever changes.
+      sessionDurationMinutes: json['sessionDurationMinutes'] as int? ?? 15,
+      gapMinutes: json['gapMinutes'] as int? ?? 5,
       repeatsWeekly: json['repeatsWeekly'] as bool,
     );
   }
@@ -94,25 +97,23 @@ class SlotRequestModel {
   final List<int> daysOfWeek;
   final String startTime;
   final String endTime;
-  final int sessionDurationMinutes;
-  final int gapMinutes;
   final bool repeatsWeekly;
 
   const SlotRequestModel({
     required this.daysOfWeek,
     required this.startTime,
     required this.endTime,
-    required this.sessionDurationMinutes,
-    required this.gapMinutes,
     this.repeatsWeekly = true,
   });
 
+  // Matches the LAW-10 create/update contract exactly:
+  // { daysOfWeek, startTime, endTime, repeatsWeekly }
+  // Session duration/gap are fixed server-side (15+5 min grid) and are
+  // intentionally NOT part of this payload — the API doesn't accept them.
   Map<String, dynamic> toJson() => {
     'daysOfWeek': daysOfWeek,
     'startTime': startTime,
     'endTime': endTime,
-    'sessionDurationMinutes': sessionDurationMinutes,
-    'gapMinutes': gapMinutes,
     'repeatsWeekly': repeatsWeekly,
   };
 }
@@ -123,21 +124,51 @@ class SlotMutationResponse {
   final bool success;
   final int statusCode;
   final String message;
-  final String slotId;
+
+  /// One id per affected day. Create returns one slot object per day in
+  /// `daysOfWeek` (e.g. `data: [{id: ...}]`), so this is always a list —
+  /// even when only one day was selected.
+  final List<String> slotIds;
 
   const SlotMutationResponse({
     required this.success,
     required this.statusCode,
     required this.message,
-    required this.slotId,
+    required this.slotIds,
   });
 
+  /// Convenience accessor for call sites that only need a single id.
+  String? get slotId => slotIds.isEmpty ? null : slotIds.first;
+
   factory SlotMutationResponse.fromJson(Map<String, dynamic> json) {
+    final rawData = json['data'];
+    final ids = <String>[];
+
+    void collectId(dynamic item) {
+      if (item is Map<String, dynamic>) {
+        final id = item['id'];
+        if (id != null) ids.add(id.toString());
+      } else if (item is String) {
+        ids.add(item);
+      }
+    }
+
+    // Create responds with a List (one entry per requested day).
+    // Defensively also accept a bare Map, in case update ever responds
+    // with a single slot object instead of a list.
+    if (rawData is List) {
+      for (final item in rawData) {
+        collectId(item);
+      }
+    } else if (rawData is Map<String, dynamic>) {
+      collectId(rawData);
+    }
+
     return SlotMutationResponse(
       success: json['success'] as bool,
       statusCode: json['statusCode'] as int,
       message: json['message'] as String,
-      slotId: (json['data'] as Map<String, dynamic>)['id'] as String,
+      slotIds: ids,
     );
   }
 }

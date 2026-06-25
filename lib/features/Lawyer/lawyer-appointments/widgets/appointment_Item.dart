@@ -15,7 +15,16 @@ import '../models/availability_slot_model.dart';
 class AppointmentItem extends StatelessWidget {
   final AvailabilitySlot slot;
 
-  const AppointmentItem({super.key, required this.slot});
+  /// Server day index (0=Sat … 6=Fri) of the day card this slot lives in.
+  /// Forwarded to the edit screen so it can pre-select the correct day
+  /// immediately, without depending on any cached weekly data.
+  final int dayIndex;
+
+  const AppointmentItem({
+    super.key,
+    required this.slot,
+    required this.dayIndex,
+  });
 
   // ── Delete confirmation dialog ────────────────────────────────────────────
 
@@ -192,7 +201,12 @@ class AppointmentItem extends StatelessWidget {
 
           // ── Edit button ─────────────────────────────────────────────────
           CustomIconButton(
-            onTap: () => Nav.addWorkAppointment(context, slotId: slot.id),
+            onTap: () => Nav.addWorkAppointment(
+              context,
+              slotId: slot.id,
+              initialSlot: slot,
+              dayIndex: dayIndex,
+            ),
             iconPath: 'edit.svg',
             backgroundColor: Colors.green.withOpacity(0.08),
             iconColor: Colors.green,

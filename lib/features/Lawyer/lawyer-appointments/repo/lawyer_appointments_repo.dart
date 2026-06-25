@@ -49,7 +49,7 @@ class LawyerAppointmentsRepo {
         WeeklyAvailabilityModel.fromJson(data as Map<String, dynamic>),
       );
     }
-    return Left(_extractError(result.left));
+    return Left(result.left);
   }
 
   // ── POST create slot ──────────────────────────────────────────────────────
@@ -68,7 +68,7 @@ class LawyerAppointmentsRepo {
         SlotMutationResponse.fromJson(data as Map<String, dynamic>),
       );
     }
-    return Left(_extractError(result.left));
+    return Left(result.left);
   }
 
   // ── PUT update slot ───────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ class LawyerAppointmentsRepo {
         SlotMutationResponse.fromJson(data as Map<String, dynamic>),
       );
     }
-    return Left(_extractError(result.left));
+    return Left(result.left);
   }
 
   // ── DELETE slot ───────────────────────────────────────────────────────────
@@ -99,61 +99,8 @@ class LawyerAppointmentsRepo {
     );
 
     if (result.isRight) return const Right(true);
-    return Left(_extractError(result.left));
+    return Left(result.left);
   }
 
-  // ── Error extraction ──────────────────────────────────────────────────────
-  //
-  // Priority order:
-  //   1. Validation field errors   → errors.<field>[0]
-  //   2. Top-level message         → message
-  //   3. Error details             → error.details
-  //   4. HTTP status text fallback → DioException.message
-  //   5. Generic Arabic fallback
 
-  String _extractError(dynamic left) {
-    try {
-      if (left is DioException) {
-        final responseData = left.response?.data;
-
-        if (responseData is Map<String, dynamic>) {
-          // 1. Validation errors object
-          final errors = responseData['errors'];
-          if (errors is Map && errors.isNotEmpty) {
-            final firstField = errors.values.first;
-            if (firstField is List && firstField.isNotEmpty) {
-              return firstField.first.toString();
-            }
-          }
-
-          // 2. Top-level message (covers 404 "المورد غير موجود", etc.)
-          final message = responseData['message'];
-          if (message is String && message.isNotEmpty) {
-            return message;
-          }
-
-          // 3. error.details
-          final error = responseData['error'];
-          if (error is Map) {
-            final details = error['details'];
-            if (details is String && details.isNotEmpty) return details;
-          }
-        }
-
-        // 4. DioException itself (timeout, no connection, etc.)
-        if (left.type == DioExceptionType.connectionTimeout ||
-            left.type == DioExceptionType.receiveTimeout ||
-            left.type == DioExceptionType.sendTimeout) {
-          return 'انتهت مهلة الاتصال، يرجى المحاولة مجدداً';
-        }
-        if (left.type == DioExceptionType.connectionError) {
-          return 'تعذّر الاتصال بالخادم، تحقق من اتصالك بالإنترنت';
-        }
-      }
-
-      return left?.toString() ?? 'حدث خطأ غير متوقع';
-    } catch (_) {
-      return 'حدث خطأ غير متوقع';
-    }
-  }
 }

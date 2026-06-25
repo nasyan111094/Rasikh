@@ -11,6 +11,7 @@ import 'package:rasikh/core/widgets/delete_bottom_sheet.dart';
 import 'package:rasikh/core/widgets/image_cropper.dart';
 import 'package:rasikh/core/widgets/logout_bottom_sheet.dart';
 import 'package:rasikh/core/widgets/must_login_bottom_sheet.dart';
+import 'package:rasikh/features/Lawyer/lawyer-appointments/models/availability_slot_model.dart';
 
 
 
@@ -404,12 +405,12 @@ abstract class Nav {
   // ─────────────────────────────────────────────
 
   static addWorkAppointment(
-      BuildContext context, { String ? slotId}
+      BuildContext context, { String ? slotId ,  AvailabilitySlot ? initialSlot , int? dayIndex}
       ) async =>
       await _push(
         context,
         PageKey.login,
-        AddingWorkAppointmentScreen(slotId: slotId),
+        AddingWorkAppointmentScreen(slotId: slotId, initialSlot: initialSlot, dayIndex: dayIndex),
       );
 
   static lawyerAppointmentsScreen(
@@ -473,8 +474,10 @@ abstract class Nav {
         String? lawyerName,
         String? lawyerPhotoUrl,
          required String consultationId,
+        String ? consultationType,
          String ? lawyerId ,
          String ?  clientId  ,
+
 
 
       }) async =>
@@ -487,6 +490,7 @@ abstract class Nav {
           lawyerPhotoUrl: lawyerPhotoUrl,
           clientId: clientId ?? "",
           lawyerId: lawyerId ?? "",
+          consultationType: consultationType,
 
         ),
       );
@@ -519,11 +523,12 @@ abstract class Nav {
 
   static chooseLawyerScreen(
       BuildContext context,
+      {required bool recommended}
       ) async =>
       await _push(
         context,
         PageKey.login,
-        const ChooseLawyerScreen(),
+         ChooseLawyerScreen(recommended: recommended,),
       );
 
   static appointmentDetailsScreen(

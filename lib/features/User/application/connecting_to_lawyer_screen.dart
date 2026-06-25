@@ -65,7 +65,7 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
         }
       } else {
         // Poll instant session for video call
-        final result = await _videoRepo.fetchSession(consultationId);
+        final result = await _videoRepo.fetchSession(consultationId  , null);
         if (result.isRight()) {
           final session = result.fold((l) => null, (r) => r)!;
           lawyerJoined = session.isWaiting || session.isInProgress;

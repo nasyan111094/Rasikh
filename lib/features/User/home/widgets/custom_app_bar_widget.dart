@@ -2,6 +2,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/config/theme/colors.dart';
+import 'package:rasikh/features/common/notifications/notifications_screen.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../../config/localization/loc_keys.dart';
@@ -40,13 +42,12 @@ class CustomAppBar<C extends StateStreamable<S>, S>
 
         /// Avatar
         leading: Padding(
-          padding: EdgeInsets.symmetric(vertical: 6.h),
+          padding: EdgeInsets.symmetric(vertical: 4.h),
           child: Transform(
             alignment: Alignment.center,
             transform: Matrix4.rotationY(isRtl ? 0 : 3.14159),
             child: Container(
-              height: 60.h,
-              width: 60.w,
+
               padding: EdgeInsets.all(5.h),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.only(
@@ -70,27 +71,46 @@ class CustomAppBar<C extends StateStreamable<S>, S>
                 builder: (context, state) {
                   final avatarPath = getAvatar(state);
 
-                  return ClipOval(
-                    child: avatarPath != null && avatarPath.isNotEmpty
-                        ? Image.network(
-                      avatarPath.startsWith('http')
-                          ? avatarPath
-                          : 'http://89.117.60.202:3050$avatarPath',
-                      fit: BoxFit.cover,
-                      height: 70.h,
-                      width: 70.h,
-                      errorBuilder: (_, __, ___) => Image.asset(
-                        getAssetImage('avatar.png'),
-                        fit: BoxFit.cover,
-                        height: 70.h,
-                        width: 70.h,
+            return SizedBox(
+                    width: 55.w,
+                    height: 55.w,
+                    child: Container(
+
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 4
+
+                        ),
                       ),
-                    )
-                        : Image.asset(
-                      getAssetImage('avatar.png'),
-                      fit: BoxFit.cover,
-                      height: 70.h,
-                      width: 70.h,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: primary,
+                              width: 1
+
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: double.infinity,
+                            child: avatarPath != null && avatarPath.isNotEmpty
+                                ? Image.network(
+                              avatarPath.startsWith('http')
+                                  ? avatarPath
+                                  : 'http://89.117.60.202:3050$avatarPath',
+                              fit: BoxFit.cover,
+                            )
+                                : Image.asset(
+                              getAssetImage('avatar.png'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -175,7 +195,7 @@ class CustomAppBar<C extends StateStreamable<S>, S>
                     ),
                   );
                 } else {
-                  // Nav.notificationPage(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
                 }
               },
               childWidget: Stack(
@@ -192,7 +212,7 @@ class CustomAppBar<C extends StateStreamable<S>, S>
                       ),
                     ),
                     child: Picture(
-                      getAssetIcon('bell.svg'),
+                      getAssetIcon('notification.svg'),
                       width: 24.h,
                       height: 24.h,
                       color: colors.primary,

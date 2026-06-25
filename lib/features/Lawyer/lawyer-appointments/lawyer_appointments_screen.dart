@@ -59,8 +59,7 @@ class _LawyerAppointmentsView extends StatelessWidget {
         } else if (state is LawyerAppointmentsError) {
           // Only show snackbar for errors when we already have cached data
           // (i.e. a pull-to-refresh failure). First-load errors are shown inline.
-          final hasCached =
-              context.read<LawyerAppointmentsCubit>().cachedWeeklyData != null;
+          final hasCached = context.read<LawyerAppointmentsCubit>().cachedWeeklyData != null;
           if (hasCached) {
             _showSnack(context, state.message, isError: true);
           }
@@ -82,7 +81,7 @@ class _LawyerAppointmentsView extends StatelessWidget {
                 _buildBody(context, state, theme),
 
                 // ── Add button (always visible) ─────────────────────────
-                Padding(
+                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16.w),
                   child: GradiantButton(
                     text: 'إضافة موعد عمل',

@@ -14,7 +14,7 @@ class HomeRepo {
   Future<Either<String, AdvertismentResponseModel>> getAdvertisingData() async {
     //String? token = await di<CacheHelper>().get(kUserToken);
     // الوقت الحالي UTC
-    final now = DateTime.now().toUtc();
+    final now = DateTime.now() .toLocal();
 
     // تحويله لصيغة ISO 8601 زي المثال
     final isoString = now.toIso8601String();
@@ -33,7 +33,7 @@ class HomeRepo {
           body: requestData,
         );
     if (result.isLeft) {
-      return Left(result.left.toString());
+      return Left(result.left);
     } else {
       AdvertismentResponseModel orderContractsResponseModel =
           AdvertismentResponseModel.fromJson(result.right.data);

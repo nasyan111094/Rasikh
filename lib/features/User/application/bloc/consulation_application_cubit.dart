@@ -144,8 +144,12 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  void selectPricing(PricingModel pricing) =>
-      emit(state.copyWith(selectedPricing: pricing));
+
+  PricingModel ? selectedPricing ;
+  void selectPricing(PricingModel pricing) {
+    selectedPricing = pricing ;
+    emit(state.copyWith(selectedPricing: pricing));
+  }
 
   void updateTitle(String value) =>
       emit(state.copyWith(consultationTitle: value));
@@ -239,6 +243,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       city: city,
       sortBy: sortBy,
       sortOrder: sortOrder,
+      availability: getIt<ConsultationApplicationCubit>().selectedConsultationType ==ConsultationType.scheduled ? false : true ,
     );
     result.fold(
           (error) => emit(state.copyWith(

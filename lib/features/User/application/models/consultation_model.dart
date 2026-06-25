@@ -37,8 +37,8 @@ class SubSpecializationModel {
 
   factory SubSpecializationModel.fromJson(Map<String, dynamic> json) =>
       SubSpecializationModel(
-        id: json['id'] as String,
-        name: json['name'] as String,
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
         isActive: json['isActive'] as bool? ?? true,
       );
 }
@@ -46,42 +46,69 @@ class SubSpecializationModel {
 class SpecializationModel {
   final String id;
   final String name;
+  final String? description;
+  final String? iconUrl;
+
   final List<SubSpecializationModel> subSpecializations;
   final int subSpecializationsCount;
+
   final bool isActive;
   final int linkedLawyersCount;
   final int linkedConsultationsCount;
-  final String createdAt;
-  final String updatedAt;
+
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const SpecializationModel({
     required this.id,
     required this.name,
+    this.description,
+    this.iconUrl,
     required this.subSpecializations,
     required this.subSpecializationsCount,
     required this.isActive,
     required this.linkedLawyersCount,
     required this.linkedConsultationsCount,
-    required this.createdAt,
-    required this.updatedAt,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory SpecializationModel.fromJson(Map<String, dynamic> json) =>
       SpecializationModel(
-        id: json['id'] as String,
-        name: json['name'] as String,
+        id: json['id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        description: json['description'] as String?,
+        iconUrl: json['iconUrl'] != null
+            ? AppConfig.baseImgUrl + (json['iconUrl'] as String)
+            : null,
+
         subSpecializations:
         (json['subSpecializations'] as List<dynamic>? ?? [])
-            .map((e) =>
-            SubSpecializationModel.fromJson(e as Map<String, dynamic>))
+            .map(
+              (e) => SubSpecializationModel.fromJson(
+            e as Map<String, dynamic>,
+          ),
+        )
             .toList(),
-        subSpecializationsCount: json['subSpecializationsCount'] as int? ?? 0,
+
+        subSpecializationsCount:
+        json['subSpecializationsCount'] as int? ?? 0,
+
         isActive: json['isActive'] as bool? ?? true,
-        linkedLawyersCount: json['linkedLawyersCount'] as int? ?? 0,
+
+        linkedLawyersCount:
+        json['linkedLawyersCount'] as int? ?? 0,
+
         linkedConsultationsCount:
         json['linkedConsultationsCount'] as int? ?? 0,
-        createdAt: json['createdAt'] as String? ?? '',
-        updatedAt: json['updatedAt'] as String? ?? '',
+
+        createdAt: json['createdAt'] != null
+            ? DateTime.tryParse(json['createdAt'] as String)
+            : null,
+
+        updatedAt: json['updatedAt'] != null
+            ? DateTime.tryParse(json['updatedAt'] as String)
+            : null,
       );
 }
 

@@ -62,9 +62,12 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     context.read<ConsultationApplicationCubit>().selectLawyer(detail);
 
     if (state.selectedConsultationType == ConsultationType.scheduled) {
+      // Scheduled: skip createConsultation, go straight to booking screen.
       Nav.appointmentBookingScreen(context);
     } else {
-      Nav.paymentScreen(context);
+      // Instant / Written: create the consultation now.
+      // The BlocListener will navigate to paymentScreen on success.
+      context.read<ConsultationApplicationCubit>().createConsultation();
     }
   }
 
@@ -79,8 +82,176 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
 
     return Scaffold(
       appBar: GeneralAppBar(title: "تفاصيل المحامي"),
-      body: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
-        builder: (context, state) {
+      body: BlocListener<ConsultationApplicationCubit, ConsultationState>(
+        // Only react when createStatus actually changes
+        listenWhen: (prev, curr) =>
+        prev.createStatus != curr.createStatus,
+        listener: (context, state) {
+          // ── Loading: show a non-dismissible progress dialog ──────────
+          if (state.createStatus == ConsultationStatus.loading) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => const PopScope(
+                canPop: false,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            );
+            return;
+          }
+
+          // Dismiss the loading dialog for both success and failure
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+
+          // ── Success: show snackbar then navigate to payment screen ──────
+          if (state.createStatus == ConsultationStatus.success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                content: Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 16.w, vertical: 14.h),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14.h),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36.w,
+                        height: 36.w,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      Gap(12.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'تم إنشاء الاستشارة بنجاح',
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14.h,
+                              ),
+                            ),
+                            Gap(2.h),
+                            Text(
+                              'سيتم تحويلك إلى صفحة الدفع',
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: 12.h,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+
+            // Navigate after snackbar has time to show
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (context.mounted) Nav.paymentScreen(context);
+            });
+          }
+
+          // ── Failure: show error snackbar ────────────────────────────────
+          if (state.createStatus == ConsultationStatus.failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                duration: const Duration(seconds: 3),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                content: Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 16.w, vertical: 14.h),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFD32F2F), Color(0xFFE53935)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14.h),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36.w,
+                        height: 36.w,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      Gap(12.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'فشل إنشاء الاستشارة',
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14.h,
+                              ),
+                            ),
+                            Gap(2.h),
+                            Text(
+                              state.createError ?? 'حدث خطأ ما',
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: 12.h,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }
+        },
+        child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
+          builder: (context, state) {
           // ── Loading ──────────────────────────────────────────────────────
           if (state.lawyerDetailStatus == ConsultationStatus.loading) {
             return const Center(child: CircularProgressIndicator());
@@ -158,7 +329,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
           );
         },
       ),
-    );
+    ) );
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -188,16 +359,30 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    CircleAvatar(
-                      radius: 35.w,
+                    Container(
+
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: colorScheme.primary,
+                          width: 2,
+                        ),
+                      ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(1000.h),
-                        child: photoUrl.isNotEmpty
-                            ? Picture(photoUrl)
-                            : Icon(
-                          Icons.person,
-                          size: 40.h,
-                          color: colorScheme.onSurfaceVariant,
+                        child: SizedBox(
+                          width: 70.w,
+                          height: 70.w,
+                          child: photoUrl.isNotEmpty
+                              ? Picture(
+                            photoUrl,
+                            fit: BoxFit.cover,
+                          )
+                              : Icon(
+                            Icons.person,
+                            size: 40.h,
+                            color: colorScheme.onSurfaceVariant,
+                          ),
                         ),
                       ),
                     ),
@@ -368,9 +553,10 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                   .labelSmall!
                   .copyWith(color: Colors.grey),
               tabs: const [
-                Tab(text: 'التقييمات'),
-                Tab(text: 'الخبرات والمؤهلات'),
                 Tab(text: 'الملف الشخصي'),
+                Tab(text: 'الخبرات والمؤهلات'),
+
+                Tab(text: 'التقييمات'),
               ],
             ),
           ),
@@ -378,13 +564,13 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildReviewsContent(theme, colorScheme, reviews,
-                    lawyer.rating, lawyer.ratings.length),
-                _buildExperienceContent(
-                    theme, colorScheme, lawyer.qualifications),
                 _buildAboutContent(
                     theme, colorScheme, lawyer.bio, specializationLabels,
                     lawyer.license?.imageUrl),
+                _buildExperienceContent(
+                    theme, colorScheme, lawyer.qualifications),
+                  _buildReviewsContent(theme, colorScheme, reviews,
+                    lawyer.rating, lawyer.ratings.length),
               ],
             ),
           ),
@@ -722,7 +908,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
           Gap(16.h),
           Container(
             width: double.infinity,
-            padding: EdgeInsets.all(20.w),
+
             decoration: BoxDecoration(
               color: colorScheme.primary.withOpacity(0.06),
               borderRadius: BorderRadius.circular(16.h),
@@ -730,11 +916,34 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             child: Column(
               children: [
                 if (licenseImageUrl != null && licenseImageUrl.isNotEmpty)
-                  Picture(
-                    licenseImageUrl,
-                    height: 160.h,
-                    width: double.infinity,
-                    fit: BoxFit.fill,
+                  GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        barrierColor: Colors.black87,
+                        builder: (_) => Dialog(
+                          backgroundColor: Colors.transparent,
+                          insetPadding: EdgeInsets.zero,
+                          child: InteractiveViewer(
+                            minScale: 0.5,
+                            maxScale: 5,
+                            child: Picture(
+                              licenseImageUrl,
+                              fit: BoxFit.fill,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12.h),
+                      child: Picture(
+                        licenseImageUrl,
+                        height: 160.h,
+                        width: double.infinity,
+                        fit: BoxFit.fill,
+                      ),
+                    ),
                   )
                 else
                   Container(
@@ -744,22 +953,17 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                       color: colorScheme.surfaceVariant,
                       borderRadius: BorderRadius.circular(8.h),
                     ),
-                    child: Text('لا توجد صورة رخصة',
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.hintColor)),
+                    child: Text(
+                      'لا توجد صورة رخصة',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.hintColor,
+                      ),
+                    ),
                   ),
-                Gap(12.h),
-                Text(
-                  'وزارة العدل - المملكة العربية السعودية',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: theme.hintColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+
               ],
             ),
-          ),
+          )
         ],
       ),
     );

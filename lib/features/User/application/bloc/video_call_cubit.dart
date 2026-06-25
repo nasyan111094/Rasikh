@@ -10,6 +10,7 @@
 //   5. POST  join-call
 //   6.       Agora.joinChannel()
 //   7.       Poll GET instant-session every 10 s
+//   8. POST  rtc/reconnected  ← lawyer only, fires once after step 7
 //
 // Timer strategy:
 //   • _localRemainingSeconds is seeded from the server the first time we
@@ -28,6 +29,15 @@
 //     instant-session response arrives, any non-null IDs from the server
 //     overwrite the constructor values in state.
 //   • Polling keeps the IDs up-to-date on every tick.
+//
+// RTC lifecycle notifications (lawyer only):
+//   • notifyLawyerReconnected  → POST rtc/reconnected  — called at the end
+//     of _initializeCall(), after polling starts (step 8). Tells the backend
+//     the lawyer's RTC session is fully up.
+//   • notifyLawyerDisconnected → POST rtc/disconnected — called at the TOP
+//     of _cleanup(), before the Agora engine is torn down. Covers every exit
+//     path: user tap, timer expiry, server-ended, and widget dispose (via
+//     the close() override which calls _cleanup()).
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
@@ -49,7 +59,9 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     String? lawyerPhotoUrl,
     String? lawyerId,
     String? clientId,
-  })  : _consultationId = consultationId,
+    String ? consultationtype  ,
+
+  })  : _consultationId = consultationId, _consultationType = consultationtype ,
         super(VideoCallState(
         lawyerName: lawyerName,
         lawyerPhotoUrl: lawyerPhotoUrl,
@@ -59,6 +71,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
   // ── Private fields ──────────────────────────────────────────────────────
   final String _consultationId;
+  String ? _consultationType ;
   final VideoCallRepo _repo = VideoCallRepo();
 
   RtcEngine? _engine;
@@ -196,12 +209,12 @@ class VideoCallCubit extends Cubit<VideoCallState> {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // INITIALISATION (steps 1–7)
+  // INITIALISATION (steps 1–8)
   // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> _initializeCall() async {
     // ── Step 2: GET instant-session ────────────────────────────────────────
-    final sessionResult = await _repo.fetchSession(_consultationId);
+    final sessionResult = await _repo.fetchSession(_consultationId , _consultationType);
     if (sessionResult.isLeft()) {
       _emitError(
           'فشل جلب بيانات الجلسة: ${sessionResult.fold((l) => l, (r) => '')}');
@@ -250,8 +263,15 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     _emitKeepingTimer(state.copyWith(phase: VideoCallPhase.agoraReady));
 
     // ── Step 5: POST join-call ─────────────────────────────────────────────
-    final joinResult = await _repo.joinCall(_consultationId);
-    if (joinResult.isLeft()) {
+    // If the server returns an error indicating this user already joined
+    // (e.g. "already joined" / "already in call"), we treat that as a
+    // reconnect scenario: skip the second join-call POST and instead do a
+    // clean Agora leave → rejoin so the server's join-call state stays intact.
+    final joinResult = await _repo.joinCall(_consultationId, _consultationType);
+    final alreadyJoined = joinResult.isLeft() &&
+        _isAlreadyJoinedError(joinResult.fold((l) => l, (r) => ''));
+
+    if (joinResult.isLeft() && !alreadyJoined) {
       _emitError(
           'فشل الاتصال بالخادم: ${joinResult.fold((l) => l, (r) => '')}');
       return;
@@ -259,11 +279,27 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
     _emitKeepingTimer(state.copyWith(phase: VideoCallPhase.joiningCall));
 
+    if (alreadyJoined) {
+      // ── Reconnect path: leave any active channel then rejoin ─────────────
+      // We do NOT call joinCall again; the backend already has this session
+      // recorded as joined. A clean leave → rejoin on Agora is enough.
+      try {
+        await _engine?.leaveChannel();
+      } catch (_) {}
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+
     // ── Step 6: Agora.joinChannel() ────────────────────────────────────────
     await _joinAgoraChannel(rtcToken);
 
     // ── Step 7: start polling ──────────────────────────────────────────────
     _startPolling();
+
+    // ── Step 8: notify backend that lawyer's RTC session is up ────────────
+    // Fire-and-forget — a failure here is non-fatal; we don't block the call.
+    if (isLawyer) {
+      _repo.notifyLawyerReconnected(_consultationId);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -314,6 +350,8 @@ class VideoCallCubit extends Cubit<VideoCallState> {
         autoSubscribeVideo: true,
       ),
     );
+
+
 
     _emitKeepingTimer(state.copyWith(phase: VideoCallPhase.waitingForLawyer));
   }
@@ -429,6 +467,19 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     ));
   }
 
+  // ── Helper: detect "already joined" errors from the join-call endpoint ───
+  // The server may return various wordings; we match on the most common
+  // substrings case-insensitively so no fragile exact-match is needed.
+  bool _isAlreadyJoinedError(String error) {
+    final lower = error.toLowerCase();
+    return lower.contains('already') ||
+        lower.contains('already joined') ||
+        lower.contains('already in call') ||
+        lower.contains('duplicate') ||
+        lower.contains('مسبقاً') ||
+        lower.contains('مسبقا');
+  }
+
   Future<void> _handleConnectionFailed() async {
     if (isClosed) return;
 
@@ -464,13 +515,13 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
   void _startPolling() {
     // Immediate first poll
-    _repo.pollSession(_consultationId).then((result) {
+    _repo.pollSession(_consultationId, _consultationType).then((result) {
       result.fold((_) {}, _applySessionState);
     });
 
     _pollTimer = Timer.periodic(_kPollInterval, (_) async {
       if (isClosed) return;
-      final result = await _repo.pollSession(_consultationId);
+      final result = await _repo.pollSession(_consultationId ,_consultationType);
       result.fold((_) {}, _applySessionState);
     });
   }
@@ -593,6 +644,14 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     _pollTimer = null;
     _localTimer?.cancel();
     _localTimer = null;
+
+    // ── Notify backend that the lawyer's RTC session is ending ────────────
+    // Called before releasing the engine so it covers every exit path:
+    // user tap, timer expiry, server-ended poll, and widget dispose.
+    // Awaited so the POST has a chance to go out before the engine releases.
+    if (isLawyer) {
+      await _repo.notifyLawyerDisconnected(_consultationId);
+    }
 
     final engine = _engine;
     _engine = null; // null immediately so no other method can touch it

@@ -29,6 +29,7 @@ import 'package:rasikh/features/User/profile/repo/profile_repo.dart';
 
 import '../../features/Company/company_register_completion/bloc/company_completion_cubit.dart';
 import '../../features/Company/company_register_completion/repo/company_completion_repo.dart';
+import '../../features/Lawyer/lawyer-appointments/bloc/lawyer_appointments_cubit.dart';
 import '../../features/Lawyer/lawyer-home/bloc/avaiabilty_cubit.dart';
 import '../../features/Lawyer/lawyer-home/bloc/lawyer_consultations_cubit.dart';
 import '../../features/Lawyer/lawyer-home/repo/lawer_availability_rpeo.dart';
@@ -140,6 +141,7 @@ Future<void> initializeDependencies() async {
     getIt.registerFactory<LawyerProfileCubit>(
           () => LawyerProfileCubit(getIt<LawyerProfileRepo>()),
     );
+
 
     getIt.registerLazySingleton<SpecializationsRepo>(() => SpecializationsRepo());
     getIt.registerFactory<SpecializationsCubit>(() => SpecializationsCubit());

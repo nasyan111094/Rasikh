@@ -14,6 +14,9 @@
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
+import 'package:logger/logger.dart';
+import 'package:rasikh/core/services/app_logger.dart';
+import 'package:rasikh/features/User/application/bloc/consulation_application_cubit.dart';
 
 import '../../../../config/app_config.dart';
 import '../../../../core/get_it_service/get_it_service.dart';
@@ -54,7 +57,7 @@ class ConsultationRepo {
           .toList();
       return Right(specializations);
     }
-    return Left(result.left.toString());
+    return Left(result.left);
   }
 
 
@@ -105,7 +108,7 @@ class ConsultationRepo {
 
   // ── 3. GET /api/v1/clients/lawyers ────────────────────────────────────────
 
-  Future<Either<String, List<LawyerModel>>> fetchLawyers({
+  Future<Either<String, List<LawyerDetailModel>>> fetchLawyers({
     String? specializationId,
     String? subSpecializationIds, // comma-separated
     String? city,
@@ -120,7 +123,7 @@ class ConsultationRepo {
     String? sortOrder,
   }) async {
     final queryParams = <String, dynamic>{
-      'availability': availability,
+      'availability':  availability,
       'page': page,
       'limit': limit,
       if (specializationId != null) 'specialization': specializationId,
@@ -143,7 +146,7 @@ class ConsultationRepo {
     if (result.isRight) {
       final rawList = result.right.data['data'] as List<dynamic>? ?? [];
       final lawyers = rawList
-          .map((e) => LawyerModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => LawyerDetailModel.fromJson(e as Map<String, dynamic>))
           .toList();
       return Right(lawyers);
     }
@@ -242,11 +245,20 @@ class ConsultationRepo {
       '[${params.subSpecializationIds.map((id) => '"$id"').join(',')}]';
     }
 
+    // ✅ Unified DateTime format (LOCAL ISO 8601)
+    String formatDate(DateTime? dt) =>
+        dt == null ? '' : dt.toLocal().toUtc().toIso8601String();
+
     if (params.startTime != null) {
-      fields['startTime'] = params.startTime!.toUtc().toIso8601String();
+      AppLogger.info(params.startTime) ;
+      fields['startTime'] = formatDate(params.startTime);
+      AppLogger.info(formatDate(params.startTime)) ;
     }
+
     if (params.endTime != null) {
-      fields['endTime'] = params.endTime!.toUtc().toIso8601String();
+      AppLogger.info(params.endTime) ;
+      fields['endTime'] = formatDate(params.endTime);
+      AppLogger.info(formatDate(params.endTime)) ;
     }
 
     if (params.voiceNote != null) {
@@ -254,16 +266,15 @@ class ConsultationRepo {
         params.voiceNote!.path,
         filename: 'voice_note.mp3',
       );
+
       if (params.voiceNoteDurationSeconds != null) {
         fields['voiceNoteDurationSeconds'] =
             params.voiceNoteDurationSeconds.toString();
       }
     }
 
-    // ✅ الصح: بناء FormData يدوياً بـ MultipartFile list تحت نفس الـ key
     final formData = FormData();
 
-    // أضف الـ fields العادية
     fields.forEach((key, value) {
       if (value is MultipartFile) {
         formData.files.add(MapEntry(key, value));
@@ -272,14 +283,15 @@ class ConsultationRepo {
       }
     });
 
-    // أضف الـ attachments كلها تحت نفس الـ key
     final attachmentFiles = params.attachments.take(5).toList();
+
     for (int i = 0; i < attachmentFiles.length; i++) {
       formData.files.add(MapEntry(
         'attachments',
         await MultipartFile.fromFile(
           attachmentFiles[i].path,
-          filename: 'attachment_$i.${attachmentFiles[i].path.split('.').last}',
+          filename:
+          'attachment_$i.${attachmentFiles[i].path.split('.').last}',
         ),
       ));
     }
@@ -290,9 +302,11 @@ class ConsultationRepo {
     );
 
     if (result.isRight) {
+
       final data = result.right.data['data'] as Map<String, dynamic>;
+      AppLogger.info(data) ;
       return Right(CreatedConsultationModel.fromJson(data));
     }
+
     return Left(result.left.toString());
-  }
-}
+  }}

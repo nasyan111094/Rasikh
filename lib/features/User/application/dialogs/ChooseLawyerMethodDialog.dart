@@ -121,7 +121,7 @@ class _ChooseLawyerMethodDialogState
                     cubit.loadLawyers();
                   }
 
-                  Nav.chooseLawyerScreen(context);
+                  Nav.chooseLawyerScreen(context , recommended: selectedOption == 'recommend' ? true : false  );
                 },
                 child: Text(
                   'التالي',

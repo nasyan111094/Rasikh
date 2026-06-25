@@ -5,6 +5,7 @@ import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/config/localization/lang_repo.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
+import 'package:rasikh/core/services/app_logger.dart';
 
 import '../../cache/pref_keys.dart';
 
@@ -129,7 +130,7 @@ class ApiHandler {
         );
       }
     }
-
+    AppLogger.info(error.response?.data['message']?.toString()) ;
     // Handle other errors
     print('Error: ${error.message}');
     return DioException(

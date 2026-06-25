@@ -146,20 +146,24 @@ class _FaqTileState extends State<_FaqTile> {
           children: [
             Container(
               decoration: BoxDecoration(
-                color: colorScheme.surface,
+
                 borderRadius: BorderRadius.circular(12.w),
-                border: Border.all(color: borderColor),
+
               ),
-              padding: EdgeInsets.all(12.w),
-              child: Text(
-                widget.item.answer,
-                textAlign: TextAlign.right,
-                style: textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w400,
-                  fontSize: 13.w,
-                  height: 1.6,
-                  color: textTheme.bodyMedium?.color?.withOpacity(0.8),
-                ),
+
+              child: Row(
+                children: [
+                  Text(
+                    widget.item.answer,
+                    textAlign: TextAlign.right,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w400,
+                      fontSize: 13.w,
+                      height: 1.6,
+                      color: textTheme.bodyMedium?.color?.withOpacity(0.8),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

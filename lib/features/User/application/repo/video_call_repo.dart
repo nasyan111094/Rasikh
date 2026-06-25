@@ -100,8 +100,10 @@ class VideoCallRepo {
 
   // ── Step 2: instant-session (initial fetch) ────────────────────────────
   Future<Either<String, InstantSessionState>> fetchSession(
-      String consultationId) async {
+      String consultationId , String? consultationType ) async {
     final result = await _dio.get(
+      consultationType!=null && consultationType == "scheduled" ?
+      '$userType/consultations/$consultationId/scheduled-session':
       '$userType/consultations/$consultationId/instant-session',
     );
     if (result.isRight) {
@@ -125,8 +127,13 @@ class VideoCallRepo {
   }
 
   // ── Step 5: join-call ──────────────────────────────────────────────────
-  Future<Either<String, bool>> joinCall(String consultationId) async {
+  Future<Either<String, bool>> joinCall(String consultationId , String ? consultationType ) async {
+
+
+
     final result = await _dio.post(
+      consultationType!=null && consultationType == "scheduled" ?
+      '$userType/consultations/$consultationId/scheduled-session/join-call':
       '$userType/consultations/$consultationId/instant-session/join-call',
       body: {},
     );
@@ -136,8 +143,10 @@ class VideoCallRepo {
 
   // ── Step 7: polling ────────────────────────────────────────────────────
   Future<Either<String, InstantSessionState>> pollSession(
-      String consultationId) async {
+      String consultationId , String ? consultationType ) async {
     final result = await _dio.get(
+      consultationType!=null && consultationType == "scheduled" ?
+      '$userType/consultations/$consultationId/scheduled-session':
       '$userType/consultations/$consultationId/instant-session',
     );
     if (result.isRight) {

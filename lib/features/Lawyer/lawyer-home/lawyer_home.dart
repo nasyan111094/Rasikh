@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/core/widgets/general_divider.dart';
+import 'package:rasikh/core/widgets/no_data_widget.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/config/theme/colors.dart';
@@ -14,6 +15,9 @@ import 'package:size_config/size_config.dart';
 
 import '../../../config/navigation/nav.dart';
 import '../../User/home/widgets/custom_app_bar_widget.dart';
+import '../consultation/Bloc/consultation_details_cubit.dart';
+import '../consultation/consultation_details_screen.dart';
+import '../consultation/repo/consultations_repo.dart';
 import '../lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import '../lawyer_Settings/bloc/Profile_cubit/lawyer_state.dart';
 import 'bloc/avaiabilty_cubit.dart';
@@ -163,7 +167,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                       children: [
                         // ── New Consultations Section ──────────────────────
                         const _SectionHeader(
-                          title: 'استشارات جديدة',
+                          title: 'إستشارات جديدة',
                           onViewAll: null,
                         ),
                         Gap(10.h),
@@ -195,7 +199,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                             if (state is LawyerConsultationsLoaded) {
                               if (state.consultations.isEmpty) {
                                 return const Center(
-                                  child: Text('لا توجد استشارات جديدة حالياً'),
+                                  child: NoDataWidget(title: "لا توجد إستشارات فوريه أو كتابيه جديدة",),
                                 );
                               }
                               return ListView.separated(
@@ -249,14 +253,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                             }
                             if (state is UpcomingScheduledLoaded) {
                               if (state.appointments.isEmpty) {
-                                return Text(
-                                  'لا توجد مواعيد قادمة',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(
-                                      color:
-                                      Theme.of(context).hintColor),
+                                return Center(
+                                  child: NoDataWidget(title: " لا توجد مواعيد قادمه اليوم",),
                                 );
                               }
                               return Column(
@@ -493,7 +491,7 @@ class _ConsultationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isInstant = consultation.type == 'instant';
-    final typeText = isInstant ? 'استشارة فورية' : 'استشارة كتابية';
+    final typeText = isInstant ? 'إستشارة فورية' : 'إستشارة كتابية';
     final formattedTime = _formatTime(consultation.createdAt);
 
     return BlocBuilder<LawyerConsultationsCubit, LawyerConsultationsState>(
@@ -523,7 +521,7 @@ class _ConsultationCard extends StatelessWidget {
                 ),
                 child: Center(
                   child: Picture(
-                    getAssetIcon('chat.svg'),
+                    getAssetIcon(consultation.type == "instant"? "mobile.svg" :'chat.svg'),
                     width: 25.w,
                     height: 25.w,
                     color: theme.colorScheme.onSecondaryContainer,
@@ -536,14 +534,6 @@ class _ConsultationCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(typeText, style: theme.textTheme.titleMedium),
-                    Gap(4.h),
-                    Text(
-                      consultation.title,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: theme.hintColor),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                     Gap(4.h),
                     Text(
                       formattedTime,
@@ -577,9 +567,22 @@ class _ConsultationCard extends StatelessWidget {
                     ),
                     Gap(10.w),
                     OutlinedButton(
-                      onPressed: onDetails,
+                      onPressed: ()
+                      {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => BlocProvider(
+                              create: (_) => ConsultationDetailsCubit(
+                                repo: ConsultationsRepo(),
+                              ),
+                              child: LawyerConsultationDetailsScreen(consultationId: consultation.id),
+                            ),
+                          ),
+                        );
+                      },
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: primary),
+                        side: BorderSide(color: Colors.transparent),
+                        backgroundColor: primary.withOpacity(.2),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.h)),
                         padding: EdgeInsets.symmetric(vertical: 10.h),
@@ -622,7 +625,7 @@ class _SectionHeader extends StatelessWidget {
       children: [
         Picture(getAssetIcon('dot.svg')),
         Gap(5.w),
-        Text(title, style: theme.textTheme.titleMedium),
+        Text(title, style: theme.textTheme.titleMedium!.copyWith(fontWeight: FontWeight.bold)),
         const Spacer(),
         if (onViewAll != null)
           InkWell(
@@ -642,9 +645,10 @@ class _AppointmentCard extends StatelessWidget {
   const _AppointmentCard({required this.appointment});
 
   String _formatTime(DateTime dt) {
+    dt = dt.toLocal() ;
     final h = dt.hour;
     final m = dt.minute.toString().padLeft(2, '0');
-    final period = h >= 12 ? 'م' : 'ص';
+    final period = h >= 12 ? 'مساء' : 'صباحا';
     final hour = h > 12 ? h - 12 : (h == 0 ? 12 : h);
     return '$hour:$m $period';
   }
@@ -660,6 +664,24 @@ class _AppointmentCard extends StatelessWidget {
       ),
       child: Row(
         children: [
+          Container(
+            width: 40.w,
+            height: 40.w,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border:
+              Border.all(color: greyFA, width: 1),
+            ),
+            child: Center(
+              child: Picture(
+                getAssetIcon('chat.svg'),
+                width: 25.w,
+                height: 25.w,
+                color: theme.colorScheme.onSecondaryContainer,
+              ),
+            ),
+          ),
+          Gap(10.w) ,
           Expanded(
             child: Text(appointment.title,
                 style: theme.textTheme.titleMedium,

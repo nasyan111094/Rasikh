@@ -53,7 +53,7 @@ class LawyerConsultationsRepo {
     );
 
     return result.fold(
-          (error) => Left(_extractError(error)),
+          (error) => Left(error),
           (response) {
         final data = response.data as Map<String, dynamic>;
         final List<dynamic> consultationsJson = data['data'] ?? [];
@@ -83,7 +83,7 @@ class LawyerConsultationsRepo {
     );
 
     return result.fold(
-          (error) => Left(_extractError(error)),
+          (error) => Left(error),
           (response) {
         final data = response.data as Map<String, dynamic>;
         final consultationData =
@@ -111,7 +111,7 @@ class LawyerConsultationsRepo {
     );
 
     return result.fold(
-          (error) => Left(_extractError(error)),
+          (error) => Left(error),
           (response) {
         final data = response.data as Map<String, dynamic>;
         final consultationData =
@@ -121,28 +121,7 @@ class LawyerConsultationsRepo {
     );
   }
 
-  String _extractError(dynamic left) {
-    try {
-      if (left is DioException) {
-        final data = left.response?.data;
-        if (data is Map) {
-          final errors = data['errors'];
-          if (errors is Map && errors.isNotEmpty) {
-            final firstField = errors.values.first;
-            if (firstField is List && firstField.isNotEmpty) {
-              return firstField.first.toString();
-            }
-          }
-          return data['message']?.toString() ??
-              data['error']?['details']?.toString() ??
-              'حدث خطأ غير متوقع';
-        }
-      }
-      return left.toString();
-    } catch (_) {
-      return 'حدث خطأ غير متوقع';
-    }
-  }
+
 
   // في الـ endpoints class
   static const String upcomingScheduled =
@@ -155,7 +134,7 @@ class LawyerConsultationsRepo {
     await _adapter.get(upcomingScheduled);
 
     return result.fold(
-          (error) => Left(_extractError(error)),
+          (error) => Left(error),
           (response) {
         final body = response.data as Map<String, dynamic>;
         // shape: { "data": { "data": [...] } }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:logger/logger.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:size_config/size_config.dart';
 
@@ -275,12 +276,16 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
                                           ? null
                                           : () {
                                         if (widget.isLogout) {
-                                          getIt<CacheHelper>()
-                                              .currentToken = '';
-                                          getIt<CacheHelper>()
-                                              .setUserToken('');
-                                          Nav.account_type_screen(
-                                              context);
+
+                                          Logger().i("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx") ;
+
+                                          getIt<LawyerProfileCubit>().cachedProfile = null;
+                                          getIt<CacheHelper>().currentToken = '';
+                                          getIt<CacheHelper>().setUserToken('').then((_) async  {
+                                           await getIt<CacheHelper>().init() ;
+                                            Navigator.of(ctx).popUntil((route) => route.isFirst);
+                                            Nav.account_type_screen(ctx);
+                                          });
                                         } else {
                                           _startDeletionFlow(ctx);
                                         }

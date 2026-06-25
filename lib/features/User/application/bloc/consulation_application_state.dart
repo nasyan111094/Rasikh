@@ -50,7 +50,7 @@ class ConsultationState {
 
   // ── Step-4: Lawyer selection ───────────────────────────────────────────────
   final ConsultationStatus lawyersStatus;
-  final List<LawyerModel> lawyers;
+  final List<LawyerDetailModel> lawyers;
   final String? lawyersError;
 
   final ConsultationStatus recommendedLawyerStatus;
@@ -186,7 +186,7 @@ class ConsultationState {
 
     // Lawyers
     ConsultationStatus? lawyersStatus,
-    List<LawyerModel>? lawyers,
+    List<LawyerDetailModel>? lawyers,
     String? lawyersError,
 
     ConsultationStatus? recommendedLawyerStatus,

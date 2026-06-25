@@ -328,7 +328,7 @@ class UserConsultationCard extends StatelessWidget {
           ),
           SizedBox(
             width: double.infinity,
-            child: GradiantButton(text: "أدخل الجلسه", onTap: (){}),
+            child: GradiantButton(text: "إنضمام", onTap: (){}),
           ),
         ],
       ),

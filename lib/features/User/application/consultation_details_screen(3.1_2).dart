@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/core/widgets/custom_dotted_container.dart';
 import 'package:record/record.dart';
 import 'package:shimmer/shimmer.dart';
@@ -14,8 +15,10 @@ import 'package:size_config/size_config.dart';
 
 import '../../../core/utils/get_asset_path.dart';
 import '../../../core/widgets/auth_stepper.dart';
+import '../../../core/widgets/error_state_widget.dart';
 import '../../../core/widgets/general_app_bar.dart';
 import '../../../core/widgets/general_option_card.dart';
+import '../../../core/widgets/no_data_widget.dart';
 import '../../../core/widgets/picture.dart' show Picture;
 import 'bloc/consulation_application_cubit.dart';
 import 'bloc/consulation_application_state.dart';
@@ -351,39 +354,44 @@ class _ConsultationDetailsScreenState
 
   // ── Pricing section with shimmer ──────────────────────────────────────────
 
-  Widget _buildPricingSection(ConsultationState state, ThemeData theme,
-      ColorScheme colorScheme) {
+  // ── Pricing section with full state handling ──────────────────────────────
+
+  Widget _buildPricingSection(
+      ConsultationState state, ThemeData theme, ColorScheme colorScheme) {
+
+    // ── Loading State ───────────────────────────────────────────────────────
     if (state.pricingStatus == ConsultationStatus.loading) {
       return _buildPricingShimmer(theme);
     }
 
+    // ── Error State ─────────────────────────────────────────────────────────
     if (state.pricingStatus == ConsultationStatus.failure) {
-      return Column(
-        children: [
-          Text(
-            state.pricingError ?? 'تعذر تحميل خطط التسعير',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.error),
-            textAlign: TextAlign.center,
-          ),
-          SizedBox(height: 8.h),
-          TextButton(
-            onPressed: () =>
-                context.read<ConsultationApplicationCubit>().loadPricingPlans(),
-            child: const Text('إعادة المحاولة'),
-          ),
-        ],
+      return Container(
+        padding: EdgeInsets.symmetric(vertical: 24.h),
+        child: ErrorStateWidget(
+          title: 'تعذر تحميل خطط التسعير',
+          message: state.pricingError ?? 'حدث خطأ أثناء الاتصال بالخادم',
+          actionLabel: 'إعادة المحاولة',
+          onAction: () => context
+              .read<ConsultationApplicationCubit>()
+              .loadPricingPlans(),
+        ),
       );
     }
 
+    // ── Empty State ─────────────────────────────────────────────────────────
     if (state.pricingPlans.isEmpty) {
-      return Text(
-        'لا توجد خطط تسعير متاحة',
-        style: theme.textTheme.bodyMedium?.copyWith(color: theme.hintColor),
-        textAlign: TextAlign.center,
+      return Container(
+        padding: EdgeInsets.symmetric(vertical: 24.h),
+        child: const NoDataWidget(
+          icon: Icons.access_time_filled_rounded,
+          title: 'لا توجد خطط تسعير متاحة',
+          message: 'لا تتوفر خطط تسعير حالياً، يرجى المحاولة لاحقاً',
+        ),
       );
     }
 
+    // ── Success State (has data) ────────────────────────────────────────────
     return Column(
       children: state.pricingPlans
           .map(
@@ -399,8 +407,9 @@ class _ConsultationDetailsScreenState
           title: pricing.durationLabel,
           subtitle: pricing.priceLabel,
           isSelected: state.selectedPricing?.id == pricing.id,
-          onTap: () =>
-              context.read<ConsultationApplicationCubit>().selectPricing(pricing),
+          onTap: () => context
+              .read<ConsultationApplicationCubit>()
+              .selectPricing(pricing),
         ),
       )
           .toList(),
@@ -502,7 +511,13 @@ class _ConsultationDetailsScreenState
         // Header row: label + counter
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
+          children: [           Text(
+            'المرفقات',
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: colorScheme.onSurface,
+            ),
+          ),
             Container(
               padding:
               EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
@@ -522,13 +537,7 @@ class _ConsultationDetailsScreenState
                 ),
               ),
             ),
-            Text(
-              'المرفقات',
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: colorScheme.onSurface,
-              ),
-            ),
+
           ],
         ),
 
@@ -591,10 +600,8 @@ class _ConsultationDetailsScreenState
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 12.h),
-                    OutlinedButton.icon(
+                    OutlinedButton(
                       onPressed: _pickAttachment,
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('اختر ملف'),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: colorScheme.primary),
                         foregroundColor: colorScheme.primary,
@@ -605,7 +612,8 @@ class _ConsultationDetailsScreenState
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                    ),
+                      child: const Text('اختر ملف'),
+                    )
                   ],
                 ),
               ),

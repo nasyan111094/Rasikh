@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:rasikh/core/widgets/error_state_widget.dart';
+import 'package:rasikh/core/widgets/no_data_widget.dart';
 import 'package:rasikh/features/common/notifications/repo/notifications_repo.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
@@ -103,24 +105,43 @@ class _NotificationsViewState extends State<_NotificationsView> {
             }
           },
           builder: (context, state) {
-            // ── Initial shimmer ───────────────────────────────────────────
+            // ── Loading (initial) ───────────────────────────────────────────
             if (state is NotificationsLoading) {
               return const _NotificationsShimmer();
             }
 
-            // ── Hard failure with no data ─────────────────────────────────
+            // ── Error ───────────────────────────────────────────────────────
             if (state is NotificationsFailure) {
-              return _ErrorBody(
-                message: state.message,
-                onRetry: () =>
-                    context.read<NotificationsCubit>().fetchNotifications(),
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  SizedBox(height: 80.h),
+                  ErrorStateWidget(
+                    title: 'تعذر تحميل الإشعارات',
+                    message: state.message,
+                    actionLabel: 'إعادة المحاولة',
+                    onAction: () =>
+                        context.read<NotificationsCubit>().fetchNotifications(),
+                  ),
+                ],
               );
             }
 
             // ── Loaded (or refreshing with old data) ──────────────────────
             if (state is NotificationsLoaded) {
+              // ── Empty ───────────────────────────────────────────────────
               if (state.notifications.isEmpty) {
-                return _buildEmpty(context);
+                return ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  children: [
+                    SizedBox(height: 80.h),
+                    const NoDataWidget(
+                      icon: Icons.notifications_off_outlined,
+                      title: 'لا توجد إشعارات',
+                      message: 'ستظهر إشعاراتك الجديدة هنا عند وصولها',
+                    ),
+                  ],
+                );
               }
 
               return RefreshIndicator(
@@ -128,6 +149,7 @@ class _NotificationsViewState extends State<_NotificationsView> {
                 child: ListView.separated(
                   controller: _scrollController,
                   padding: EdgeInsets.fromLTRB(12.w, 18.h, 12.w, 16.h),
+                  physics: const AlwaysScrollableScrollPhysics(),
                   itemCount: state.notifications.length +
                       (state.isPaginating ? 1 : 0),
                   separatorBuilder: (_, __) => SizedBox(height: 12.h),
@@ -162,34 +184,6 @@ class _NotificationsViewState extends State<_NotificationsView> {
       ),
     );
   }
-
-  Widget _buildEmpty(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _onRefresh,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              SizedBox(height: 120.h),
-              Icon(Icons.notifications_off_outlined,
-                  size: 64.w, color: Colors.grey),
-              SizedBox(height: 16.h),
-              Text(
-                'لا توجد إشعارات',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: Colors.grey,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -214,8 +208,19 @@ class _NotificationCard extends StatelessWidget {
       final minute = dt.minute.toString().padLeft(2, '0');
       final period = dt.hour >= 12 ? 'PM' : 'AM';
       const months = [
-        '', 'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December',
+        '',
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
       ];
       return '${dt.day} ${months[dt.month]} ${dt.year}, $hour.$minute $period';
     } catch (_) {
@@ -330,7 +335,8 @@ class _NotificationCard extends StatelessWidget {
                       Directionality(
                         textDirection: TextDirection.ltr,
                         child: Text(
-                          _formatDate(notification.sentAt ?? notification.createdAt),
+                          _formatDate(
+                              notification.sentAt ?? notification.createdAt),
                           textAlign: TextAlign.left,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -452,41 +458,6 @@ class _ShimmerCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Error body
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ErrorBody extends StatelessWidget {
-  const _ErrorBody({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.w),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline, size: 56.w, color: Colors.red.shade300),
-            SizedBox(height: 12.h),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.red.shade400),
-            ),
-            SizedBox(height: 20.h),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('إعادة المحاولة'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// REMOVED: _ErrorBody — replaced by ErrorStateWidget
+// ═══════════════════════════════════════════════════════════════════════════

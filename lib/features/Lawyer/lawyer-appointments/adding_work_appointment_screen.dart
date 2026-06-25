@@ -12,10 +12,23 @@ import 'widgets/day_selection_section.dart';
 import 'widgets/session_settings_widget.dart';
 
 class AddingWorkAppointmentScreen extends StatefulWidget {
-  const AddingWorkAppointmentScreen({super.key, this.slotId});
+  const AddingWorkAppointmentScreen({
+    super.key,
+    this.slotId,
+    this.initialSlot,
+    this.dayIndex,
+  });
 
   /// Non-null when editing an existing slot.
   final String? slotId;
+
+  /// The slot being edited, passed straight from the list item that was
+  /// tapped. When present, prefill is instant and 100% reliable — it does
+  /// NOT depend on the cubit's cached weekly data still being warm.
+  final AvailabilitySlot? initialSlot;
+
+  /// Server day index (0=Sat … 6=Fri) the slot above belongs to.
+  final int? dayIndex;
 
   @override
   State<AddingWorkAppointmentScreen> createState() =>
@@ -26,13 +39,7 @@ class _AddingWorkAppointmentScreenState
     extends State<AddingWorkAppointmentScreen> {
   // ── Form state ────────────────────────────────────────────────────────────
   final Set<int> _selectedDayIndexes = {};
-  SessionSettings _sessionSettings = SessionSettings(
-    startDate: null,
-    endDate: null,
-    sessionDuration: 30,
-    gap: 10,
-    repeatsWeekly: false,
-  );
+  late SessionSettings _sessionSettings;
 
   // ── Validation ────────────────────────────────────────────────────────────
   bool _showDayError = false;
@@ -45,67 +52,92 @@ class _AddingWorkAppointmentScreenState
   @override
   void initState() {
     super.initState();
-    if (widget.slotId != null) {
+    _sessionSettings = const SessionSettings(
+      startDate: null,
+      endDate: null,
+      sessionDuration: 30,
+      gap: 10,
+      repeatsWeekly: false,
+    );
+
+    if (widget.initialSlot != null && widget.dayIndex != null) {
+      // Preferred path: data was handed to us directly by the list item,
+      // so we fill the form synchronously before the very first frame.
+      _prefillFromSlot(widget.initialSlot!, widget.dayIndex!);
+    } else if (widget.slotId != null) {
+      // Legacy fallback for any call site that still only passes a slotId.
+      // Best-effort only — if the cache isn't warm yet, the form simply
+      // stays empty and the user fills it in manually (no silent corruption
+      // of data, no crash).
       WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromCache());
     }
   }
 
+  /// Fills the form straight from the slot the user tapped — no cache,
+  /// no race condition, no flash of an empty form.
+  void _prefillFromSlot(AvailabilitySlot slot, int serverDayIndex) {
+    final upcomingIndex = _upcomingIndexForServerDay(serverDayIndex);
+
+    _selectedDayIndexes
+      ..clear()
+      ..addAll(upcomingIndex != null ? {upcomingIndex} : <int>{});
+
+    _sessionSettings = SessionSettings(
+      startDate: _parseTime(slot.startTime),
+      endDate: _parseTime(slot.endTime),
+      sessionDuration: slot.sessionDurationMinutes,
+      gap: slot.gapMinutes,
+      repeatsWeekly: slot.repeatsWeekly,
+    );
+  }
+
+  /// Maps a server day index (0=Sat … 6=Fri) to its "upcoming day" index
+  /// (0 = today … 6 = six days from now) — the same convention the day
+  /// picker UI uses.
+  int? _upcomingIndexForServerDay(int serverDayIndex) {
+    for (int i = 0; i < 7; i++) {
+      final d = DateTime.now().add(Duration(days: i));
+      if ((d.weekday + 1) % 7 == serverDayIndex) return i;
+    }
+    return null;
+  }
+
+  /// Parses an "HH:mm" string into a [DateTime] (date portion = today, only
+  /// hour/minute are meaningful).
+  DateTime? _parseTime(String t) {
+    try {
+      final parts = t.split(':');
+      final h = int.parse(parts[0]);
+      final m = int.parse(parts[1]);
+      final now = DateTime.now();
+      return DateTime(now.year, now.month, now.day, h, m);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Legacy fallback: looks the slot up in whatever weekly data happens to
+  /// already be cached in the cubit. Only used when the caller didn't pass
+  /// [initialSlot] directly.
   void _prefillFromCache() {
     if (!mounted) return;
     final cubit = context.read<LawyerAppointmentsCubit>();
     final cached = cubit.cachedWeeklyData;
     if (cached == null) return;
 
-    // Collect all server day indexes where this slot id appears
-    final serverDayIndexes = <int>[];
     AvailabilitySlot? found;
+    int? serverDayIndex;
     for (final day in cached.days) {
       for (final s in day.slots) {
         if (s.id == widget.slotId) {
-          serverDayIndexes.add(day.dayIndex);
           found = s;
+          serverDayIndex = day.dayIndex;
         }
       }
     }
-    if (serverDayIndexes.isEmpty || found == null) return;
+    if (found == null || serverDayIndex == null) return;
 
-    // Map server day index → upcoming-day index (0 = today, 6 = 6 days later)
-    final newSelected = <int>{};
-    for (final serverIndex in serverDayIndexes) {
-      for (int i = 0; i < 7; i++) {
-        final d = DateTime.now().add(Duration(days: i));
-        if ((d.weekday + 1) % 7 == serverIndex) {
-          newSelected.add(i);
-          break;
-        }
-      }
-    }
-
-    // Parse "HH:mm" strings → DateTime (date portion = today, only h/m used)
-    DateTime? parseTime(String t) {
-      try {
-        final parts = t.split(':');
-        final h = int.parse(parts[0]);
-        final m = int.parse(parts[1]);
-        final now = DateTime.now();
-        return DateTime(now.year, now.month, now.day, h, m);
-      } catch (_) {
-        return null;
-      }
-    }
-
-    setState(() {
-      _selectedDayIndexes
-        ..clear()
-        ..addAll(newSelected);
-      _sessionSettings = SessionSettings(
-        startDate: parseTime(found!.startTime),
-        endDate: parseTime(found!.endTime),
-        sessionDuration: found!.sessionDurationMinutes,
-        gap: found!.gapMinutes,
-        repeatsWeekly: found!.repeatsWeekly,
-      );
-    });
+    setState(() => _prefillFromSlot(found!, serverDayIndex!));
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -161,8 +193,6 @@ class _AddingWorkAppointmentScreenState
       daysOfWeek: daysOfWeek,
       startTime: startTime,
       endTime: endTime,
-      sessionDurationMinutes: _sessionSettings.sessionDuration,
-      gapMinutes: _sessionSettings.gap,
       repeatsWeekly: _sessionSettings.repeatsWeekly,
     );
 
@@ -198,6 +228,7 @@ class _AddingWorkAppointmentScreenState
   }
 
   String _formatTime(DateTime dt) {
+    dt = dt .toLocal() ;
     final two = (int v) => v.toString().padLeft(2, '0');
     return '${two(dt.hour)}:${two(dt.minute)}';
   }

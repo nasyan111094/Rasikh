@@ -1,8 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// consultation_type_screen.dart  (Step 2)
-// UI unchanged — now driven by ConsultationCubit
-// ─────────────────────────────────────────────────────────────────────────────
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -18,8 +13,24 @@ import 'bloc/consulation_application_cubit.dart';
 import 'bloc/consulation_application_state.dart';
 import 'models/consultation_model.dart';
 
-class ConsultationTypeScreen extends StatelessWidget {
+class ConsultationTypeScreen extends StatefulWidget {
   const ConsultationTypeScreen({super.key});
+
+  @override
+  State<ConsultationTypeScreen> createState() => _ConsultationTypeScreenState();
+}
+
+class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Default to "instant" the first time this screen is shown,
+    // without overriding a selection the user already made.
+    final cubit = context.read<ConsultationApplicationCubit>();
+    cubit.selectConsultationType(ConsultationType.instant);
+
+
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,8 +50,7 @@ class ConsultationTypeScreen extends StatelessWidget {
                 children: [
                   Padding(
                     padding: EdgeInsets.symmetric(vertical: 24.h),
-                    child:
-                    AuthStepperWidget(activeStep: 2, totalSteps: 5),
+                    child: AuthStepperWidget(activeStep: 2, totalSteps: 5),
                   ),
                   Expanded(
                     child: ListView(
@@ -58,12 +68,10 @@ class ConsultationTypeScreen extends StatelessWidget {
                           title: 'استشارات فورية',
                           subtitle:
                           'ادفع الآن وسيتم توصيلك بأقرب محامٍ متاح في تخصصك.',
-                          isSelected:
-                          selectedType == ConsultationType.instant,
+                          isSelected: selectedType == ConsultationType.instant,
                           onTap: () => context
                               .read<ConsultationApplicationCubit>()
-                              .selectConsultationType(
-                              ConsultationType.instant),
+                              .selectConsultationType(ConsultationType.instant),
                         ),
                         OptionCard(
                           value: ConsultationType.written.value,
@@ -78,12 +86,10 @@ class ConsultationTypeScreen extends StatelessWidget {
                           title: 'استشارات كتابية',
                           subtitle:
                           'اكتب تفاصيلك وأرفق مستنداتك، ويتواصل معك المحامي في المحادثة.',
-                          isSelected:
-                          selectedType == ConsultationType.written,
+                          isSelected: selectedType == ConsultationType.written,
                           onTap: () => context
                               .read<ConsultationApplicationCubit>()
-                              .selectConsultationType(
-                              ConsultationType.written),
+                              .selectConsultationType(ConsultationType.written),
                         ),
                         OptionCard(
                           value: ConsultationType.scheduled.value,
@@ -91,20 +97,16 @@ class ConsultationTypeScreen extends StatelessWidget {
                             getAssetIcon("Calendar.svg"),
                             width: 20.h,
                             height: 20.h,
-                            color:
-                            selectedType == ConsultationType.scheduled
+                            color: selectedType == ConsultationType.scheduled
                                 ? colorScheme.primary
                                 : theme.dividerColor,
                           ),
                           title: 'استشارات مجدولة',
-                          subtitle:
-                          'اختر موعدًا محددًا للتواصل صوتيًا أو بالفيديو.',
-                          isSelected:
-                          selectedType == ConsultationType.scheduled,
+                          subtitle: 'اختر موعدًا محددًا للتواصل صوتيًا أو بالفيديو.',
+                          isSelected: selectedType == ConsultationType.scheduled,
                           onTap: () => context
                               .read<ConsultationApplicationCubit>()
-                              .selectConsultationType(
-                              ConsultationType.scheduled),
+                              .selectConsultationType(ConsultationType.scheduled),
                         ),
                       ],
                     ),
@@ -122,7 +124,6 @@ class ConsultationTypeScreen extends StatelessWidget {
                           ),
                         ),
                         onPressed: () {
-                          // Load pricing for the selected type
                           context
                               .read<ConsultationApplicationCubit>()
                               .loadPricingPlans();

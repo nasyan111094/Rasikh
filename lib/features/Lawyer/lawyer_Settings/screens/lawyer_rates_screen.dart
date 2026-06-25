@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
+import 'package:rasikh/core/widgets/no_data_widget.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/widgets/dialogs/report_comment_dialog.dart';
 import 'package:shimmer/shimmer.dart';
@@ -280,6 +281,8 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            
+            if(ratings.isEmpty) NoDataWidget(title: " لا توجد تقييمات بعد", message: "سيظهر تقييم العملاء هنا بمجرد تلقيك لتقييمات"),
             ...ratings.asMap().entries.map((entry) {
               final i = entry.key;
               final rating = entry.value;

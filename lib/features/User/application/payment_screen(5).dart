@@ -416,6 +416,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
   }
 
   String _formatDateTime(DateTime dt) {
+    // `dt` (state.startTime) originates from the bookable-slots API as a
+    // UTC instant (parsed from a 'Z'-suffixed ISO string). It MUST be
+    // converted to the device's local time before reading hour/day/weekday
+    // — otherwise this screen shows a different time than the one the user
+    // actually picked on the booking screen (which does call .toLocal()).
+    final local = dt .toLocal();
+
     const arabicDays = [
       'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس',
       'الجمعة', 'السبت', 'الأحد',
@@ -424,11 +431,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
       'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
       'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
     ];
-    final dayName = arabicDays[dt.weekday == 7 ? 6 : dt.weekday - 1];
-    final hour = dt.hour > 12 ? dt.hour - 12 : dt.hour;
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final period = dt.hour >= 12 ? 'م' : 'ص';
-    return '$dayName ${dt.day} ${arabicMonths[dt.month - 1]} – $hour:$minute $period';
+    final dayName = arabicDays[local.weekday == 7 ? 6 : local.weekday - 1];
+    // 12-hour clock, handled correctly for midnight (0 → 12) and noon (12 → 12).
+    final displayHour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = local.hour >= 12 ? 'م' : 'ص';
+    return '$dayName ${local.day} ${arabicMonths[local.month - 1]} – $displayHour:$minute $period';
   }
 }
 

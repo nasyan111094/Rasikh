@@ -1,5 +1,6 @@
 import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
+import 'package:rasikh/core/widgets/error_state_widget.dart';
 import 'package:rasikh/core/widgets/loading_widget.dart';
 
 import 'package:easy_localization/easy_localization.dart';
@@ -67,17 +68,12 @@ class _HomePageState extends State<HomePage> with RouteAware {
             builder: (context, state) {
               if (state is HomeLoadingState) {
                 return const LoadingWidget();
-              } else if (state is HomeFailedState) {
+              }
+              else if (state is HomeFailedState) {
                 return SizedBox(
                   height: MediaQuery.of(context).size.height * 0.2,
                   child: Center(
-                    child: Text(
-                      Loc.noAds(),
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: ErrorStateWidget(title: state.error!),
                   ),
                 );
               } else if (state is HomeSuccessState) {
@@ -90,6 +86,52 @@ class _HomePageState extends State<HomePage> with RouteAware {
           ),
 
           Gap(30.h),
+          Padding(
+            padding:  EdgeInsets.symmetric(horizontal: 16.w),
+            child: Row(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.6),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.25),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'كيف نقدر نخدمك ؟',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ) ,
+          Gap(10.h),
 
           /// 🔹 قائمة الاستشارات القانونية
           Expanded(

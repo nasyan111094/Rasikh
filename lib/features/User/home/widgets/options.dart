@@ -85,7 +85,7 @@ class LegalConsultationCard extends StatelessWidget {
                       size: 18.sp,
                     ),
                     label: const Text(
-                      'استشر الآن',
+                      'إستشر الآن',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,

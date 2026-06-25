@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart' show getAssetIcon;
 import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/general_divider.dart';
@@ -11,6 +12,7 @@ import '../../../config/navigation/nav.dart';
 import '../../../config/theme/colors.dart';
 import '../../../core/widgets/picture.dart' show Picture;
 import '../../../features/User/application/repo/video_call_repo.dart';
+import 'bloc/consulation_application_cubit.dart';
 
 class EndSessionScreen extends StatefulWidget {
   const EndSessionScreen({
@@ -93,6 +95,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                       ),
                     ),
                     onPressed: () {
+                      getIt<ConsultationApplicationCubit>().resetFlow();
                       Nav.layout(context);
                     },
                     child: Text(
@@ -130,17 +133,10 @@ class OpenDisputeDialog extends StatefulWidget {
 }
 
 class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
-  String? selectedReason;
+  final TextEditingController reasonController = TextEditingController();
   final TextEditingController detailsController = TextEditingController();
   bool _isSubmitting = false;
   final VideoCallRepo _repo = VideoCallRepo();
-
-  final List<String> disputeReasons = [
-    'المعلم لم يحضر',
-    'خدمة غير مرضية',
-    'مشكلة في الوقت',
-    'أخرى',
-  ];
 
   Future<void> _showSentDialog(BuildContext context) async {
     final theme = Theme.of(context);
@@ -237,7 +233,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
               ),
               Gap(16.h),
 
-              /// --- Reason Dropdown ---
+              /// --- Reason TextField ---
               Text(
                 'سبب المنازعة *',
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -261,35 +257,20 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                           width: 25.h, height: 25.h),
                     ),
                     Expanded(
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                        ),
-                        icon: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10.w),
-                          child: Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: theme.iconTheme.color?.withOpacity(0.6),
-                          ),
-                        ),
-                        value: selectedReason,
-                        hint: Text(
-                          'اختر سبب المنازعة',
-                          style: theme.textTheme.bodyMedium?.copyWith(
+                      child: TextField(
+                        controller: reasonController,
+                        textAlign: TextAlign.right,
+                        decoration: InputDecoration(
+                          hintText: 'اكتب سبب المنازعة',
+                          hintStyle: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.hintColor,
                           ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 8.w,
+                            vertical: 12.h,
+                          ),
                         ),
-                        dropdownColor: theme.scaffoldBackgroundColor,
-                        items: disputeReasons.map((reason) {
-                          return DropdownMenuItem<String>(
-                            value: reason,
-                            child: Text(reason),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => selectedReason = value);
-                        },
                       ),
                     ),
                   ],
@@ -351,7 +332,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                   onPressed: _isSubmitting
                       ? null
                       : () async {
-                    if (selectedReason == null ||
+                    if (reasonController.text.trim().isEmpty ||
                         detailsController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -365,7 +346,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                     setState(() => _isSubmitting = true);
                     final result = await _repo.openDispute(
                       consultationId: widget.consultationId,
-                      reason: selectedReason!,
+                      reason: reasonController.text.trim(),
                       description: detailsController.text.trim(),
                     );
                     setState(() => _isSubmitting = false);

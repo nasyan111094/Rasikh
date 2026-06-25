@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/core/widgets/no_data_widget.dart';
 import 'package:size_config/size_config.dart';
 
 import '../bloc/lawyer_appointments_cubit.dart';
@@ -65,32 +66,9 @@ class AppointmentsList extends StatelessWidget {
               SizedBox(
                 height: MediaQuery.of(context).size.height * 0.35,
                 child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.calendar_today_outlined,
-                        size: 48.w,
-                        color: theme.hintColor.withOpacity(0.4),
-                      ),
-                      Gap(12.h),
-                      Text(
-                        'لا توجد مواعيد عمل مضافة بعد',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.hintColor,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      Gap(6.h),
-                      Text(
-                        'اسحب للأسفل لتحديث القائمة',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.hintColor.withOpacity(0.6),
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
+                  child: NoDataWidget(
+                      title: "لا توجد مواعيد عمل بعد",
+                      message: "اضغط على زر إضافة موعد عمل لبدء إضافة مواعيدك"),
                 ),
               ),
             ],

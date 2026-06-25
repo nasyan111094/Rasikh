@@ -77,6 +77,160 @@ class ConsultationsError extends ConsultationsState {
   });
 }
 
+// ── Reschedule States ─────────────────────────────────────────────────────────
+
+/// A reschedule POST is in flight for [consultationId].
+class ConsultationRescheduling extends ConsultationsState {
+  final String consultationId;
+  final List<ConsultationModel> currentConsultations;
+  final ConsultationStatus selectedStatus;
+
+  const ConsultationRescheduling({
+    required this.consultationId,
+    required this.currentConsultations,
+    required this.selectedStatus,
+  });
+}
+
+/// The reschedule succeeded. The updated consultation is returned so the UI
+/// can optimistically replace the old card.
+class ConsultationRescheduled extends ConsultationsState {
+  final ConsultationModel updatedConsultation;
+  final List<ConsultationModel> consultations;
+  final ConsultationStatus selectedStatus;
+  final bool hasMorePages;
+  final int currentPage;
+
+  const ConsultationRescheduled({
+    required this.updatedConsultation,
+    required this.consultations,
+    required this.selectedStatus,
+    required this.hasMorePages,
+    required this.currentPage,
+  });
+}
+
+/// The reschedule failed. The previous list is preserved.
+class ConsultationRescheduleError extends ConsultationsState {
+  final String message;
+  final List<ConsultationModel> currentConsultations;
+  final ConsultationStatus selectedStatus;
+  final bool hasMorePages;
+  final int currentPage;
+
+  const ConsultationRescheduleError({
+    required this.message,
+    required this.currentConsultations,
+    required this.selectedStatus,
+    required this.hasMorePages,
+    required this.currentPage,
+  });
+}
+
+// ── Cancel States ─────────────────────────────────────────────────────────────
+
+/// A cancel PATCH is in flight for [consultationId].
+class ConsultationCancelling extends ConsultationsState {
+  final String consultationId;
+  final List<ConsultationModel> currentConsultations;
+  final ConsultationStatus selectedStatus;
+
+  const ConsultationCancelling({
+    required this.consultationId,
+    required this.currentConsultations,
+    required this.selectedStatus,
+  });
+}
+
+/// The cancellation succeeded. The consultation is removed from the local list
+/// (or its status is updated to cancelled depending on your UX preference).
+class ConsultationCancelled extends ConsultationsState {
+  final String cancelledId;
+  final List<ConsultationModel> consultations;
+  final ConsultationStatus selectedStatus;
+  final bool hasMorePages;
+  final int currentPage;
+
+  const ConsultationCancelled({
+    required this.cancelledId,
+    required this.consultations,
+    required this.selectedStatus,
+    required this.hasMorePages,
+    required this.currentPage,
+  });
+}
+
+/// The cancellation failed. The previous list is preserved.
+class ConsultationCancelError extends ConsultationsState {
+  final String message;
+  final List<ConsultationModel> currentConsultations;
+  final ConsultationStatus selectedStatus;
+  final bool hasMorePages;
+  final int currentPage;
+
+  const ConsultationCancelError({
+    required this.message,
+    required this.currentConsultations,
+    required this.selectedStatus,
+    required this.hasMorePages,
+    required this.currentPage,
+  });
+}
+
+// ── Rating States ─────────────────────────────────────────────────────────────
+
+/// A rating POST is in flight for [consultationId].
+class ConsultationRatingSubmitting extends ConsultationsState {
+  final String consultationId;
+  final List<ConsultationModel> currentConsultations;
+  final ConsultationStatus selectedStatus;
+
+  const ConsultationRatingSubmitting({
+    required this.consultationId,
+    required this.currentConsultations,
+    required this.selectedStatus,
+  });
+}
+
+/// The rating submitted successfully for [consultationId]. The rating
+/// endpoint doesn't return an updated consultation object, so the local list
+/// is passed through unchanged — the API itself enforces "one rating per
+/// consultation," so a resubmit attempt will simply surface a 400 error.
+class ConsultationRatingSubmitted extends ConsultationsState {
+  final String consultationId;
+  final List<ConsultationModel> consultations;
+  final ConsultationStatus selectedStatus;
+  final bool hasMorePages;
+  final int currentPage;
+
+  const ConsultationRatingSubmitted({
+    required this.consultationId,
+    required this.consultations,
+    required this.selectedStatus,
+    required this.hasMorePages,
+    required this.currentPage,
+  });
+}
+
+/// The rating submission failed. The previous list is preserved.
+class ConsultationRatingError extends ConsultationsState {
+  final String message;
+  final String consultationId;
+  final List<ConsultationModel> currentConsultations;
+  final ConsultationStatus selectedStatus;
+  final bool hasMorePages;
+  final int currentPage;
+
+  const ConsultationRatingError({
+    required this.message,
+    required this.consultationId,
+    required this.currentConsultations,
+    required this.selectedStatus,
+    required this.hasMorePages,
+    required this.currentPage,
+  });
+}
+
 // ── Details Screen States ─────────────────────────────────────────────────────
 
 abstract class ConsultationDetailsState {
