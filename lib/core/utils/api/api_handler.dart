@@ -6,6 +6,7 @@ import 'package:rasikh/config/localization/lang_repo.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/services/app_logger.dart';
+import 'package:rasikh/features/common/Auth/repo/auth_repo.dart';
 
 import '../../cache/pref_keys.dart';
 
@@ -73,23 +74,30 @@ class ApiHandler {
 
       try {
         final cacheHelper = getIt.get<CacheHelper>();
-        final refreshToken = await getIt<CacheHelper>().getData(PrefKeys.refreshToken);
+        final refreshToken = await cacheHelper.getRefreshToken();
+        final vendorType = await cacheHelper.getCachedVendorType();
 
-        if (refreshToken != null) {
-          // Refresh the token
-          final refreshEither = await dioAdapterBase.post(
-              EndPoints.refreshToken + "?refreshToken=$refreshToken");
+        if (refreshToken != null && vendorType != null) {
+          // Use the auth repo to refresh the token
+          final authRepo = GeneralAuthRepo();
+          final refreshEither = await authRepo.refreshToken(
+            refreshToken: refreshToken,
+            vendor: vendorType,
+          );
 
           final refreshResponse = refreshEither.fold(
                 (l) => throw Exception(l),
                 (r) => r,
           );
 
-          final newAccessToken = refreshResponse.data['data']['token'];
+          final newAccessToken = refreshResponse.accessToken;
+          final newRefreshToken = refreshResponse.refreshToken;
+          
           Logger().e(" 😍 Your New Token is: $newAccessToken ");
 
-          // Save the new token
-          await getIt<CacheHelper>().setUserToken(newAccessToken);
+          // Save the new tokens
+          await cacheHelper.setUserToken(newAccessToken);
+          await cacheHelper.setRefreshToken(newRefreshToken);
 
           // Update the original request with new token
           final RequestOptions requestOptions = error.requestOptions;
@@ -104,17 +112,17 @@ class ApiHandler {
           try {
             final retryResponse = await _retryRequest(requestOptions);
             handler.resolve(retryResponse);
-            return error; // This won't be used since we resolved
+            return error;
           } catch (retryError) {
             Logger().e("Failed to retry request after token refresh: $retryError");
-            return DioException(
-              message: "Failed to retry request after token refresh",
-              requestOptions: error.requestOptions,
-              type: DioExceptionType.badResponse,
-            );
+            // Clear session on refresh failure
+            await cacheHelper.clearUserSession();
+            handler.next(error);
+            return error;
           }
         } else {
-          // No refresh token available
+          // No refresh token available or vendor type not set
+          await cacheHelper.clearUserSession();
           return DioException(
             message: "No refresh token available, please login again.",
             requestOptions: error.requestOptions,
@@ -123,6 +131,8 @@ class ApiHandler {
         }
       } catch (e) {
         Logger().e("Token refresh failed: $e");
+        // Clear session on refresh failure
+        await getIt<CacheHelper>().clearUserSession();
         return DioException(
           message: "Session expired, please login again.",
           requestOptions: error.requestOptions,

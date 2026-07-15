@@ -25,6 +25,7 @@ class _AuthEndpoints {
   static String login(VendorType v)      => '${_prefix(v)}/login';
   static String verifyOtp(VendorType v)  => '${_prefix(v)}/verify-otp';
   static String resendOtp(VendorType v)  => '${_prefix(v)}/resend-otp';
+  static String refresh(VendorType v)    => '${_prefix(v)}/refresh';
 
   static String _prefix(VendorType v) {
     switch (v) {
@@ -92,11 +93,18 @@ class GeneralAuthRepo {
     if (result.isRight) {
       final model = SharedVerifyOtpModel.fromJson(result.right.data);
 
-
-
       // Persist token so completion features can read it without re-auth.
-       _cache.registerToken = model.accessToken;
-       await _cache.setUserToken(model.accessToken) ;
+      _cache.registerToken = model.accessToken;
+      await _cache.setUserToken(model.accessToken);
+      
+      // Save refresh token
+      if (model.refreshToken.isNotEmpty) {
+        await _cache.setRefreshToken(model.refreshToken);
+      }
+      
+      // Save vendor type for token refresh
+      await _cache.setCurrentVendorType(vendor);
+      
       return Right(model);
     }
     return Left(_extractError(result.left));
@@ -142,5 +150,21 @@ class GeneralAuthRepo {
     } catch (_) {
       return 'حدث خطأ غير متوقع';
     }
+  }
+
+  // ── Refresh Token ───────────────────────────────────────────────────────────
+
+  Future<Either<String, SharedRefreshTokenModel>> refreshToken({
+    required String refreshToken,
+    required VendorType vendor,
+  }) async {
+    final result = await _adapter.post(
+      _AuthEndpoints.refresh(vendor),
+      body: {'refreshToken': refreshToken},
+    );
+    if (result.isRight) {
+      return Right(SharedRefreshTokenModel.fromJson(result.right.data));
+    }
+    return Left(_extractError(result.left));
   }
 }

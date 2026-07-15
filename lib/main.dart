@@ -161,6 +161,9 @@ class _RashikhAppState extends State<RashikhApp> {
   void initState() {
     super.initState();
 
+
+
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Safe to read Theme after first frame
       final theme = Theme.of(context);

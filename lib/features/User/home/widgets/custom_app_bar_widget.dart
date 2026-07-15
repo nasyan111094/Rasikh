@@ -50,6 +50,9 @@ class CustomAppBar<C extends StateStreamable<S>, S>
 
               padding: EdgeInsets.all(5.h),
               decoration: BoxDecoration(
+                border: Border.all(
+                  color: colors.primary.withOpacity(0.3),
+                ),
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(isRtl ? 50 : 0),
                   bottomLeft: Radius.circular(isRtl ? 50 : 0),

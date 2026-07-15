@@ -77,6 +77,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
                   ),
                 );
               } else if (state is HomeSuccessState) {
+
                 return AdsSlider(
                   imageUrls: state.advertismentResponseModel.data,
                 );

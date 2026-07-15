@@ -1,5 +1,5 @@
 abstract class AppConfig {
-  static String baseUrl = "http://89.117.60.202:3050/api/v1/";
+  static String baseUrl = "https://rasekhapi.alnasyan.com/api/v1/";
   static String baseImgUrl = "http://89.117.60.202:3050";
 
   static String version = 'v1/';

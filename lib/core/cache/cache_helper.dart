@@ -576,11 +576,11 @@ class CacheHelper {
     await _ensureInitialized();
 
     try {
-      final vendorTypeStr = getData(PrefKeys.cachedVendorType);
+      final vendorTypeStr = await getData(PrefKeys.cachedVendorType);
       if (vendorTypeStr == null ) {
         return cachedVendorType;
       }
-      cachedVendorType = VendorType.values.byName(vendorTypeStr as String);
+      cachedVendorType = VendorType.values.byName(vendorTypeStr);
     } catch (e) {
       _logger.w('Failed to get cached vendor type: $e');
     }

@@ -1608,7 +1608,7 @@ class _StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(50.w),
       ),
       child: Text(
-        _label,
+       _label == "الكل" ? "قيد الإنتظار" :_label,
         style: TextStyle(
           color: _textColor,
           fontWeight: FontWeight.bold,
