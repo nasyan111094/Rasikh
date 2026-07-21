@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
 import 'package:logger/logger.dart';
@@ -17,6 +19,10 @@ class ApiHandler {
 
   DioAdapterBase? _adapterBase;
   DioAdapterBase get dioAdapterBase => _adapterBase!;
+
+  // Single Refresh Mechanism: Prevent concurrent token refresh operations
+  static bool _isRefreshing = false;
+  static Completer<void>? _refreshCompleter;
 
   DioAdapterBase _apiConfig() {
     return DioAdapterBase(
@@ -77,7 +83,50 @@ class ApiHandler {
         final refreshToken = await cacheHelper.getRefreshToken();
         final vendorType = await cacheHelper.getCachedVendorType();
 
-        if (refreshToken != null && vendorType != null) {
+        if (refreshToken == null || vendorType == null) {
+          // No refresh token available or vendor type not set
+          await cacheHelper.clearUserSession();
+          return DioException(
+            message: "No refresh token available, please login again.",
+            requestOptions: error.requestOptions,
+            type: DioExceptionType.badResponse,
+          );
+        }
+
+        // Check if refresh is already in progress
+        if (_isRefreshing) {
+          Logger().i("Token refresh already in progress, waiting for completion...");
+          // Wait for the ongoing refresh to complete
+          await _refreshCompleter!.future;
+          
+          // After refresh completes, retry the original request with updated token
+          try {
+            final newToken = await cacheHelper.getUserToken();
+            if (newToken != null) {
+              final RequestOptions requestOptions = error.requestOptions;
+              requestOptions.headers['Authorization'] = 'Bearer $newToken';
+
+              // Get the current language
+              await getIt.get<LangRepo>().getLang();
+              final appLang = getIt.get<LangRepo>().lang ?? "ar";
+              requestOptions.headers["Accept-Language"] = appLang;
+
+              final retryResponse = await _retryRequest(requestOptions);
+              handler.resolve(retryResponse);
+              return error;
+            }
+          } catch (retryError) {
+            Logger().e("Failed to retry request after waiting for token refresh: $retryError");
+            handler.next(error);
+            return error;
+          }
+        }
+
+        // Mark that refresh is starting
+        _isRefreshing = true;
+        _refreshCompleter = Completer<void>();
+
+        try {
           // Use the auth repo to refresh the token
           final authRepo = GeneralAuthRepo();
           final refreshEither = await authRepo.refreshToken(
@@ -111,30 +160,47 @@ class ApiHandler {
           // Retry the original request with new token
           try {
             final retryResponse = await _retryRequest(requestOptions);
+            
+            // Mark refresh as complete
+            _isRefreshing = false;
+            _refreshCompleter?.complete();
+            
             handler.resolve(retryResponse);
             return error;
           } catch (retryError) {
             Logger().e("Failed to retry request after token refresh: $retryError");
-            // Clear session on refresh failure
-            await cacheHelper.clearUserSession();
+            
+            // Mark refresh as complete before clearing session
+            _isRefreshing = false;
+            _refreshCompleter?.complete();
+            
             handler.next(error);
             return error;
           }
-        } else {
-          // No refresh token available or vendor type not set
-          await cacheHelper.clearUserSession();
+        } catch (e) {
+          Logger().e("Token refresh failed: $e");
+          
+          // Mark refresh as complete
+          _isRefreshing = false;
+          _refreshCompleter?.complete();
+          
+          // Only clear session if refresh endpoint itself failed (not a generic exception)
+          await getIt<CacheHelper>().clearUserSession();
           return DioException(
-            message: "No refresh token available, please login again.",
+            message: "Session expired, please login again.",
             requestOptions: error.requestOptions,
             type: DioExceptionType.badResponse,
           );
         }
       } catch (e) {
-        Logger().e("Token refresh failed: $e");
-        // Clear session on refresh failure
-        await getIt<CacheHelper>().clearUserSession();
+        Logger().e("Unexpected error in token refresh: $e");
+        
+        // Mark refresh as complete
+        _isRefreshing = false;
+        _refreshCompleter?.complete();
+        
         return DioException(
-          message: "Session expired, please login again.",
+          message: "An unexpected error occurred, please login again.",
           requestOptions: error.requestOptions,
           type: DioExceptionType.badResponse,
         );
