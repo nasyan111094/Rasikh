@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rasikh/config/theme/colors.dart';
 
 import '../../../../config/navigation/nav.dart';
+import '../../../../core/widgets/general_app_bar.dart';
 import '../widgets/dialog_widget.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -18,7 +19,7 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: _buildAppBar(context, isRTL),
+      appBar: GeneralAppBar(title: 'الإعدادات'),
       body: SafeArea(
         child: Column(
           children: [
@@ -72,71 +73,7 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
   }
-  PreferredSizeWidget _buildAppBar(BuildContext context, bool isRTL) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
 
-    return AppBar(
-      elevation: 0,
-      centerTitle: false,
-      titleSpacing: 0,
-      automaticallyImplyLeading: false,
-      toolbarHeight: 56,
-      backgroundColor:
-      theme.appBarTheme.backgroundColor ?? theme.scaffoldBackgroundColor,
-      title: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            // Arrow back button
-            InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => Navigator.of(context).maybePop(),
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: greyFA,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  !isRTL
-                      ? Icons.arrow_forward_ios_rounded
-                      : Icons.arrow_back_ios_new_rounded,
-                  size: 20,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-
-            const SizedBox(width: 12),
-
-            // Title
-            Expanded(
-              child: Text(
-                'الإعدادات',
-                textAlign: TextAlign.right,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Divider(
-          color: colorScheme.outline.withOpacity(0.2),
-          thickness: 1,
-          height: 1,
-        ),
-      ),
-    );
-  }
 }
 
 class _SettingsRow extends StatelessWidget {

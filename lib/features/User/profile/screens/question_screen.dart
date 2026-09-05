@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rasikh/config/theme/colors.dart';
+import 'package:rasikh/core/widgets/error_state_widget.dart';
+import 'package:rasikh/core/widgets/general_app_bar.dart';
+import 'package:rasikh/core/widgets/general_divider.dart';
+import 'package:rasikh/core/widgets/no_data_widget.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/bloc/help_center/contact_cubit.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
@@ -31,9 +36,9 @@ class _FaqView extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: const HeaderCapsuleAppBar(
+        appBar: const GeneralAppBar(
           title: 'الأسئلة الشائعة',
-          showBottomDivider: true,
+
         ),
         body: BlocConsumer<ContactCubit, ContactState>(
           listenWhen: (_, s) => s is FaqFailure,
@@ -51,20 +56,15 @@ class _FaqView extends StatelessWidget {
             if (state is FaqLoading) return const _FaqShimmer();
 
             if (state is FaqFailure) {
-              return _ErrorBody(
+              return ErrorStateWidget(
                 message: state.message,
-                onRetry: () => context.read<ContactCubit>().fetchFaqs(),
+                onAction: () => context.read<ContactCubit>().fetchFaqs(), title: "تعذر تحميل الأسئله الشائعه",
               );
             }
 
             if (state is FaqLoaded) {
               if (state.faqs.isEmpty) {
-                return Center(
-                  child: Text(
-                    'لا توجد أسئلة متاحة حالياً',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                );
+                return NoDataWidget(title:  'لا توجد أسئلة متاحة حالياً');
               }
 
               return RefreshIndicator(
@@ -133,15 +133,40 @@ class _FaqTileState extends State<_FaqTile> {
             borderRadius: BorderRadius.circular(cardRadius),
           ),
           trailing: _CapsulePlusMinus(isExpanded: _expanded),
-          title: Padding(
-            padding: EdgeInsets.symmetric(vertical: 6.h),
-            child: Text(
-              widget.item.question,
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 14.w,
+          title: Row(
+            children: [
+              // Q icon bubble
+              Container(
+                width: 32.w,
+                height: 32.w,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary.withOpacity(_expanded ? 0.15 : 0.1),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  '?',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15.sp,
+                  ),
+                ),
               ),
-            ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6.h),
+                  child: Text(
+                    widget.item.question,
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14.w,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           children: [
             Container(
@@ -151,17 +176,38 @@ class _FaqTileState extends State<_FaqTile> {
 
               ),
 
-              child: Row(
+              child: Column(
                 children: [
-                  Text(
-                    widget.item.answer,
-                    textAlign: TextAlign.right,
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w400,
-                      fontSize: 13.w,
-                      height: 1.6,
-                      color: textTheme.bodyMedium?.color?.withOpacity(0.8),
-                    ),
+                  GeneralDivider(
+                    color: borderColor,
+                    thickness: 1.w,
+                    height: 1.h,
+                  ),
+                  SizedBox(height: 12.h),
+                  Row(
+                    children: [
+                      Container(
+                        width: 32.w,
+                        height: 32.w,
+                        decoration: BoxDecoration(
+
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Icon(Icons.arrow_forward_ios, size: 15.sp,color: primary,),
+                      ),
+                      SizedBox(width: 12.w),
+                      Text(
+                        widget.item.answer,
+                        textAlign: TextAlign.right,
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w400,
+                          fontSize: 13.w,
+                          height: 1.6,
+                          color: textTheme.bodyMedium?.color?.withOpacity(0.8),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -11,6 +11,7 @@ import 'package:size_config/size_config.dart';
 
 
 import '../../../../core/widgets/fields/prefix_text_filed_icon.dart';
+import '../../../../core/widgets/general_app_bar.dart';
 import '../cubit/profile_cubit.dart';
 import '../models/update_profile_parameters.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
@@ -145,7 +146,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: Scaffold(
-            appBar: const HeaderCapsuleAppBar(title: 'تعديل الملف الشخصي'),
+            appBar: const GeneralAppBar(title: 'تعديل الملف الشخصي'),
             body: SafeArea(
               child: Form(
                 key: _formKey,

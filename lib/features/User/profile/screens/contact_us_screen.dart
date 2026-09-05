@@ -3,12 +3,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rasikh/core/widgets/error_state_widget.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 
 import '../../../../core/get_it_service/get_it_service.dart';
+import '../../../../core/widgets/general_app_bar.dart';
 import '../../../Lawyer/lawyer_Settings/Repo/help_center_repo.dart';
 import '../../../Lawyer/lawyer_Settings/bloc/help_center/contact_cubit.dart';
 import '../widgets/contact_datail.dart';
@@ -55,9 +57,9 @@ class _ContactUsView extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: const HeaderCapsuleAppBar(
+      appBar: GeneralAppBar(
         title: 'تواصل معنا',
-        showBottomDivider: true,
+
       ),
       body: BlocConsumer<ContactCubit, ContactState>(
         listenWhen: (_, s) => s is ContactFailure,
@@ -79,10 +81,10 @@ class _ContactUsView extends StatelessWidget {
 
           // ── Error (no data yet) ───────────────────────────────────────────
           if (state is ContactFailure) {
-            return _ErrorBody(
+            return ErrorStateWidget(
               message: state.message,
-              onRetry: () =>
-                  context.read<ContactCubit>().fetchContact(),
+              onAction: () =>
+                  context.read<ContactCubit>().fetchContact(), title: 'حدث خطأ أثناء تحميل بيانات التواصل معنا',
             );
           }
 

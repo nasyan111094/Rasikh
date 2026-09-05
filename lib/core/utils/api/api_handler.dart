@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
+import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/config/localization/lang_repo.dart';
@@ -10,6 +11,8 @@ import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/services/app_logger.dart';
 import 'package:rasikh/features/common/Auth/repo/auth_repo.dart';
 
+import '../../../config/navigation/nav.dart';
+import '../../../features/common/account_type_selection/screens/account_type_screen.dart';
 import '../../cache/pref_keys.dart';
 
 class ApiHandler {
@@ -185,7 +188,14 @@ class ApiHandler {
           _refreshCompleter?.complete();
           
           // Only clear session if refresh endpoint itself failed (not a generic exception)
-          await getIt<CacheHelper>().clearUserSession();
+          await getIt<CacheHelper>().clearUserSession().then((_) {
+            Nav.mainNavKey.currentState?.pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => const AccountTypeScreen(),
+              ),
+                  (route) => false,
+            );
+          });
           return DioException(
             message: "Session expired, please login again.",
             requestOptions: error.requestOptions,
@@ -206,11 +216,21 @@ class ApiHandler {
         );
       }
     }
-    AppLogger.info(error.response?.data['message']?.toString()) ;
+    
+    // Safely extract error message from response data
+    String? errorMessage;
+    if (error.response?.data is Map) {
+      errorMessage = error.response?.data['message']?.toString();
+    } else if (error.response?.data is String) {
+      errorMessage = error.response?.data;
+    }
+    
+    AppLogger.info(errorMessage);
+    
     // Handle other errors
     print('Error: ${error.message}');
     return DioException(
-      message: error.response?.data['message']?.toString() ?? error.message.toString(),
+      message: errorMessage ?? error.message?.toString() ?? 'An error occurred',
       error: error.error,
       requestOptions: error.requestOptions,
       response: error.response,

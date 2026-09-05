@@ -190,9 +190,9 @@ class _PolicyTextView extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: HeaderCapsuleAppBar(
+        appBar: GeneralAppBar(
           title: pageTitle,
-          showBottomDivider: true,
+
         ),
         body: BlocConsumer<ContentCubit, ContentState>(
           listenWhen: (_, s) => s is ContentFailure,

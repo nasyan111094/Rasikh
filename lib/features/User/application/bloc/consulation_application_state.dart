@@ -80,6 +80,11 @@ class ConsultationState {
   final CreatedConsultationModel? createdConsultation;
   final String? createError;
 
+  // ── Step-7: Payment ─────────────────────────────────────────────────────
+  final ConsultationStatus paymentStatus;
+  final Map<String, dynamic>? paymentData;
+  final String? paymentError;
+
   const ConsultationState({
     // Specializations
     this.specializationsStatus = ConsultationStatus.initial,
@@ -147,6 +152,11 @@ class ConsultationState {
     this.createStatus = ConsultationStatus.initial,
     this.createdConsultation,
     this.createError,
+
+    // Payment
+    this.paymentStatus = ConsultationStatus.initial,
+    this.paymentData,
+    this.paymentError,
   });
 
   ConsultationState copyWith({
@@ -215,6 +225,11 @@ class ConsultationState {
     ConsultationStatus? createStatus,
     CreatedConsultationModel? createdConsultation,
     String? createError,
+
+    // Payment
+    ConsultationStatus? paymentStatus,
+    Map<String, dynamic>? paymentData,
+    String? paymentError,
   }) =>
       ConsultationState(
         specializationsStatus:
@@ -281,6 +296,10 @@ class ConsultationState {
         createStatus: createStatus ?? this.createStatus,
         createdConsultation: createdConsultation ?? this.createdConsultation,
         createError: createError ?? this.createError,
+
+        paymentStatus: paymentStatus ?? this.paymentStatus,
+        paymentData: paymentData ?? this.paymentData,
+        paymentError: paymentError ?? this.paymentError,
       );
 
   // ── Convenience getters ───────────────────────────────────────────────────

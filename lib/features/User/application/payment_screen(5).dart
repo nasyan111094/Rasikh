@@ -13,6 +13,7 @@ import 'package:gap/gap.dart';
 import 'package:lottie/lottie.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:size_config/size_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/navigation/nav.dart';
 import '../../../core/theme/sizes.dart';
@@ -32,8 +33,32 @@ class PaymentScreen extends StatefulWidget {
   State<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PaymentScreenState extends State<PaymentScreen> {
+class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserver {
   int currentSelectedIndex = 0;
+  bool _isCheckingPayment = false;
+  bool _hasOpenedPaymentUrl = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Check payment status when app resumes after opening payment URL
+    if (state == AppLifecycleState.resumed && _hasOpenedPaymentUrl && !_isCheckingPayment) {
+      _checkPaymentAfterReturn();
+    }
+  }
 
   // ── Dialogs ───────────────────────────────────────────────────────────────
 
@@ -197,24 +222,132 @@ class _PaymentScreenState extends State<PaymentScreen> {
   // ── Pay handler ───────────────────────────────────────────────────────────
 
   Future<void> _handlePay(BuildContext context, ConsultationState state) async {
-    // Create consultation via API
-    // await context.read<ConsultationCubit>().createConsultation();
+    final cubit = context.read<ConsultationApplicationCubit>();
 
-    // Re-read state after await
-    if (!mounted) return;
-    final newState = context.read<ConsultationApplicationCubit>().state;
-
-    if (newState.createStatus == ConsultationStatus.failure) {
-      _showErrorDialog(context, newState.createError ?? 'حدث خطأ ما');
+    // Check if consultation is already created
+    if (state.createdConsultation == null) {
+      _showErrorDialog(context, 'يجب إنشاء الاستشارة أولاً');
       return;
     }
 
-    // Success – navigate based on type
-    if (state.selectedConsultationType == ConsultationType.scheduled) {
-      _showOrderConfirmedScheduled(context);
+    // Process payment based on selected method
+    if (currentSelectedIndex == 1) {
+      // Wallet payment
+      await cubit.payWithWallet();
     } else {
-      _showOrderConfirmedInstant(context);
+      // MyFatoorah payment
+      await cubit.initiatePayment();
     }
+
+    // Re-read state after payment
+    if (!mounted) return;
+    final newState = cubit.state;
+
+    if (newState.paymentStatus == ConsultationStatus.failure) {
+      _showErrorDialog(context, newState.paymentError ?? 'حدث خطأ أثناء الدفع');
+      return;
+    }
+
+    if (newState.paymentStatus == ConsultationStatus.success) {
+      if (currentSelectedIndex == 1) {
+        // Wallet payment success
+        if (state.selectedConsultationType == ConsultationType.scheduled) {
+          _showOrderConfirmedScheduled(context);
+        } else {
+          _showOrderConfirmedInstant(context);
+        }
+      } else {
+        // MyFatoorah payment - open payment URL
+        final paymentUrl = newState.paymentData?['payment']?['PaymentURL'];
+        if (paymentUrl != null) {
+          final uri = Uri.parse(paymentUrl);
+          if (await canLaunchUrl(uri)) {
+            setState(() => _hasOpenedPaymentUrl = true);
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            _showErrorDialog(context, 'لا يمكن فتح رابط الدفع');
+          }
+        } else {
+          _showErrorDialog(context, 'لم يتم الحصول على رابط الدفع');
+        }
+      }
+    }
+  }
+
+  // ── Check payment status after returning from payment page ─────────────────
+
+  Future<void> _checkPaymentAfterReturn() async {
+    if (_isCheckingPayment) return;
+    setState(() => _isCheckingPayment = true);
+
+    final cubit = context.read<ConsultationApplicationCubit>();
+    final state = cubit.state;
+
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            SizedBox(width: 16.w),
+            const Text('جاري التحقق من حالة الدفع...'),
+          ],
+        ),
+      ),
+    );
+
+    // Poll payment status
+    final paymentStatus = await cubit.checkPaymentStatus();
+
+    // Close loading dialog
+    if (!mounted) return;
+    Navigator.pop(context);
+
+    setState(() => _isCheckingPayment = false);
+
+    // Handle payment result
+    switch (paymentStatus) {
+      case 'paid':
+        if (state.selectedConsultationType == ConsultationType.scheduled) {
+          _showOrderConfirmedScheduled(context);
+        } else {
+          _showOrderConfirmedInstant(context);
+        }
+        break;
+      case 'failed':
+        _showErrorDialog(context, 'فشلت عملية الدفع. يرجى المحاولة مرة أخرى.');
+        break;
+      case 'pending':
+        _showPendingDialog(context);
+        break;
+      case 'error':
+        _showErrorDialog(context, 'حدث خطأ أثناء التحقق من حالة الدفع.');
+        break;
+    }
+  }
+
+  Future<void> _showPendingDialog(BuildContext context) async {
+    final theme = Theme.of(context);
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('جاري معالجة الدفع'),
+        content: const Text('نحن نتحقق من حالة الدفع. قد يستغرق هذا بضع دقائق.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Nav.layout(context);
+            },
+            child: const Text('العودة للرئيسية'),
+          ),
+        ],
+      ),
+    );
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -236,7 +369,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
             final pricing = state.selectedPricing;
             final isScheduled = state.isScheduled;
             final isLoading =
-                state.createStatus == ConsultationStatus.loading;
+                state.paymentStatus == ConsultationStatus.loading;
 
             return Column(
               children: [
@@ -351,7 +484,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                           index: 3,
                           children: [
                             _PaymentOption(
-                              title: 'مدى',
+                              title: 'ماي فاتوره',
                               assetPath: 'mada.png',
                               selected: currentSelectedIndex == 0,
                               onTap: () =>
@@ -359,7 +492,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                             ),
                             SizedBox(height: 8.h),
                             _PaymentOption(
-                              title: 'فيزا / ماستركارد',
+                              title: 'محفظتي',
                               assetPath: 'visa.png',
                               selected: currentSelectedIndex == 1,
                               onTap: () =>

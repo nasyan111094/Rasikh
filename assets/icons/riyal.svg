@@ -1,0 +1,9 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Riyal Symbol -->
+  <g id="riyal">
+    <!-- Circle border -->
+    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <!-- Riyal symbol (ر.ي) represented as SR -->
+    <text x="12" y="15" text-anchor="middle" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="currentColor">SR</text>
+  </g>
+</svg>

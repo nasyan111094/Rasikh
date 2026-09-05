@@ -1,4 +1,4 @@
-package com.example.rasikh
+package com.rasikh.rasikh_smart
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -200,7 +200,7 @@ class _RashikhAppState extends State<RashikhApp> {
               return MaterialApp(
                 theme: TAppTheme.lightTheme,
                 darkTheme: TAppTheme.darkTheme,
-                themeMode: getIt<AppCubit>().themeMode,
+                themeMode:  ThemeMode.light /*getIt<AppCubit>().themeMode*/,
                 debugShowCheckedModeBanner: false,
                 navigatorKey: Nav.mainNavKey,
                 navigatorObservers: [NavObs('MAIN')],

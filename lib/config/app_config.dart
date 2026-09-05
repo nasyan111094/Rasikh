@@ -147,4 +147,63 @@ abstract class EndPoints {
 
   static String deleteContractsWithDataBase({required String contractId}) =>
       'Order?id=$contractId';
+
+  // Payment endpoints
+  static String payWithWallet({required String consultationId}) =>
+      'client/consultations/$consultationId/pay-with-wallet';
+  static String initiatePayment({required String consultationId}) =>
+      'client/consultations/$consultationId/payment/initiate';
+
+  // Wallet endpoints (dynamic based on vendor type)
+  static String wallet({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet';
+  }
+
+  static String walletBankAccounts({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/bank-accounts';
+  }
+
+  static String walletTopupInitiate({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/topup/initiate';
+  }
+
+  static String walletTopupLimits({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/topup/limits';
+  }
+
+  static String walletTransactions({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/transactions';
+  }
+
+  static String walletTransactionById({required String id, String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/transactions/$id';
+  }
+
+  static String walletWithdrawals({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    final postfix = vendorType == 'lawyer' ? 'withdrawal-requests' : 'withdrawals';
+
+    return '$prefix/wallet/$postfix';
+  }
+
+  static String walletDeleteBankAccount({required String id, String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/bank-accounts/$id';
+  }
+
+  static String walletSetDefaultBankAccount({required String id, String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/bank-accounts/$id/set-default';
+  }
+
+  static String walletUpdateBankAccount({required String id, String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/bank-accounts/$id';
+  }
 }

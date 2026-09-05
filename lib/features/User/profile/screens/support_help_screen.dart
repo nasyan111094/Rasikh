@@ -5,6 +5,7 @@ import 'package:size_config/size_config.dart';
 
 
 import '../../../../config/theme/colors.dart';
+import '../../../../core/widgets/general_app_bar.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
 import '../widgets/support_action_row.dart';
 import 'question_screen.dart';
@@ -20,7 +21,7 @@ class SupportHelpScreen extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return Scaffold(
-      appBar: const HeaderCapsuleAppBar(title: 'الدعم والمساعدة'),
+      appBar:  GeneralAppBar(title: 'الدعم والمساعدة'),
       body: ListView(
         padding: EdgeInsets.symmetric(horizontal: 8.w),
         children: [

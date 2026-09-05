@@ -17,6 +17,7 @@ import 'package:dio_adapter/dio_adapter.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/core/services/app_logger.dart';
 import 'package:rasikh/features/User/application/bloc/consulation_application_cubit.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../config/app_config.dart';
 import '../../../../core/get_it_service/get_it_service.dart';
@@ -309,4 +310,84 @@ class ConsultationRepo {
     }
 
     return Left(result.left.toString());
-  }}
+  }
+
+  // ── 9. POST /api/v1/client/consultations/{id}/pay-with-wallet ───────────────
+  // Pay consultation from wallet balance
+  // Requires Idempotency-Key header (UUID v4)
+
+  Future<Either<String, Map<String, dynamic>>> payWithWallet({
+    required String consultationId,
+  }) async {
+    final uuid = const Uuid().v4();
+    
+    final result = await _dio.post(
+      EndPoints.payWithWallet(consultationId: consultationId),
+      options: Options(headers: {
+        'Idempotency-Key': uuid,
+      }),
+    );
+
+    if (result.isRight) {
+      final data = result.right.data['data'] as Map<String, dynamic>;
+      return Right(data);
+    }
+    return Left(result.left.toString());
+  }
+
+  // ── 10. POST /api/v1/client/consultations/{id}/payment/initiate ────────────
+  // Initiate payment via MyFatoorah
+  // Requires Idempotency-Key header (UUID v4)
+
+  Future<Either<String, Map<String, dynamic>>> initiatePayment({
+    required String consultationId,
+  }) async {
+    final uuid = const Uuid().v4();
+    
+    final result = await _dio.post(
+      EndPoints.initiatePayment(consultationId: consultationId),
+      options: Options(headers: {
+        'Idempotency-Key': uuid,
+      }),
+    );
+
+    if (result.isRight) {
+      final data = result.right.data['data'] as Map<String, dynamic>;
+      return Right(data);
+    }
+    return Left(result.left.toString());
+  }
+
+  // ── 11. GET /api/v1/client/consultations/{id} ───────────────────────────────
+  // Check consultation status after payment
+  // Returns the consultation details including payment status
+
+  Future<Either<String, Map<String, dynamic>>> checkConsultationStatus({
+    required String consultationId,
+  }) async {
+    final result = await _dio.get('client/consultations/$consultationId');
+
+    if (result.isRight) {
+      final data = result.right.data['data'] as Map<String, dynamic>;
+      return Right(data);
+    }
+    return Left(result.left.toString());
+  }
+
+  // ── 12. GET /api/v1/client/consultations/{id}/payment/status ───────────────
+  // Get the latest MyFatoorah payment status for this consultation
+  // Poll after redirect from checkout
+  // Returns payment details including invoiceStatus
+
+  Future<Either<String, Map<String, dynamic>>> checkPaymentStatus({
+    required String consultationId,
+  }) async {
+    final result = await _dio.get('client/consultations/$consultationId/payment/status');
+
+    if (result.isRight) {
+      final data = result.right.data['data'] as Map<String, dynamic>;
+      return Right(data);
+    }
+    return Left(result.left.toString());
+  }
+}

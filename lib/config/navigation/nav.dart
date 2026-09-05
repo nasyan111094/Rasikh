@@ -36,6 +36,7 @@ import '../../features/Lawyer/lawyer_Settings/screens/lawyer_profile_screen.dart
 import '../../features/Lawyer/lawyer_Settings/screens/lawyer_rates_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/lawyer_specializations_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/lawyer_update_licence_screen.dart';
+import '../../features/Lawyer/lawyer_Settings/screens/top_up_wallet_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/wallet_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/withdraw_request_screen.dart';
 
@@ -326,6 +327,15 @@ abstract class Nav {
         context,
         PageKey.login,
         const WithdrawRequestScreen(),
+      );
+
+  static topUpWalletScreen(
+      BuildContext context,
+      ) async =>
+      await _push(
+        context,
+        PageKey.login,
+        const TopUpWalletScreen(),
       );
 
   static walletScreen(

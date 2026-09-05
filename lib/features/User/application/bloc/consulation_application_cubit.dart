@@ -470,4 +470,104 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     selectedConsultationType = null;
     emit(const ConsultationState());
   }
+
+  // ── Step-7: Payment ───────────────────────────────────────────────────────
+
+  Future<void> payWithWallet() async {
+    final consultationId = state.createdConsultation?.id;
+    if (consultationId == null) return;
+
+    emit(state.copyWith(
+      paymentStatus: ConsultationStatus.loading,
+      paymentError: null,
+    ));
+
+    final result = await _repo.payWithWallet(consultationId: consultationId);
+
+    result.fold(
+      (error) => emit(state.copyWith(
+        paymentStatus: ConsultationStatus.failure,
+        paymentError: error,
+      )),
+      (data) => emit(state.copyWith(
+        paymentStatus: ConsultationStatus.success,
+        paymentData: data,
+      )),
+    );
+  }
+
+  Future<void> initiatePayment() async {
+    final consultationId = state.createdConsultation?.id;
+    if (consultationId == null) return;
+
+    emit(state.copyWith(
+      paymentStatus: ConsultationStatus.loading,
+      paymentError: null,
+    ));
+
+    final result = await _repo.initiatePayment(consultationId: consultationId);
+
+    result.fold(
+      (error) => emit(state.copyWith(
+        paymentStatus: ConsultationStatus.failure,
+        paymentError: error,
+      )),
+      (data) => emit(state.copyWith(
+        paymentStatus: ConsultationStatus.success,
+        paymentData: data,
+      )),
+    );
+  }
+
+  // ── Check payment status with polling ───────────────────────────────────────
+  // Polls the payment status endpoint to determine if payment was successful
+  // Returns: 'paid', 'failed', 'pending', or 'error'
+
+  Future<String> checkPaymentStatus() async {
+    final consultationId = state.createdConsultation?.id;
+    if (consultationId == null) return 'error';
+
+    // Poll for up to 30 seconds (15 attempts * 2 seconds each)
+    for (int i = 0; i < 15; i++) {
+      final result = await _repo.checkPaymentStatus(
+        consultationId: consultationId,
+      );
+
+      final resultStatus = await result.fold(
+        (error) async {
+          // If we get an error, wait and retry
+          await Future.delayed(const Duration(seconds: 2));
+          return null;
+        },
+        (paymentData) async {
+          final invoiceStatus = paymentData['invoiceStatus'] as String?;
+
+          if (invoiceStatus == 'Paid') {
+            return 'paid';
+          }
+
+          if (invoiceStatus == 'Failed' || invoiceStatus == 'Cancelled' || invoiceStatus == 'Rejected') {
+            return 'failed';
+          }
+
+          if (invoiceStatus == 'Pending' || invoiceStatus == 'Processing') {
+            // Still pending, wait and retry
+            await Future.delayed(const Duration(seconds: 2));
+            return null;
+          }
+
+          // Unknown status, wait and retry
+          await Future.delayed(const Duration(seconds: 2));
+          return null;
+        },
+      );
+
+      if (resultStatus != null) {
+        return resultStatus;
+      }
+    }
+
+    // After all polling attempts, return pending (webhook might not have arrived yet)
+    return 'pending';
+  }
 }

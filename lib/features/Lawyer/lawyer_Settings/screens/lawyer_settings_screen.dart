@@ -244,8 +244,9 @@ class LawyerProfileHeader extends StatelessWidget {
           // ── Avatar ───────────────────────────────────────────────────────
           LawyerProfileAvatar(
             photoUrl: photoUrl,
-            radius: 26.h,
+            radius: 30.h,
             isLoading: isLoading,
+
           ),
           SizedBox(width: 12.w),
 

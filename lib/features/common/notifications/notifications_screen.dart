@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rasikh/core/widgets/error_state_widget.dart';
+import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/no_data_widget.dart';
 import 'package:rasikh/features/common/notifications/repo/notifications_repo.dart';
 import 'package:shimmer/shimmer.dart';
@@ -77,9 +78,8 @@ class _NotificationsViewState extends State<_NotificationsView> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: const HeaderCapsuleAppBar(
+        appBar: GeneralAppBar(
           title: 'الإشعارات',
-          showBottomDivider: true,
         ),
         body: BlocConsumer<NotificationsCubit, NotificationsState>(
           listenWhen: (_, current) =>
@@ -112,8 +112,8 @@ class _NotificationsViewState extends State<_NotificationsView> {
 
             // ── Error ───────────────────────────────────────────────────────
             if (state is NotificationsFailure) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
+              return Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(height: 80.h),
                   ErrorStateWidget(
@@ -131,8 +131,8 @@ class _NotificationsViewState extends State<_NotificationsView> {
             if (state is NotificationsLoaded) {
               // ── Empty ───────────────────────────────────────────────────
               if (state.notifications.isEmpty) {
-                return ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(height: 80.h),
                     const NoDataWidget(
@@ -237,120 +237,179 @@ class _NotificationCard extends StatelessWidget {
     final double constrainedWidth =
     screenWidth > maxWidth ? maxWidth : screenWidth;
 
+    final bool isUnread = !notification.isRead;
+
     return Align(
       alignment: Alignment.center,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: constrainedWidth),
-        child: GestureDetector(
-          onTap: onTap,
-          child: Container(
-            constraints: BoxConstraints(minHeight: 97.h),
-            padding: EdgeInsets.all(18.w),
-            decoration: BoxDecoration(
-              // Subtle unread highlight
-              color: notification.isRead
-                  ? null
-                  : cs.primary.withOpacity(0.04),
-              borderRadius: BorderRadius.circular(12.h),
-              border: Border.all(
-                color: notification.isRead
-                    ? borderColor
-                    : cs.primary,
-                width: 1.w,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+          margin: EdgeInsets.symmetric(vertical: 4.h),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12.h),
+            boxShadow: isUnread
+                ? [
+              BoxShadow(
+                color: cs.primary.withOpacity(0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // 🔔 Icon
-                Container(
-                  width: 40.w,
-                  height: 40.w,
-                  decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  alignment: Alignment.center,
-                  child: SvgPicture.asset(
-                    'assets/icons/Bell_Bing.svg',
-                    width: 22.w,
-                    height: 22.w,
-                    fit: BoxFit.contain,
-                    colorFilter: ColorFilter.mode(
-                      cs.primary,
-                      BlendMode.srcIn,
-                    ),
+            ]
+                : null,
+          ),
+          child: Material(
+            color: isUnread
+                ? Colors.transparent
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12.h),
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(12.h),
+              splashColor: cs.primary.withOpacity(0.08),
+              highlightColor: cs.primary.withOpacity(0.04),
+              child: Container(
+                constraints: BoxConstraints(minHeight: 97.h),
+                padding: EdgeInsets.all(18.w),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12.h),
+                  border: Border.all(
+                    color: isUnread ? cs.primary.withOpacity(0.35) : borderColor,
+                    width: isUnread ? 1.2.w : 1.w,
                   ),
                 ),
-                SizedBox(width: 14.w),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // 🔔 Icon
+                    Container(
+                      width: 40.w,
+                      height: 40.w,
+                      decoration: BoxDecoration(
+                        color: isUnread
+                            ? cs.primary.withOpacity(0.15)
+                            : cs.primary.withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: SvgPicture.asset(
+                        'assets/icons/Bell_Bing.svg',
+                        width: 22.w,
+                        height: 22.w,
+                        fit: BoxFit.contain,
+                        colorFilter: ColorFilter.mode(
+                          cs.primary,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 14.w),
 
-                // 📝 Texts
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
+                    // 📝 Texts
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Expanded(
-                            child: Text(
-                              notification.title,
-                              textAlign: TextAlign.right,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14.sp,
-                                color: cs.onSurface,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  notification.title,
+                                  textAlign: TextAlign.right,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight:
+                                    isUnread ? FontWeight.w800 : FontWeight.w700,
+                                    fontSize: 14.sp,
+                                    color: cs.onSurface,
+                                  ),
+                                ),
                               ),
+                              // Unread dot
+                              if (isUnread) ...[
+                                SizedBox(width: 6.w),
+                                Container(
+                                  width: 8.w,
+                                  height: 8.w,
+                                  decoration: BoxDecoration(
+                                    color: cs.primary,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: cs.primary.withOpacity(0.4),
+                                        blurRadius: 4,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          SizedBox(height: 4.h),
+                          Text(
+                            notification.body,
+                            textAlign: TextAlign.right,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w500,
+                              fontSize: 13.sp,
+                              color: cs.onSurfaceVariant,
+                              height: 1.5,
                             ),
                           ),
-                          // Unread dot
-                          if (!notification.isRead)
-                            Container(
-                              width: 8.w,
-                              height: 8.w,
-                              margin: EdgeInsets.only(right: 6.w),
-                              decoration: BoxDecoration(
-                                color: cs.primary,
-                                shape: BoxShape.circle,
+                          SizedBox(height: 6.h),
+                          Row(
+                            children: [
+                              Directionality(
+                                textDirection: TextDirection.ltr,
+                                child: Text(
+                                  _formatDate(
+                                    notification.sentAt ?? notification.createdAt,
+                                  ),
+                                  textAlign: TextAlign.left,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.labelMedium?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.8,
+                                    color: Colors.grey,
+                                  ),
+                                ),
                               ),
-                            ),
+                              if (isUnread) ...[
+                                SizedBox(width: 8.w),
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 6.w,
+                                    vertical: 1.h,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: cs.primary.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(6.h),
+                                  ),
+                                  child: Text(
+                                    'New',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: cs.primary,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 9.sp,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
                         ],
                       ),
-                      SizedBox(height: 4.h),
-                      Text(
-                        notification.body,
-                        textAlign: TextAlign.right,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 13.sp,
-                          color: cs.onSurfaceVariant,
-                          height: 1.5,
-                        ),
-                      ),
-                      SizedBox(height: 6.h),
-                      Directionality(
-                        textDirection: TextDirection.ltr,
-                        child: Text(
-                          _formatDate(
-                              notification.sentAt ?? notification.createdAt),
-                          textAlign: TextAlign.left,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w500,
-                            height: 1.8,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),

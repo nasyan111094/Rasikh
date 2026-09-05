@@ -4,6 +4,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:rasikh/config/app_config.dart';
+import 'package:rasikh/config/theme/colors.dart';
 import 'package:size_config/size_config.dart';
 
 /// Renders the lawyer avatar from [photoUrl] (network) or
@@ -45,10 +46,17 @@ class LawyerProfileAvatar extends StatelessWidget {
       image = const AssetImage('assets/images/avatar.png');
     }
 
-    final avatar = CircleAvatar(
-      radius: radius,
-      backgroundColor: const Color(0xFFF3EFE8),
-      backgroundImage: image,
+    final avatar = Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color:borderColor, width: 1.5.w) ,
+
+      ),
+      child: CircleAvatar(
+        radius: radius,
+        backgroundColor: const Color(0xFFF3EFE8),
+        backgroundImage: image,
+      ),
     );
 
     if (!showEditBadge) return avatar;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/screens/helping_center_screen.dart';
+import 'package:rasikh/features/Lawyer/lawyer_Settings/screens/wallet_screen.dart';
 
 import '../../../../config/navigation/nav.dart';
 import '../../../../Shared/widgets/account_item_widget.dart';
@@ -175,12 +176,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         divider,
                         AccountItem(
                           svgAsset: 'assets/icons/Wallet_Money.svg',
-                          label: 'المعاملات المالية',
+                          label: 'المحفظه الإلكترونيه',
                           trailingChevronRight: true,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) =>
-                              const FinancialTransactionsScreen(),
+                              const WalletScreen(),
                             ),
                           ),
                         ),

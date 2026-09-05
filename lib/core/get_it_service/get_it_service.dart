@@ -40,7 +40,9 @@ import '../../features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.da
 import '../../features/Lawyer/lawyer_Settings/bloc/Specializations_cubit/specializations_cubit.dart';
 import '../../features/User/application/bloc/consulation_application_cubit.dart';
 import '../../features/User/application/repo/consulation_application_repo.dart';
+import '../../features/User/profile/bloc/wallet_cubit.dart';
 import '../../features/User/profile/cubit/profile_cubit.dart';
+import '../../features/User/profile/repo/wallet_repo.dart';
 import '../../features/User/user_register_completion/bloc/user_completion_cubit.dart';
 import '../../features/User/user_register_completion/repo/user_completion_repo.dart';
 import '../../features/common/notifications/bloc/notifications_cubit.dart';
@@ -222,6 +224,12 @@ Future<void> initializeDependencies() async {
 // Register it as a singleton cubit at app level:
     getIt.registerLazySingleton<ProfileCubit>(
           () => ProfileCubit(getIt<ProfileRepo>()),
+    );
+
+    // ─── Wallet ───────────────────────────────────────────────────────────────
+    getIt.registerLazySingleton<WalletRepo>(() => WalletRepo());
+    getIt.registerFactory<WalletCubit>(
+          () => WalletCubit(getIt<WalletRepo>()),
     );
   } catch (e, stackTrace) {
     print('Error in initializeDependencies: $e');

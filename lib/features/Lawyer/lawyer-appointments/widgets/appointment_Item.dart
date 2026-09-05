@@ -136,7 +136,7 @@ class AppointmentItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${slot.endTime} - ${slot.startTime}',
+                  ' ${slot.startTime} ⇐ ${slot.endTime}',
                   style: theme.textTheme.bodySmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
