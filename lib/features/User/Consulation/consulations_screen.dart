@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/widgets/gradiant_button.dart';
+import 'package:rasikh/features/Lawyer/consultation/Bloc/consultations_cubit.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../core/widgets/app_bar_without_icon_button.dart';
 import '../../../core/widgets/general_divider.dart';
+import '../../Lawyer/consultation/models/consultation_model.dart';
 
 
 
-class InstantConsultationScreen extends StatelessWidget {
+class InstantConsultationScreen extends StatefulWidget {
   const InstantConsultationScreen({super.key});
 
   @override
+  State<InstantConsultationScreen> createState() => _InstantConsultationScreenState();
+}
+
+class _InstantConsultationScreenState extends State<InstantConsultationScreen> {
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+
 
     return Scaffold(
       body: Directionality(

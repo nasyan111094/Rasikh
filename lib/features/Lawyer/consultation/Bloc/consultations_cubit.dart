@@ -18,7 +18,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
   // ── Internal state ────────────────────────────────────────────────────────
 
-  ConsultationStatus _selectedStatus = ConsultationStatus.none;
+  ConsultationStatus currentSelectedStatus = ConsultationStatus.none;
   List<ConsultationModel> _consultations = [];
   int _currentPage = 1;
   bool _hasMorePages = false;
@@ -26,7 +26,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
   // ── Public getters ────────────────────────────────────────────────────────
 
-  ConsultationStatus get selectedStatus => _selectedStatus;
+  ConsultationStatus get selectedStatus => currentSelectedStatus;
   List<ConsultationModel> get consultations => List.unmodifiable(_consultations);
   bool get hasMorePages => _hasMorePages;
   int get currentPage => _currentPage;
@@ -34,7 +34,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
   // ── Initial fetch / filter change ─────────────────────────────────────────
 
   Future<void> fetchConsultations({ConsultationStatus? status}) async {
-    if (status != null) _selectedStatus = status;
+    if (status != null) currentSelectedStatus = status;
 
     _currentPage = 1;
     _consultations = [];
@@ -43,12 +43,12 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
     final result = await repo.getConsultations(
       page: _currentPage,
-      status: _selectedStatus,
+      status: currentSelectedStatus,
     );
 
     result.fold(
           (error) => emit(
-        ConsultationsError(message: error, selectedStatus: _selectedStatus),
+        ConsultationsError(message: error, selectedStatus: currentSelectedStatus),
       ),
           (model) => _emitLoadedOrEmpty(model.consultations, model.hasMorePages),
     );
@@ -59,14 +59,14 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
   Future<void> refreshConsultations() async {
     emit(ConsultationsRefreshing(
       currentConsultations: _consultations,
-      selectedStatus: _selectedStatus,
+      selectedStatus: currentSelectedStatus,
     ));
 
     _currentPage = 1;
 
     final result = await repo.getConsultations(
       page: _currentPage,
-      status: _selectedStatus,
+      status: currentSelectedStatus,
     );
 
     result.fold(
@@ -75,14 +75,14 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         if (_consultations.isNotEmpty) {
           emit(ConsultationsLoaded(
             consultations: _consultations,
-            selectedStatus: _selectedStatus,
+            selectedStatus: currentSelectedStatus,
             hasMorePages: _hasMorePages,
             currentPage: _currentPage,
           ));
         } else {
           emit(ConsultationsError(
             message: error,
-            selectedStatus: _selectedStatus,
+            selectedStatus: currentSelectedStatus,
           ));
         }
       },
@@ -98,14 +98,14 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
     emit(ConsultationsPaginating(
       currentConsultations: _consultations,
-      selectedStatus: _selectedStatus,
+      selectedStatus: currentSelectedStatus,
     ));
 
     _currentPage++;
 
     final result = await repo.getConsultations(
       page: _currentPage,
-      status: _selectedStatus,
+      status: currentSelectedStatus,
     );
 
     result.fold(
@@ -113,7 +113,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         _currentPage--; // Roll back on failure.
         emit(ConsultationsLoaded(
           consultations: _consultations,
-          selectedStatus: _selectedStatus,
+          selectedStatus: currentSelectedStatus,
           hasMorePages: _hasMorePages,
           currentPage: _currentPage,
         ));
@@ -123,7 +123,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         _hasMorePages = model.hasMorePages;
         emit(ConsultationsLoaded(
           consultations: _consultations,
-          selectedStatus: _selectedStatus,
+          selectedStatus: currentSelectedStatus,
           hasMorePages: _hasMorePages,
           currentPage: _currentPage,
         ));
@@ -136,7 +136,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
   // ── Apply filter ──────────────────────────────────────────────────────────
 
   Future<void> applyFilter(ConsultationStatus status) async {
-    if (_selectedStatus == status) return;
+    if (currentSelectedStatus == status) return;
     await fetchConsultations(status: status);
   }
 
@@ -159,7 +159,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     emit(ConsultationRescheduling(
       consultationId: consultationId,
       currentConsultations: _consultations,
-      selectedStatus: _selectedStatus,
+      selectedStatus: currentSelectedStatus,
     ));
 
     final result = await repo.rescheduleConsultation(
@@ -173,7 +173,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         emit(ConsultationRescheduleError(
           message: error,
           currentConsultations: _consultations,
-          selectedStatus: _selectedStatus,
+          selectedStatus: currentSelectedStatus,
           hasMorePages: _hasMorePages,
           currentPage: _currentPage,
         ));
@@ -187,7 +187,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         emit(ConsultationRescheduled(
           updatedConsultation: updated,
           consultations: _consultations,
-          selectedStatus: _selectedStatus,
+          selectedStatus: currentSelectedStatus,
           hasMorePages: _hasMorePages,
           currentPage: _currentPage,
         ));
@@ -213,7 +213,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     emit(ConsultationCancelling(
       consultationId: consultationId,
       currentConsultations: _consultations,
-      selectedStatus: _selectedStatus,
+      selectedStatus: currentSelectedStatus,
     ));
 
     final result = await repo.cancelConsultation(id: consultationId);
@@ -224,7 +224,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         emit(ConsultationCancelError(
           message: error,
           currentConsultations: _consultations,
-          selectedStatus: _selectedStatus,
+          selectedStatus: currentSelectedStatus,
           hasMorePages: _hasMorePages,
           currentPage: _currentPage,
         ));
@@ -235,12 +235,12 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
             _consultations.where((c) => c.id != consultationId).toList();
 
         if (_consultations.isEmpty) {
-          emit(ConsultationsEmpty(selectedStatus: _selectedStatus));
+          emit(ConsultationsEmpty(selectedStatus: currentSelectedStatus));
         } else {
           emit(ConsultationCancelled(
             cancelledId: consultationId,
             consultations: _consultations,
-            selectedStatus: _selectedStatus,
+            selectedStatus: currentSelectedStatus,
             hasMorePages: _hasMorePages,
             currentPage: _currentPage,
           ));
@@ -277,7 +277,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         message: 'تعذر إرسال التقييم: بيانات الاستشارة غير مكتملة',
         consultationId: consultationId,
         currentConsultations: _consultations,
-        selectedStatus: _selectedStatus,
+        selectedStatus: currentSelectedStatus,
         hasMorePages: _hasMorePages,
         currentPage: _currentPage,
       ));
@@ -287,7 +287,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     emit(ConsultationRatingSubmitting(
       consultationId: consultationId,
       currentConsultations: _consultations,
-      selectedStatus: _selectedStatus,
+      selectedStatus: currentSelectedStatus,
     ));
 
     final result = await repo.rateConsultation(
@@ -305,7 +305,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
           message: error,
           consultationId: consultationId,
           currentConsultations: _consultations,
-          selectedStatus: _selectedStatus,
+          selectedStatus: currentSelectedStatus,
           hasMorePages: _hasMorePages,
           currentPage: _currentPage,
         ));
@@ -314,7 +314,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         emit(ConsultationRatingSubmitted(
           consultationId: consultationId,
           consultations: _consultations,
-          selectedStatus: _selectedStatus,
+          selectedStatus: currentSelectedStatus,
           hasMorePages: _hasMorePages,
           currentPage: _currentPage,
         ));
@@ -332,11 +332,11 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     _hasMorePages = hasMorePages;
 
     if (_consultations.isEmpty) {
-      emit(ConsultationsEmpty(selectedStatus: _selectedStatus));
+      emit(ConsultationsEmpty(selectedStatus: currentSelectedStatus));
     } else {
       emit(ConsultationsLoaded(
         consultations: _consultations,
-        selectedStatus: _selectedStatus,
+        selectedStatus: currentSelectedStatus,
         hasMorePages: _hasMorePages,
         currentPage: _currentPage,
       ));

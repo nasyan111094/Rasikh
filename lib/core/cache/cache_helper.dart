@@ -874,9 +874,7 @@ class CacheHelper {
   }
 
   AndroidOptions _getAndroidOptions() {
-    return const AndroidOptions(
-      encryptedSharedPreferences: true,
-    );
+    return const AndroidOptions();
   }
 
   // ─────────────────────────────────────────────────────────────────────────

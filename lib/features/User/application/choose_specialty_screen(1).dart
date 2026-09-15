@@ -338,13 +338,13 @@ class _SpecializationTile extends StatelessWidget {
                         ),
                         shape: BoxShape.circle,
                       ),
-                      child: CircleAvatar(
-                        radius: 20.h,
-                        backgroundColor: Colors.transparent,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(100),
                         child: Picture(
                           spec.iconUrl ?? "",
                           width: 40.h,
                           height: 40.h,
+                          fit: BoxFit.fill,
                           color: isExpanded
                               ? theme.colorScheme.primary.withOpacity(0.6)
                               : theme.dividerColor,

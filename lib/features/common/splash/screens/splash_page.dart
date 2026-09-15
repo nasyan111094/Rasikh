@@ -63,7 +63,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _cachedTheme = Theme.of(context);
-    _applySystemUi(_cachedTheme);
+
   }
 
   @override
@@ -71,12 +71,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _navTimer?.cancel();
     _controller.dispose();
 
-    // Restore full system UI on exit
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.manual,
-      overlays: SystemUiOverlay.values,
-    );
-    _applySystemUi(_cachedTheme);
+
+
 
     super.dispose();
   }
@@ -85,31 +81,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   // Helpers
   // ─────────────────────────────────────────────────────────────────────────
 
-  void _applySystemUi(ThemeData theme) {
-    final isDark = theme.brightness == Brightness.dark;
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarBrightness: theme.brightness,
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: theme.colorScheme.surface,
-        systemNavigationBarIconBrightness:
-        isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarDividerColor: Colors.transparent,
-      ),
-    );
-  }
+
 
   /// Called once both the animation ends AND the bloc has responded.
   void _navigate() {
     if (!mounted) return;
 
-    // Restore full system UI before navigating away
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.manual,
-      overlays: SystemUiOverlay.values,
-    );
-    _applySystemUi(_cachedTheme);
+
 
     // Check if user is already logged in
     final currentToken = getIt<CacheHelper>().currentToken;

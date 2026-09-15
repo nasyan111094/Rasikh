@@ -89,11 +89,12 @@ class ApiHandler {
         if (refreshToken == null || vendorType == null) {
           // No refresh token available or vendor type not set
           await cacheHelper.clearUserSession();
-          return DioException(
+          handler.reject(DioException(
             message: "No refresh token available, please login again.",
             requestOptions: error.requestOptions,
             type: DioExceptionType.badResponse,
-          );
+          ));
+          return error;
         }
 
         // Check if refresh is already in progress
@@ -120,7 +121,7 @@ class ApiHandler {
             }
           } catch (retryError) {
             Logger().e("Failed to retry request after waiting for token refresh: $retryError");
-            handler.next(error);
+            handler.reject(error);
             return error;
           }
         }
@@ -177,7 +178,7 @@ class ApiHandler {
             _isRefreshing = false;
             _refreshCompleter?.complete();
             
-            handler.next(error);
+            handler.reject(error);
             return error;
           }
         } catch (e) {
@@ -196,11 +197,12 @@ class ApiHandler {
                   (route) => false,
             );
           });
-          return DioException(
+          handler.reject(DioException(
             message: "Session expired, please login again.",
             requestOptions: error.requestOptions,
             type: DioExceptionType.badResponse,
-          );
+          ));
+          return error;
         }
       } catch (e) {
         Logger().e("Unexpected error in token refresh: $e");
@@ -209,11 +211,12 @@ class ApiHandler {
         _isRefreshing = false;
         _refreshCompleter?.complete();
         
-        return DioException(
+        handler.reject(DioException(
           message: "An unexpected error occurred, please login again.",
           requestOptions: error.requestOptions,
           type: DioExceptionType.badResponse,
-        );
+        ));
+        return error;
       }
     }
     
@@ -229,14 +232,15 @@ class ApiHandler {
     
     // Handle other errors
     print('Error: ${error.message}');
-    return DioException(
+    handler.reject(DioException(
       message: errorMessage ?? error.message?.toString() ?? 'An error occurred',
       error: error.error,
       requestOptions: error.requestOptions,
       response: error.response,
       type: error.type,
       stackTrace: error.stackTrace,
-    );
+    ));
+    return error;
   }
 
   // Helper method to retry the original request

@@ -5,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:logger/logger.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:size_config/size_config.dart';
 
@@ -109,6 +110,8 @@ class _ChooseLawyerMethodDialogState
                 ),
                 onPressed: () {
                   Navigator.pop(context);
+
+                  Logger().d(selectedOption);
 
                   final cubit = context.read<ConsultationApplicationCubit>();
 

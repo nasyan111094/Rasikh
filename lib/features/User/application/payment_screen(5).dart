@@ -296,7 +296,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
             const Text('جاري التحقق من حالة الدفع...'),
           ],
         ),
-      ),
+      )
     );
 
     // Poll payment status
@@ -485,7 +485,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                           children: [
                             _PaymentOption(
                               title: 'ماي فاتوره',
-                              assetPath: 'mada.png',
+                              assetPath: 'myfatoorah.jpeg',
                               selected: currentSelectedIndex == 0,
                               onTap: () =>
                                   setState(() => currentSelectedIndex = 0),
@@ -493,7 +493,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                             SizedBox(height: 8.h),
                             _PaymentOption(
                               title: 'محفظتي',
-                              assetPath: 'visa.png',
+                              assetPath: 'wallet.png',
                               selected: currentSelectedIndex == 1,
                               onTap: () =>
                                   setState(() => currentSelectedIndex = 1),
@@ -782,11 +782,18 @@ class _PaymentOption extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Picture(
-              getAssetImage(assetPath),
-              width: 150.w,
-              height: 40.h,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: SizedBox(
+                width: 40.h,
+                height: 40.h,
+                child: Picture(
+                  getAssetImage(assetPath),
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
+            SizedBox(width: 10.w,) , 
             Icon(
               selected
                   ? Icons.radio_button_checked

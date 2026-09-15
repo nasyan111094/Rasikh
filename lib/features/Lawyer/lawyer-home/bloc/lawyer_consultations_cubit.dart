@@ -3,6 +3,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../models/consultation_model.dart';
+import '../models/lawyer_dashboard_model.dart';
 import '../models/nearest.dart';
 import '../repo/lawyer_consultations_repo.dart';
 import 'lawyer_consultations_state.dart';
@@ -76,4 +77,20 @@ class LawyerConsultationsCubit extends Cubit<LawyerConsultationsState> {
       },
     );
   }
+
+  LawyerDashboardData? _dashboardData;
+
+  Future<void> fetchDashboard() async {
+    emit(DashboardLoading());
+    final result = await _repo.getLawyerDashboard();
+    result.fold(
+          (error) => emit(DashboardError(error)),
+          (response) {
+        _dashboardData = response.data;
+        emit(DashboardLoaded(response.data));
+      },
+    );
+  }
+
+  LawyerDashboardData? get dashboardData => _dashboardData;
 }

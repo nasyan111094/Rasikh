@@ -26,6 +26,7 @@ import 'bloc/lawyer_consultations_cubit.dart';
 import 'bloc/lawyer_consultations_state.dart';
 import 'models/avaiability_status_model.dart';
 import 'models/consultation_model.dart';
+import 'models/lawyer_dashboard_model.dart';
 
 class LawyerHomeScreen extends StatefulWidget {
   const LawyerHomeScreen({super.key});
@@ -46,6 +47,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
       final cubit = context.read<LawyerConsultationsCubit>();
       cubit.fetchConsultations();
       cubit.fetchUpcomingScheduled();
+      cubit.fetchDashboard();
     });
   }
 
@@ -54,6 +56,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
     await Future.wait([
       cubit.fetchConsultations(),
       cubit.fetchUpcomingScheduled(),
+      cubit.fetchDashboard(),
     ]);
   }
 
@@ -280,7 +283,37 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                         const _SectionHeader(
                             title: 'آخر حركة مالية', onViewAll: null),
                         Gap(10.h),
-                        _TransactionCard(),
+                        BlocBuilder<LawyerConsultationsCubit,
+                            LawyerConsultationsState>(
+                          buildWhen: (_, s) =>
+                          s is DashboardLoading ||
+                              s is DashboardLoaded ||
+                              s is DashboardError,
+                          builder: (context, state) {
+                            if (state is DashboardLoading) {
+                              return const _TransactionShimmer();
+                            }
+                            if (state is DashboardError) {
+                              return Center(
+                                child: Text(
+                                  state.message,
+                                  style:
+                                  const TextStyle(color: Colors.red),
+                                ),
+                              );
+                            }
+                            if (state is DashboardLoaded) {
+                              final movement = state.dashboardData.lastFinancialMovement;
+                              if (movement == null) {
+                                return const Center(
+                                  child: NoDataWidget(title: "لا توجد حركات مالية"),
+                                );
+                              }
+                              return _TransactionCard(movement: movement);
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
                       ],
                     ),
                   ),
@@ -762,6 +795,15 @@ class _UpcomingShimmer extends StatelessWidget {
 // ── Transaction Card ─────────────────────────────────────────────────────────
 
 class _TransactionCard extends StatelessWidget {
+  final LastFinancialMovement movement;
+
+  const _TransactionCard({required this.movement});
+
+  String _formatDate(DateTime dateTime) {
+    final localDate = dateTime.toLocal();
+    return '${localDate.day} / ${localDate.month} / ${localDate.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -789,9 +831,9 @@ class _TransactionCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('تم إضافة لمحفظتك', style: theme.textTheme.titleMedium),
+                Text(movement.description, style: theme.textTheme.titleMedium),
                 Text(
-                  '1200 ريال',
+                  '${movement.amount} ريال',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(color: primary, fontWeight: FontWeight.w900),
                 ),
@@ -804,7 +846,7 @@ class _TransactionCard extends StatelessWidget {
               Picture(getAssetIcon('Calendar.svg'), width: 20.h, height: 20.h),
               Gap(5.w),
               Text(
-                '16 / 10 / 2025',
+                _formatDate(movement.createdAt),
                 style: theme.textTheme.titleSmall?.copyWith(
                   color: theme.hintColor,
                   fontFamily: 'Cairo',
@@ -814,6 +856,27 @@ class _TransactionCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Transaction Shimmer ─────────────────────────────────────────────────────
+
+class _TransactionShimmer extends StatelessWidget {
+  const _TransactionShimmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Container(
+        height: 72.h,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14.h),
+        ),
       ),
     );
   }

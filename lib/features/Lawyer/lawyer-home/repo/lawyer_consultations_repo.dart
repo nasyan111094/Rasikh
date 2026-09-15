@@ -6,6 +6,7 @@ import 'package:dio_adapter/dio_adapter.dart';
 import '../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../core/utils/api/api_handler.dart';
 import '../models/consultation_model.dart';
+import '../models/lawyer_dashboard_model.dart';
 import '../models/nearest.dart';
 
 class LawyerConsultationsEndpoints {
@@ -17,6 +18,8 @@ class LawyerConsultationsEndpoints {
 
   static String acceptWritten(String id) =>
       'lawyer/consultations/$id/accept-written';
+
+  static const String dashboard = 'lawyers/dashboard';
 }
 
 /// ─────────────────────────────────────────────────────────────────────────────
@@ -33,6 +36,11 @@ class LawyerConsultationsEndpoints {
 ///   POST /api/v1/lawyer/consultations/{id}/accept-written
 ///        → Accepts a pending paid written consultation
 ///        → Assigns lawyer and sets status to active
+///
+///   GET  /api/v1/lawyers/dashboard
+///        → Fetches lawyer dashboard quick cards including availability,
+///          pending consultations, upcoming appointments, last financial movement,
+///          and notifications placeholder
 /// ─────────────────────────────────────────────────────────────────────────────
 
 class LawyerConsultationsRepo {
@@ -146,6 +154,29 @@ class LawyerConsultationsRepo {
               .map(ScheduledConsultation.fromJson)
               .toList(),
         );
+      },
+    );
+  }
+
+  /// GET lawyer dashboard
+  ///
+  /// Fetches lawyer dashboard quick cards including availability,
+  /// pending consultations, upcoming appointments (today, max 3),
+  /// last financial movement, and notifications placeholder.
+  ///
+  /// Errors:
+  /// - 401: Unauthorized
+  /// - 403: LAWYER role required
+  Future<Either<String, LawyerDashboardResponse>> getLawyerDashboard() async {
+    final result = await _adapter.get(
+      LawyerConsultationsEndpoints.dashboard,
+    );
+
+    return result.fold(
+          (error) => Left(error),
+          (response) {
+        final data = response.data as Map<String, dynamic>;
+        return Right(LawyerDashboardResponse.fromJson(data));
       },
     );
   }

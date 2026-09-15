@@ -39,8 +39,17 @@ class _LawyerSpecializationsScreenState
   @override
   void initState() {
     super.initState();
-    _cubit.loadSpecializations();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    // Wait for the active catalog to actually arrive before comparing
+    // the lawyer's saved specialization IDs against it — otherwise
+    // `_cubit.catalog` is still empty and nothing gets pre-selected.
+    await _cubit.loadSpecializations();
+    if (!mounted) return;
     _prefillFromProfile();
+    setState(() {});
   }
 
   void _prefillFromProfile() {

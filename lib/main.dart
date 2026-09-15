@@ -165,18 +165,14 @@ class _RashikhAppState extends State<RashikhApp> {
 
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      // Safe to read Theme after first frame
-      final theme = Theme.of(context);
-      final isDark = theme.brightness == Brightness.dark;
-
       SystemChrome.setSystemUIOverlayStyle(
-        SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness:
-          isDark ? Brightness.light : Brightness.dark,
-          systemNavigationBarColor: theme.colorScheme.background,
-          systemNavigationBarIconBrightness:
-          isDark ? Brightness.light : Brightness.dark,
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.white,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+          systemNavigationBarColor: Colors.white,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
         ),
       );
     });
@@ -197,20 +193,37 @@ class _RashikhAppState extends State<RashikhApp> {
         builder: (context, _) {
           return BlocBuilder<AppCubit, AppStates>(
             builder: (context, state) {
-              return MaterialApp(
-                theme: TAppTheme.lightTheme,
-                darkTheme: TAppTheme.darkTheme,
-                themeMode:  ThemeMode.light /*getIt<AppCubit>().themeMode*/,
-                debugShowCheckedModeBanner: false,
-                navigatorKey: Nav.mainNavKey,
-                navigatorObservers: [NavObs('MAIN')],
-                localizationsDelegates: [
-                  CountryLocalizations.delegate,
-                  ...context.localizationDelegates,
-                ],
-                supportedLocales: context.supportedLocales,
-                locale: context.locale,
-                home: const SplashPage(),
+              return AnnotatedRegion<SystemUiOverlayStyle>(
+                value: const SystemUiOverlayStyle(
+                  statusBarColor: Colors.white,
+                  statusBarBrightness: Brightness.light,
+                  statusBarIconBrightness: Brightness.dark,
+                  systemNavigationBarColor: Colors.white,
+                  systemNavigationBarIconBrightness: Brightness.dark,
+                  systemNavigationBarDividerColor: Colors.transparent,
+                ),
+                child: MaterialApp(
+                  theme: TAppTheme.lightTheme,
+                  darkTheme: TAppTheme.darkTheme,
+                  themeMode:  ThemeMode.light /*getIt<AppCubit>().themeMode*/,
+                  debugShowCheckedModeBanner: false,
+                  navigatorKey: Nav.mainNavKey,
+                  navigatorObservers: [NavObs('MAIN')],
+                  localizationsDelegates: [
+                    CountryLocalizations.delegate,
+                    ...context.localizationDelegates,
+                  ],
+                  supportedLocales: context.supportedLocales,
+                  locale: context.locale,
+                  home: const SplashPage(),
+                  builder: (context, child) {
+                    return SafeArea(
+                        bottom: true,
+                        top: false,
+
+                        child: child!);
+                  },
+                ),
               );
             },
           );

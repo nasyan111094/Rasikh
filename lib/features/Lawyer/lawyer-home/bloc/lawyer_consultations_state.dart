@@ -2,6 +2,7 @@
 
 import 'package:equatable/equatable.dart';
 import '../models/consultation_model.dart';
+import '../models/lawyer_dashboard_model.dart';
 import '../models/nearest.dart';
 
 abstract class LawyerConsultationsState extends Equatable {
@@ -87,6 +88,24 @@ class UpcomingScheduledLoaded extends LawyerConsultationsState {
 class UpcomingScheduledError extends LawyerConsultationsState {
   final String message;
   const UpcomingScheduledError(this.message);
+  @override
+  List<Object?> get props => [message];
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────────
+
+class DashboardLoading extends LawyerConsultationsState {}
+
+class DashboardLoaded extends LawyerConsultationsState {
+  final LawyerDashboardData dashboardData;
+  const DashboardLoaded(this.dashboardData);
+  @override
+  List<Object?> get props => [dashboardData];
+}
+
+class DashboardError extends LawyerConsultationsState {
+  final String message;
+  const DashboardError(this.message);
   @override
   List<Object?> get props => [message];
 }

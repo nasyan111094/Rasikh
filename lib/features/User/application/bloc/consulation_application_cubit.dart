@@ -135,14 +135,18 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
         pricingStatus: ConsultationStatus.failure,
         pricingError: error,
       )),
-          (data) => emit(state.copyWith(
+          (data) {
+            selectPricing(data.first) ;
+            emit(state.copyWith(
         pricingStatus: ConsultationStatus.success,
         pricingPlans: data,
-        selectedPricing:
-        state.selectedPricing ?? (data.isNotEmpty ? data.first : null),
-      )),
+         selectedPricing: data.isNotEmpty ? data.first : null,
+      )) ;}
     );
   }
+
+
+
 
 
   PricingModel ? selectedPricing ;

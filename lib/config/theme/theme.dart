@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
@@ -134,9 +135,9 @@ ThemeData buildAppTheme() {
       color: scaffoldBackgroundColor,
       surfaceTintColor: scaffoldBackgroundColor,
       systemOverlayStyle: const SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
+        statusBarColor: Colors.white,
         statusBarBrightness: Brightness.light,
-        statusBarIconBrightness: Brightness.light,
+        statusBarIconBrightness: Brightness.dark,
       ),
       foregroundColor: Colors.black,
     ),

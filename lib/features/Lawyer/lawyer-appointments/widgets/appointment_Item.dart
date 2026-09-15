@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
+
 import 'package:size_config/size_config.dart';
 
 import '../../../../../config/navigation/nav.dart';
 import '../../../../../core/widgets/picture.dart';
 import '../../../../../core/widgets/square_icon_button.dart';
+import '../../../../config/theme/colors.dart' as colorScheme;
 import '../bloc/lawyer_appointments_cubit.dart';
+import '../lawyer_appointments_screen.dart';
 import '../models/availability_slot_model.dart';
 
 class AppointmentItem extends StatelessWidget {
@@ -98,6 +101,11 @@ class AppointmentItem extends StatelessWidget {
     final durationLabel = 'مدة الجلسة ${slot.sessionDurationMinutes} دقيقة';
     final gapLabel = 'فاصل ${slot.gapMinutes} دقائق';
 
+    // Convert the 24h "HH:mm" times coming from the API into 12h AM/PM
+    // for display (e.g. "14:30" -> "2:30 PM").
+    final startTimeLabel = TimeFormatUtils.formatTimeString(slot.startTime);
+    final endTimeLabel = TimeFormatUtils.formatTimeString(slot.endTime);
+
     return Container(
       padding: EdgeInsets.all(5.w),
       margin: EdgeInsets.symmetric(horizontal: 8.h),
@@ -135,10 +143,29 @@ class AppointmentItem extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  ' ${slot.startTime} ⇐ ${slot.endTime}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+                RichText(
+                  text: TextSpan(
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: theme.textTheme.bodySmall?.color,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: startTimeLabel,
+                        style: TextStyle(
+
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const TextSpan(text: ' إلى ' , style: TextStyle( color: colorScheme.primary,)),
+                      TextSpan(
+                        text: endTimeLabel,
+                        style: TextStyle(
+
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Gap(2.h),
@@ -231,4 +258,57 @@ class AppointmentItem extends StatelessWidget {
       ),
     );
   }
+}
+
+
+class TimeFormatUtils {
+  TimeFormatUtils._();
+
+  /// Formats a [TimeOfDay] as "h:mm a" e.g. 09:05 -> "9:05 AM", 14:30 -> "2:30 PM"
+  static String formatTimeOfDay(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  /// Formats a [DateTime] as "h:mm a" using its local time-of-day.
+  static String formatDateTime(DateTime dateTime) {
+    return formatTimeOfDay(TimeOfDay.fromDateTime(dateTime));
+  }
+
+  /// Formats a 24-hour time string like "14:30" or "14:30:00" as "2:30 PM".
+  /// Returns the original string unchanged if it can't be parsed.
+  static String formatTimeString(String time) {
+    final parts = time.split(':');
+    if (parts.length < 2) return time;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return time;
+
+    return formatTimeOfDay(TimeOfDay(hour: hour, minute: minute));
+  }
+
+  /// Formats a "HH:mm - HH:mm" range string as "9:00 AM - 5:00 PM".
+  /// Useful for appointment slot ranges. Returns the original string
+  /// unchanged if the format doesn't match.
+  static String formatTimeRangeString(String range, {String separator = ' - '}) {
+    final parts = range.split(separator);
+    if (parts.length != 2) return range;
+
+    final start = formatTimeString(parts[0].trim());
+    final end = formatTimeString(parts[1].trim());
+    return '$start$separator$end';
+  }
+}
+
+/// Convenience extension so you can call `myTimeOfDay.toAmPm()` directly.
+extension TimeOfDayAmPmExtension on TimeOfDay {
+  String toAmPm() => TimeFormatUtils.formatTimeOfDay(this);
+}
+
+/// Convenience extension so you can call `myDateTime.toAmPm()` directly.
+extension DateTimeAmPmExtension on DateTime {
+  String toAmPm() => TimeFormatUtils.formatDateTime(this);
 }

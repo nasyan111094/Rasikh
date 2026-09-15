@@ -24,4 +24,15 @@ class ScheduledConsultation {
         endTime: DateTime.parse(json['endTime'] as String),
         durationMin: json['durationMin'] as int? ?? 0,
       );
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'consultationNumber': consultationNumber,
+      'title': title,
+      'startTime': startTime.toIso8601String(),
+      'endTime': endTime.toIso8601String(),
+      'durationMin': durationMin,
+    };
+  }
 }

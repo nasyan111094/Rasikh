@@ -9,8 +9,6 @@ import 'home_state.dart';
 
 class HomeCubit extends Cubit<HomeState> {
   HomeCubit() : super(const HomeInitialState());
-
-
   Future<void> getAdevertisingDataWithDataBase() async {
     emit(const HomeLoadingState());
     final f = await getIt.get<HomeRepo>().getAdvertisingData();

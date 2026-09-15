@@ -155,7 +155,7 @@ class LawyerModel {
   factory LawyerModel.fromJson(Map<String, dynamic> json) => LawyerModel(
     id: json['id'] as String,
     fullName: json['fullName'] as String,
-    photoUrl: AppConfig.baseImgUrl+json['photoUrl'] as String?,
+    photoUrl: json['photoUrl'] != null ? AppConfig.baseImgUrl + (json['photoUrl'] as String) : null,
     city: json['city'] as String?,
     experienceYears: json['experienceYears'] as int?,
     rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
@@ -181,7 +181,7 @@ class LicenseModel {
   factory LicenseModel.fromJson(Map<String, dynamic> json) => LicenseModel(
     number: json['number'] as String?,
     expiryDate: json['expiryDate'] as String?,
-    imageUrl: AppConfig.baseImgUrl+json['imageUrl'] as String?,
+    imageUrl: json['imageUrl'] != null ? AppConfig.baseImgUrl + (json['imageUrl'] as String) : null,
   );
 }
 
@@ -232,7 +232,7 @@ class LawyerRatingClient {
       LawyerRatingClient(
         id: json['id'] as String,
         fullName: json['fullName'] as String,
-        avatar: AppConfig.baseImgUrl+json['avatar'] as String?,
+        avatar: json['avatar'] != null ? AppConfig.baseImgUrl + (json['avatar'] as String) : null,
       );
 }
 
@@ -271,7 +271,7 @@ class LawyerDetailModel extends LawyerModel {
       LawyerDetailModel(
         id: json['id'] as String,
         fullName: json['fullName'] as String,
-        photoUrl: AppConfig.baseImgUrl+json['photoUrl'] as String?,
+        photoUrl: json['photoUrl'] != null ? AppConfig.baseImgUrl + (json['photoUrl'] as String) : null,
         city: json['city'] as String?,
         experienceYears: json['experienceYears'] as int?,
         rating: (json['rating'] as num?)?.toDouble() ?? 0.0,

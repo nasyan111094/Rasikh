@@ -52,8 +52,11 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<ConsultationsCubit>().fetchConsultations();
+    context.read<ConsultationsCubit>().currentSelectedStatus = ConsultationStatus.none ;
+    context.read<ConsultationsCubit>().fetchConsultations(status: ConsultationStatus.none);
     _scrollController.addListener(_onScroll);
+
+
   }
 
   @override
@@ -1518,8 +1521,8 @@ class _ClientInfoRow extends StatelessWidget {
               child: Image.network(
                 AppConfig.baseImgUrl +
                     (getIt<CacheHelper>().cachedVendorType == VendorType.lawyer
-                        ? currentUser.avatar
-                        : currentUser.photoUrl),
+                        ? (currentUser.avatar ?? '')
+                        : (currentUser.photoUrl ?? '')),
                 fit: BoxFit.cover,
                 width: double.infinity,
                 height: double.infinity,

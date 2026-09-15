@@ -220,3 +220,24 @@ class _LawyerAppointmentsView extends StatelessWidget {
       );
   }
 }
+
+
+
+
+// core/utils/time_format_utils.dart
+//
+// Utilities for formatting time values as 12-hour AM/PM strings.
+// Works with Flutter's TimeOfDay, DateTime, or raw "HH:mm" strings
+// (the common shapes time data arrives in from an API).
+
+
+
+
+// core/utils/time_format_utils.dart
+//
+// Utilities for formatting time values as 12-hour AM/PM strings.
+// Works with Flutter's TimeOfDay, DateTime, or raw "HH:mm" strings
+// (the common shapes time data arrives in from an API).
+
+
+

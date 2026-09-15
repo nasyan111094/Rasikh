@@ -54,10 +54,16 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     // Load the regular lawyers list AND the AI-recommended lawyer for the
     // chosen specialization the moment this screen opens.
     final cubit = context.read<ConsultationApplicationCubit>();
+
+
     cubit.loadLawyers();
     if (widget.recommended) {
       cubit.loadRecommendedLawyer();
     }
+    else
+      {
+        cubit.loadLawyers();
+      }
   }
 
   @override
@@ -925,8 +931,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     }
 
     // ── Success with Data ───────────────────────────────────────────────────
-    if (state.recommendedLawyerStatus == ConsultationStatus.success &&
-        state.recommendedLawyer != null) {
+    if (state.recommendedLawyerStatus == ConsultationStatus.success && state.recommendedLawyer != null) {
       final lawyer = state.recommendedLawyer!;
       return Padding(
         padding: EdgeInsets.only(bottom: 20.h),
@@ -1032,9 +1037,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     state.recommendedLawyerStatus == ConsultationStatus.success
         ? state.recommendedLawyer?.id
         : null;
-    final lawyers = recommendedId == null
-        ? state.lawyers
-        : state.lawyers.where((l) => l.id != recommendedId).toList();
+    final lawyers = state.lawyers;
 
     // Double-check empty after filtering
     if (lawyers.isEmpty) {
