@@ -1,29 +1,110 @@
+// features/Lawyer/lawyer-appointments/presentation/widgets/appointment_item.dart
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
+
 import 'package:size_config/size_config.dart';
 
-import '../../../../config/navigation/nav.dart';
-import '../../../../core/widgets/picture.dart';
-import '../../../../core/widgets/square_icon_button.dart';
-import '../../../User/profile/widgets/dialog_widget.dart';
+import '../../../../../config/navigation/nav.dart';
+import '../../../../../core/widgets/picture.dart';
+import '../../../../../core/widgets/square_icon_button.dart';
+import '../../../../config/theme/colors.dart' as colorScheme;
+import '../bloc/lawyer_appointments_cubit.dart';
+import '../lawyer_appointments_screen.dart';
+import '../models/availability_slot_model.dart';
 
 class AppointmentItem extends StatelessWidget {
-  final String start;
-  final String end;
-  final String duration;
-  final String breakTime;
+  final AvailabilitySlot slot;
+
+  /// Server day index (0=Sat … 6=Fri) of the day card this slot lives in.
+  /// Forwarded to the edit screen so it can pre-select the correct day
+  /// immediately, without depending on any cached weekly data.
+  final int dayIndex;
 
   const AppointmentItem({
-    required this.start,
-    required this.end,
-    required this.duration,
-    required this.breakTime,
+    super.key,
+    required this.slot,
+    required this.dayIndex,
   });
+
+  // ── Delete confirmation dialog ────────────────────────────────────────────
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final theme = Theme.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: Text(
+          'حذف الموعد',
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        content: Text(
+          'هل أنت متأكد من حذف هذا الموعد؟\nلا يمكن التراجع عن هذا الإجراء.',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: theme.hintColor,
+            height: 1.6,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.spaceEvenly,
+        actions: [
+          // ── Cancel ──────────────────────────────────────────────────────
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(
+              'إلغاء',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.hintColor,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          // ── Confirm delete ───────────────────────────────────────────────
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text(
+              'حذف',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      context.read<LawyerAppointmentsCubit>().deleteSlot(slotId: slot.id);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    final durationLabel = 'مدة الجلسة ${slot.sessionDurationMinutes} دقيقة';
+    final gapLabel = 'فاصل ${slot.gapMinutes} دقائق';
+
+    // Convert the 24h "HH:mm" times coming from the API into 12h AM/PM
+    // for display (e.g. "14:30" -> "2:30 PM").
+    final startTimeLabel = TimeFormatUtils.formatTimeString(slot.startTime);
+    final endTimeLabel = TimeFormatUtils.formatTimeString(slot.endTime);
 
     return Container(
       padding: EdgeInsets.all(5.w),
@@ -31,97 +112,203 @@ class AppointmentItem extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(10.h),
         border: Border.all(
-            color: theme.dividerColor.withOpacity(0.2),width: 2
+          color: theme.dividerColor.withOpacity(0.2),
+          width: 2,
         ),
       ),
       child: Row(
         children: [
-          GestureDetector(
-            onTap: (){},
-            child: Container(
-              width: 44.w,
-              height: 44.w,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withOpacity(0.08),
-                shape: BoxShape.circle,
-              ),
-              child:      Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Picture(getAssetIcon("Calendar.svg"),
-                    width: 30.w, height: 30.w),
+          // ── Calendar icon ───────────────────────────────────────────────
+          Container(
+            width: 44.w,
+            height: 44.w,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withOpacity(0.08),
+              shape: BoxShape.circle,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Picture(
+                getAssetIcon('Calendar.svg'),
+                width: 30.w,
+                height: 30.w,
               ),
             ),
           ),
+
           Gap(8.w),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "$end - $start",
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Row(
-                children: [
-                  Text(
-                    duration,
+
+          // ── Time & details ──────────────────────────────────────────────
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: TextSpan(
                     style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 12.sp,
-                      color: theme.hintColor,
-                    ),
-                  ),
-                  Text(
-                    " • ",
-                    style: theme.textTheme.bodySmall?.copyWith(fontSize: 10.sp),
-                  ),
-                  Text(
-                    breakTime,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: 12.sp,
-                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
+                      color: theme.textTheme.bodySmall?.color,
                     ),
+                    children: [
+                      TextSpan(
+                        text: startTimeLabel,
+                        style: TextStyle(
+
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const TextSpan(text: ' إلى ' , style: TextStyle( color: colorScheme.primary,)),
+                      TextSpan(
+                        text: endTimeLabel,
+                        style: TextStyle(
+
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Gap(2.h),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        durationLabel,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 12.sp,
+                          color: theme.hintColor,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      ' • ',
+                      style:
+                      theme.textTheme.bodySmall?.copyWith(fontSize: 10.sp),
+                    ),
+                    Flexible(
+                      child: Text(
+                        gapLabel,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 12.sp,
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                // ── Weekly repeat badge ──────────────────────────────────
+                if (slot.repeatsWeekly) ...[
+                  Gap(2.h),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.repeat_rounded,
+                        size: 12.sp,
+                        color: theme.colorScheme.primary.withOpacity(0.7),
+                      ),
+                      Gap(3.w),
+                      Text(
+                        'يتكرر أسبوعياً',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: 11.sp,
+                          color: theme.colorScheme.primary.withOpacity(0.7),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              ],
+            ),
           ),
-          const Spacer(),
+
+          Gap(6.w),
+
+          // ── Edit button ─────────────────────────────────────────────────
           CustomIconButton(
-            onTap: () {
-             Nav.addWorkAppointment(context) ;
-            },
-            iconPath: "edit.svg",
+            onTap: () => Nav.addWorkAppointment(
+              context,
+              slotId: slot.id,
+              initialSlot: slot,
+              dayIndex: dayIndex,
+            ),
+            iconPath: 'edit.svg',
             backgroundColor: Colors.green.withOpacity(0.08),
             iconColor: Colors.green,
             isCircular: false,
             borderRadius: 16.h,
-            size:44.h,
-          ) ,
+            size: 44.h,
+          ),
 
           Gap(6.w),
+
+          // ── Delete button ───────────────────────────────────────────────
           CustomIconButton(
-            onTap: ()
-            {
-
-              final confirmed   = showLogoutAndDeletAccountConfirmDialog(context, title: "حذف موعد", message: "هل أنت متأكد من رغبتك في حذف ذلك الموعد  ؟", svgAsset: 'assets/icons/Logout_icon.svg') ;
-
-              if (confirmed == true) {
-                // TODO: تنفيذ عملية تسجيل الخروج هنا
-              }
-            },
-            iconPath: "Trash_Bin.svg",
+            onTap: () => _confirmDelete(context),
+            iconPath: 'Trash_Bin.svg',
             backgroundColor: Colors.red.withOpacity(0.1),
             iconColor: Colors.red,
             isCircular: false,
             borderRadius: 16.h,
-            size:44.h,
-
-          )
-
+            size: 44.h,
+          ),
         ],
       ),
     );
   }
+}
+
+
+class TimeFormatUtils {
+  TimeFormatUtils._();
+
+  /// Formats a [TimeOfDay] as "h:mm a" e.g. 09:05 -> "9:05 AM", 14:30 -> "2:30 PM"
+  static String formatTimeOfDay(TimeOfDay time) {
+    final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
+    final minute = time.minute.toString().padLeft(2, '0');
+    final period = time.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  /// Formats a [DateTime] as "h:mm a" using its local time-of-day.
+  static String formatDateTime(DateTime dateTime) {
+    return formatTimeOfDay(TimeOfDay.fromDateTime(dateTime));
+  }
+
+  /// Formats a 24-hour time string like "14:30" or "14:30:00" as "2:30 PM".
+  /// Returns the original string unchanged if it can't be parsed.
+  static String formatTimeString(String time) {
+    final parts = time.split(':');
+    if (parts.length < 2) return time;
+
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null) return time;
+
+    return formatTimeOfDay(TimeOfDay(hour: hour, minute: minute));
+  }
+
+  /// Formats a "HH:mm - HH:mm" range string as "9:00 AM - 5:00 PM".
+  /// Useful for appointment slot ranges. Returns the original string
+  /// unchanged if the format doesn't match.
+  static String formatTimeRangeString(String range, {String separator = ' - '}) {
+    final parts = range.split(separator);
+    if (parts.length != 2) return range;
+
+    final start = formatTimeString(parts[0].trim());
+    final end = formatTimeString(parts[1].trim());
+    return '$start$separator$end';
+  }
+}
+
+/// Convenience extension so you can call `myTimeOfDay.toAmPm()` directly.
+extension TimeOfDayAmPmExtension on TimeOfDay {
+  String toAmPm() => TimeFormatUtils.formatTimeOfDay(this);
+}
+
+/// Convenience extension so you can call `myDateTime.toAmPm()` directly.
+extension DateTimeAmPmExtension on DateTime {
+  String toAmPm() => TimeFormatUtils.formatDateTime(this);
 }

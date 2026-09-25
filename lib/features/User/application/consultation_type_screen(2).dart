@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/config/navigation/nav.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/picture.dart';
-
 import 'package:size_config/size_config.dart';
+
 import '../../../core/widgets/auth_stepper.dart';
 import '../../../core/widgets/general_option_card.dart';
-
-int selectedTypeIndex = 0 ;
+import 'bloc/consulation_application_cubit.dart';
+import 'bloc/consulation_application_state.dart';
+import 'models/consultation_model.dart';
 
 class ConsultationTypeScreen extends StatefulWidget {
   const ConsultationTypeScreen({super.key});
@@ -19,7 +21,16 @@ class ConsultationTypeScreen extends StatefulWidget {
 }
 
 class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
-  String selectedType = 'instant'; // default selection
+  @override
+  void initState() {
+    super.initState();
+    // ✅ Default to "instant" the first time this screen is shown,
+    // without overriding a selection the user already made.
+    final cubit = context.read<ConsultationApplicationCubit>();
+    cubit.selectConsultationType(ConsultationType.instant);
+
+
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,85 +40,109 @@ class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
     return Scaffold(
       appBar: GeneralAppBar(title: "إختر نوع الإستشارة"),
       body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal:  16.w),
-          child: Column(
-            children: [
+        child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
+          builder: (context, state) {
+            final selectedType = state.selectedConsultationType;
 
-              Padding(
-                padding:  EdgeInsets.symmetric(vertical: 24.h ),
-                child: AuthStepperWidget( activeStep: 2, totalSteps: 5,),
-              )   ,
-
-              Expanded(
-                child: ListView(
-                  children: [
-                    OptionCard(
-                      value: 'instant',
-                      icon: Picture(getAssetIcon("Immediately.svg") , width: 20.h,height: 20.h, color: selectedType == 'instant'? colorScheme.primary : theme.dividerColor),
-                      title: 'استشارات فورية',
-                      subtitle:
-                      'ادفع الآن وسيتم توصيلك بأقرب محامٍ متاح في تخصصك.',
-                      isSelected: selectedType == 'instant',
-                      onTap: () {
-                        setState(() => selectedType = 'instant');
-                        selectedTypeIndex = 0 ;
-                      },
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24.h),
+                    child: AuthStepperWidget(activeStep: 2, totalSteps: 5),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        OptionCard(
+                          value: ConsultationType.instant.value,
+                          icon: Picture(
+                            getAssetIcon("Immediately.svg"),
+                            width: 20.h,
+                            height: 20.h,
+                            color: selectedType == ConsultationType.instant
+                                ? colorScheme.primary
+                                : theme.dividerColor,
+                          ),
+                          title: 'استشارات فورية',
+                          subtitle:
+                          'ادفع الآن وسيتم توصيلك بأقرب محامٍ متاح في تخصصك.',
+                          isSelected: selectedType == ConsultationType.instant,
+                          onTap: () => context
+                              .read<ConsultationApplicationCubit>()
+                              .selectConsultationType(ConsultationType.instant),
+                        ),
+                        OptionCard(
+                          value: ConsultationType.written.value,
+                          icon: Picture(
+                            getAssetIcon("chat.svg"),
+                            width: 20.h,
+                            height: 20.h,
+                            color: selectedType == ConsultationType.written
+                                ? colorScheme.primary
+                                : theme.dividerColor,
+                          ),
+                          title: 'استشارات كتابية',
+                          subtitle:
+                          'اكتب تفاصيلك وأرفق مستنداتك، ويتواصل معك المحامي في المحادثة.',
+                          isSelected: selectedType == ConsultationType.written,
+                          onTap: () => context
+                              .read<ConsultationApplicationCubit>()
+                              .selectConsultationType(ConsultationType.written),
+                        ),
+                        OptionCard(
+                          value: ConsultationType.scheduled.value,
+                          icon: Picture(
+                            getAssetIcon("Calendar.svg"),
+                            width: 20.h,
+                            height: 20.h,
+                            color: selectedType == ConsultationType.scheduled
+                                ? colorScheme.primary
+                                : theme.dividerColor,
+                          ),
+                          title: 'استشارات مجدولة',
+                          subtitle: 'اختر موعدًا محددًا للتواصل صوتيًا أو بالفيديو.',
+                          isSelected: selectedType == ConsultationType.scheduled,
+                          onTap: () => context
+                              .read<ConsultationApplicationCubit>()
+                              .selectConsultationType(ConsultationType.scheduled),
+                        ),
+                      ],
                     ),
-                    OptionCard(
-                      value: 'written',
-                      icon: Picture(getAssetIcon("chat.svg") , width: 20.h,height: 20.h, color: selectedType == 'written'? colorScheme.primary : theme.dividerColor),
-                      title: 'استشارات كتابية',
-                      subtitle:
-                      'اكتب تفاصيلك وأرفق مستنداتك، ويتواصل معك المحامي في المحادثة.',
-                      isSelected: selectedType == 'written',
-                      onTap: () {
-                        setState(() => selectedType = 'written');
-                        selectedTypeIndex = 1 ;
-                      },
-                    ),
-                    OptionCard(
-                      value: 'scheduled',
-                      icon: Picture(getAssetIcon("Calendar.svg") , width:20.h,height: 20.h, color: selectedType == 'scheduled'? colorScheme.primary : theme.dividerColor),
-                      title: 'استشارات مجدولة',
-                      subtitle:
-                      'اختر موعدًا محددًا للتواصل صوتيًا أو بالفيديو.',
-                      isSelected: selectedType == 'scheduled',
-                      onTap: () {
-                        setState(() => selectedType = 'scheduled');
-                        selectedTypeIndex = 2 ;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding:  EdgeInsets.symmetric(vertical:  16.0.w),
-                child: SizedBox(
-                  height: 48.h,
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12.h),
-                      ),
-                    ),
-                    onPressed: () {
-                      Nav.consultationDetailsScreen(context) ;
-                    },
-                    child: Text(
-                      'التالي',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: colorScheme.onPrimary,
-                        fontWeight: FontWeight.bold,
+                  ),
+                  Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16.0.w),
+                    child: SizedBox(
+                      height: 48.h,
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorScheme.primary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12.h),
+                          ),
+                        ),
+                        onPressed: () {
+                          context
+                              .read<ConsultationApplicationCubit>()
+                              .loadPricingPlans();
+                          Nav.consultationDetailsScreen(context);
+                        },
+                        child: Text(
+                          'التالي',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

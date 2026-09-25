@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/user_selector/general_app_button.dart';
 import 'package:size_config/size_config.dart';
 
@@ -150,7 +151,7 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          appBar: const HeaderCapsuleAppBar(title: 'تعديل رقم الجوال'),
+          appBar: const GeneralAppBar(title: 'تعديل رقم الجوال'),
           body: SafeArea(
             child: Form(
               key: _formKey,

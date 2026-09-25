@@ -5,6 +5,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/core/cache/cache_helper.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:size_config/size_config.dart';
@@ -31,11 +33,9 @@ class _LawyerSettingsScreenState extends State<LawyerSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Fetch profile on first load if not already loaded
+    // Always fetch profile on init to ensure fresh data after login
     final cubit = context.read<LawyerProfileCubit>();
-    if (cubit.cachedProfile == null) {
-      cubit.getProfile();
-    }
+    cubit.getProfile();
   }
 
   @override
@@ -185,7 +185,10 @@ class _LawyerSettingsBody extends StatelessWidget {
                 svgAsset: 'assets/icons/Logout_icon.svg',
               );
               if (confirmed == true) {
-                // TODO: implement logout
+                await getIt<CacheHelper>().clearUserSession();
+                if (context.mounted) {
+                  Nav.account_type_screen(context);
+                }
               }
             },
           ),
@@ -244,8 +247,9 @@ class LawyerProfileHeader extends StatelessWidget {
           // ── Avatar ───────────────────────────────────────────────────────
           LawyerProfileAvatar(
             photoUrl: photoUrl,
-            radius: 26.h,
+            radius: 30.h,
             isLoading: isLoading,
+
           ),
           SizedBox(width: 12.w),
 

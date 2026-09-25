@@ -1,11 +1,18 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
+import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/config/localization/lang_repo.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
+import 'package:rasikh/core/services/app_logger.dart';
+import 'package:rasikh/features/common/Auth/repo/auth_repo.dart';
 
+import '../../../config/navigation/nav.dart';
+import '../../../features/common/account_type_selection/screens/account_type_screen.dart';
 import '../../cache/pref_keys.dart';
 
 class ApiHandler {
@@ -15,6 +22,12 @@ class ApiHandler {
 
   DioAdapterBase? _adapterBase;
   DioAdapterBase get dioAdapterBase => _adapterBase!;
+
+  // Single Refresh Mechanism: Prevent concurrent token refresh operations
+  static bool _isRefreshing = false;
+  static Completer<void>? _refreshCompleter;
+  static const int _maxRefreshRetries = 2;
+  static int _refreshRetryCount = 0;
 
   DioAdapterBase _apiConfig() {
     return DioAdapterBase(
@@ -40,20 +53,14 @@ class ApiHandler {
       options.contentType = 'multipart/form-data';
     }
 
-    if (options.path == EndPoints.loginWithDataBase) {
+    // Always send Accept-Language: ar for all requests
+    if (token == null) {
       options.headers.addAll({'Accept-Language': 'ar'});
     } else {
-      await getIt.get<LangRepo>().getLang();
-      final appLang = getIt.get<LangRepo>().lang ?? "ar";
-
-      if (token == null) {
-        options.headers.addAll({'Accept-Language': appLang});
-      } else {
-        options.headers.addAll({
-          'Authorization': 'Bearer $token',
-          'Accept-Language': appLang,
-        });
-      }
+      options.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept-Language': 'ar',
+      });
     }
     return options;
   }
@@ -72,74 +79,202 @@ class ApiHandler {
 
       try {
         final cacheHelper = getIt.get<CacheHelper>();
-        final refreshToken = await getIt<CacheHelper>().getData(PrefKeys.refreshToken);
+        final refreshToken = await cacheHelper.getRefreshToken();
+        final vendorType = await cacheHelper.getCachedVendorType();
 
-        if (refreshToken != null) {
-          // Refresh the token
-          final refreshEither = await dioAdapterBase.post(
-              EndPoints.refreshToken + "?refreshToken=$refreshToken");
+        if (refreshToken == null || vendorType == null) {
+          // No refresh token available or vendor type not set
+          await cacheHelper.clearUserSession();
+          handler.reject(DioException(
+            message: "No refresh token available, please login again.",
+            requestOptions: error.requestOptions,
+            type: DioExceptionType.badResponse,
+          ));
+          return error;
+        }
+
+        // Check if refresh is already in progress
+        if (_isRefreshing) {
+          Logger().i("Token refresh already in progress, waiting for completion...");
+          // Wait for the ongoing refresh to complete
+          await _refreshCompleter!.future;
+          
+          // After refresh completes, retry the original request with updated token
+          try {
+            final newToken = await cacheHelper.getUserToken();
+            if (newToken != null) {
+              final RequestOptions requestOptions = error.requestOptions;
+              requestOptions.headers['Authorization'] = 'Bearer $newToken';
+              requestOptions.headers["Accept-Language"] = 'ar';
+
+              final retryResponse = await _retryRequest(requestOptions);
+              handler.resolve(retryResponse);
+              return error;
+            }
+          } catch (retryError) {
+            Logger().e("Failed to retry request after waiting for token refresh: $retryError");
+            handler.reject(error);
+            return error;
+          }
+        }
+
+        // Mark that refresh is starting
+        _isRefreshing = true;
+        _refreshCompleter = Completer<void>();
+
+        try {
+          // Use the auth repo to refresh the token
+          final authRepo = GeneralAuthRepo();
+          final refreshEither = await authRepo.refreshToken(
+            refreshToken: refreshToken,
+            vendor: vendorType,
+          ).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Token refresh timeout');
+            },
+          );
 
           final refreshResponse = refreshEither.fold(
                 (l) => throw Exception(l),
                 (r) => r,
           );
 
-          final newAccessToken = refreshResponse.data['data']['token'];
+          final newAccessToken = refreshResponse.accessToken;
+          final newRefreshToken = refreshResponse.refreshToken;
+          
           Logger().e(" 😍 Your New Token is: $newAccessToken ");
 
-          // Save the new token
-          await getIt<CacheHelper>().setUserToken(newAccessToken);
+          // Save the new tokens
+          await cacheHelper.setUserToken(newAccessToken);
+          await cacheHelper.setRefreshToken(newRefreshToken);
+          
+          // Reset retry count on successful refresh
+          _refreshRetryCount = 0;
 
           // Update the original request with new token
           final RequestOptions requestOptions = error.requestOptions;
           requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
-
-          // Get the current language
-          await getIt.get<LangRepo>().getLang();
-          final appLang = getIt.get<LangRepo>().lang ?? "ar";
-          requestOptions.headers["Accept-Language"] = appLang;
+          requestOptions.headers["Accept-Language"] = 'ar';
 
           // Retry the original request with new token
           try {
             final retryResponse = await _retryRequest(requestOptions);
+            
+            // Mark refresh as complete
+            _isRefreshing = false;
+            _refreshCompleter?.complete();
+            
             handler.resolve(retryResponse);
-            return error; // This won't be used since we resolved
+            return error;
           } catch (retryError) {
             Logger().e("Failed to retry request after token refresh: $retryError");
-            return DioException(
-              message: "Failed to retry request after token refresh",
-              requestOptions: error.requestOptions,
-              type: DioExceptionType.badResponse,
-            );
+            
+            // Mark refresh as complete before clearing session
+            _isRefreshing = false;
+            _refreshCompleter?.complete();
+            
+            handler.reject(error);
+            return error;
           }
-        } else {
-          // No refresh token available
-          return DioException(
-            message: "No refresh token available, please login again.",
+        } catch (e) {
+          Logger().e("Token refresh failed: $e");
+          
+          // Increment retry count
+          _refreshRetryCount++;
+          
+          // Mark refresh as complete
+          _isRefreshing = false;
+          _refreshCompleter?.complete();
+          
+          // If we haven't exceeded max retries and the error might be temporary, retry
+          if (_refreshRetryCount <= _maxRefreshRetries && 
+              (e.toString().contains('timeout') || e.toString().contains('network'))) {
+            Logger().i("Retrying token refresh (attempt $_refreshRetryCount/$_maxRefreshRetries)");
+            // Retry the refresh after a short delay
+            await Future.delayed(const Duration(milliseconds: 500));
+            // Re-trigger the error handling to attempt refresh again
+            // Don't recursively call with the same handler - just reject the error
+            handler.reject(error);
+            return error;
+          }
+          
+          // Only clear session if refresh endpoint itself failed (not a generic exception)
+          await getIt<CacheHelper>().clearUserSession().then((_) {
+            Nav.mainNavKey.currentState?.pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => const AccountTypeScreen(),
+              ),
+                  (route) => false,
+            );
+          });
+          handler.reject(DioException(
+            message: "Session expired, please login again.",
             requestOptions: error.requestOptions,
             type: DioExceptionType.badResponse,
-          );
+          ));
+          return error;
         }
       } catch (e) {
-        Logger().e("Token refresh failed: $e");
-        return DioException(
-          message: "Session expired, please login again.",
+        Logger().e("Unexpected error in token refresh: $e");
+        
+        // Mark refresh as complete
+        _isRefreshing = false;
+        _refreshCompleter?.complete();
+        
+        handler.reject(DioException(
+          message: "An unexpected error occurred, please login again.",
           requestOptions: error.requestOptions,
           type: DioExceptionType.badResponse,
-        );
+        ));
+        return error;
       }
+    } else {
+      // Handle other errors (not 401)
+      // Safely extract error message from response data
+      String? errorMessage;
+      if (error.response?.data is Map) {
+        errorMessage = error.response?.data['message']?.toString();
+      } else if (error.response?.data is String) {
+        errorMessage = error.response?.data;
+      }
+      
+      AppLogger.info(errorMessage);
+      
+      // Handle other errors
+      print('Error: ${error.message}');
+      handler.reject(DioException(
+        message: errorMessage ?? error.message?.toString() ?? 'An error occurred',
+        error: error.error,
+        requestOptions: error.requestOptions,
+        response: error.response,
+        type: error.type,
+        stackTrace: error.stackTrace,
+      ));
+      return error;
     }
-
+    
+    // Safely extract error message from response data
+    String? errorMessage;
+    if (error.response?.data is Map) {
+      errorMessage = error.response?.data['message']?.toString();
+    } else if (error.response?.data is String) {
+      errorMessage = error.response?.data;
+    }
+    
+    AppLogger.info(errorMessage);
+    
     // Handle other errors
     print('Error: ${error.message}');
-    return DioException(
-      message: error.response?.data['message']?.toString() ?? error.message.toString(),
+    handler.reject(DioException(
+      message: errorMessage ?? error.message?.toString() ?? 'An error occurred',
       error: error.error,
       requestOptions: error.requestOptions,
       response: error.response,
       type: error.type,
       stackTrace: error.stackTrace,
-    );
+    ));
+    return error;
   }
 
   // Helper method to retry the original request

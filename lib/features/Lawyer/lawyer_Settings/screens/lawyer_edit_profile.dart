@@ -16,6 +16,7 @@ import 'package:rasikh/core/widgets/user_selector/general_app_button.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../../config/app_config.dart';
+import '../../../../config/theme/colors.dart';
 import '../../../../core/widgets/fields/prefix_text_filed_icon.dart';
 import '../../../../core/widgets/general_app_bar.dart';
 
@@ -414,10 +415,17 @@ class _AvatarWithOverlay extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        CircleAvatar(
-          radius: radius,
-          backgroundColor: const Color(0xFFF3EFE8),
-          backgroundImage: image,
+        Container(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color:borderColor, width: 1.5.w) ,
+
+          ),
+          child: CircleAvatar(
+            radius: radius,
+            backgroundColor: const Color(0xFFF3EFE8),
+            backgroundImage: image,
+          ),
         ),
         Positioned(
           bottom: 0,

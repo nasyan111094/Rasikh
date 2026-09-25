@@ -55,12 +55,12 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
       icon: "lawyer.svg",
     ),
 
-    AccountTypeModel(
+   /* AccountTypeModel(
       type: VendorType.company,
       title: "التسجيل كشركة محاماه",
       subtitle: "احصل على استشارة قانونية سريعة وموثوقة.",
       icon: "City.svg",
-    ),
+    ),*/
   ];
 
   @override

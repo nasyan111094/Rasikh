@@ -38,6 +38,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   Timer? _navTimer;
+  Timer? _fallbackTimer;
+  bool _navigated = false;
 
   // ─────────────────────────────────────────────────────────────────────────
   @override
@@ -57,26 +59,35 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
     // Trigger the single check — reads currentToken + onBoardingDone from cache
     _splashBloc.checkUser();
+
+    // Fallback: never trap the user on splash. If the Lottie animation
+    // fails to load (missing asset, codec issue), still navigate.
+    _fallbackTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted && !_navigated) {
+        _navigate();
+      }
+    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _cachedTheme = Theme.of(context);
-    _applySystemUi(_cachedTheme);
+
   }
 
   @override
   void dispose() {
     _navTimer?.cancel();
+    _fallbackTimer?.cancel();
     _controller.dispose();
 
-    // Restore full system UI on exit
+    // Restore full-screen system UI for the rest of the app
     SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.manual,
-      overlays: SystemUiOverlay.values,
+      SystemUiMode.edgeToEdge,
     );
-    _applySystemUi(_cachedTheme);
+
+
 
     super.dispose();
   }
@@ -85,31 +96,16 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   // Helpers
   // ─────────────────────────────────────────────────────────────────────────
 
-  void _applySystemUi(ThemeData theme) {
-    final isDark = theme.brightness == Brightness.dark;
-    SystemChrome.setSystemUIOverlayStyle(
-      SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        statusBarBrightness: theme.brightness,
-        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarColor: theme.colorScheme.surface,
-        systemNavigationBarIconBrightness:
-        isDark ? Brightness.light : Brightness.dark,
-        systemNavigationBarDividerColor: Colors.transparent,
-      ),
-    );
-  }
+
 
   /// Called once both the animation ends AND the bloc has responded.
   void _navigate() {
-    if (!mounted) return;
+    if (!mounted || _navigated) return;
+    _navigated = true;
+    _navTimer?.cancel();
+    _fallbackTimer?.cancel();
 
-    // Restore full system UI before navigating away
-    SystemChrome.setEnabledSystemUIMode(
-      SystemUiMode.manual,
-      overlays: SystemUiOverlay.values,
-    );
-    _applySystemUi(_cachedTheme);
+
 
     // Check if user is already logged in
     final currentToken = getIt<CacheHelper>().currentToken;
@@ -174,6 +170,18 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     _waitForStateAndNavigate();
                   }
                 });
+              },
+              errorBuilder: (context, error, stackTrace) {
+                // If the animation can't render, don't trap the user —
+                // navigate on the next frame.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_stateResolved) {
+                    _navigate();
+                  } else {
+                    _waitForStateAndNavigate();
+                  }
+                });
+                return const SizedBox.shrink();
               },
             ),
           ),

@@ -50,7 +50,7 @@ class _LayoutPageState extends State<LayoutPage> {
         color: theme.colorScheme.primary,
       ),
       NavItem(
-        svgIcon: "assets/icons/user.svg",
+        svgIcon: "assets/icons/settings.svg",
         label: "حسابي",
         color: theme.colorScheme.primary,
       ),

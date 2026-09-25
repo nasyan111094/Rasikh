@@ -70,6 +70,7 @@ class ProfileCubit extends Cubit<ProfileState> {
         loading: false,
         data: data,
         updateSuccess: true,
+
       )),
     );
   }

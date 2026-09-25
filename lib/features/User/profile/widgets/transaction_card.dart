@@ -31,7 +31,7 @@ class TransactionCard extends StatelessWidget {
 
     // 🎨 ألوان ديناميكية حسب الثيم
     final bgColor = theme.cardColor;
-    final borderColor = theme.dividerColor.withOpacity(0.2);
+
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black87;
     final secondaryTextColor = theme.textTheme.bodyMedium?.color?.withOpacity(0.7);
     final dividerColor = theme.dividerColor.withOpacity(0.2);
@@ -41,7 +41,7 @@ class TransactionCard extends StatelessWidget {
       decoration: BoxDecoration(
 
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1),
+        border: Border.all(color: AppColors.borderColor, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -65,7 +65,7 @@ class TransactionCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 10),
-            Divider(height: 1, thickness: 1, color: dividerColor),
+            Divider(height: 1, thickness: 1, color: AppColors.borderColor),
             const SizedBox(height: 12),
 
             // ── الصف الرئيسي

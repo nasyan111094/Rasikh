@@ -25,7 +25,7 @@ class NotificationsRepo {
 
   Future<Either<String, NotificationsResponse>> getMyNotifications({
     int page = 1,
-    int limit = 20,
+    int limit = 7,
     bool? isRead,
     String? type,
     String? channel,

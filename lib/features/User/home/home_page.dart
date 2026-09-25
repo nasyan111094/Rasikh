@@ -1,5 +1,6 @@
 import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
+import 'package:rasikh/core/widgets/error_state_widget.dart';
 import 'package:rasikh/core/widgets/loading_widget.dart';
 
 import 'package:easy_localization/easy_localization.dart';
@@ -41,32 +42,7 @@ class _HomePageState extends State<HomePage> with RouteAware {
     context.read<HomeCubit>().getAdevertisingDataWithDataBase();
   }
 
-  final List<Advertise> advertiseList = [
-    Advertise(
-      image:
-      'https://cdn.maatloob.com/profile/portfolios/p650x650/img-66c22464c3f9c9-07578467.jpg',
-      id: '1',
-      date: '2025-10-01',
-    ),
-    Advertise(
-      image:
-      'https://files.cdn-files-a.com/uploads/6002121/normal_67e02259d9d54.png',
-      id: '2',
-      date: '2025-10-02',
-    ),
-    Advertise(
-      image:
-      'https://almehleky.sa/wp-content/uploads/2024/08/%D8%A3%D9%81%D8%B6%D9%84-%D9%85%D8%AD%D8%A7%D9%85%D9%8A-%D8%A7%D9%88%D9%86-%D9%84%D8%A7%D9%8A%D9%86-%D9%81%D9%8A-%D8%A7%D9%84%D8%B3%D8%B9%D9%88%D8%AF%D9%8A%D8%A9-%D9%84%D8%B9%D8%A7%D9%85-2024.webp',
-      id: '3',
-      date: '2025-10-03',
-    ),
-    Advertise(
-      image:
-      'https://files.cdn-files-a.com/uploads/6002121/800_67e01fdd5ec86_filter_67e0205c9fa7c.png',
-      id: '4',
-      date: '2025-10-04',
-    ),
-  ];
+
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +52,10 @@ class _HomePageState extends State<HomePage> with RouteAware {
     return Scaffold(
       // CustomAppBar uses BlocBuilder<ProfileCubit> internally —
       // no params needed; it reads the singleton cubit from context.
-      appBar: const CustomAppBar(),
+      appBar: CustomAppBar<ProfileCubit, ProfileState>(
+        getFullName: (state) => state.data?.fullName,
+        getAvatar: (state) => state.data?.avatar,
+      ),
       body: Column(
         mainAxisAlignment: MainAxisAlignment.end,
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -88,27 +67,19 @@ class _HomePageState extends State<HomePage> with RouteAware {
             listener: (context, state) {},
             builder: (context, state) {
               if (state is HomeLoadingState) {
-                return SizedBox(
-                  height: 220.h,
-                  width: double.infinity,
-                  child: Center(child: AdsSlider(imageUrls: advertiseList)),
-                );
-              } else if (state is HomeFailedState) {
+                return const LoadingWidget();
+              }
+              else if (state is HomeFailedState) {
                 return SizedBox(
                   height: MediaQuery.of(context).size.height * 0.2,
                   child: Center(
-                    child: Text(
-                      Loc.noAds(),
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.error,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: ErrorStateWidget(title: state.error!),
                   ),
                 );
               } else if (state is HomeSuccessState) {
+
                 return AdsSlider(
-                  imageUrls: state.advertismentResponseModel.data.listData,
+                  imageUrls: state.advertismentResponseModel.data,
                 );
               }
               return const SizedBox.shrink();
@@ -116,6 +87,52 @@ class _HomePageState extends State<HomePage> with RouteAware {
           ),
 
           Gap(30.h),
+          Padding(
+            padding:  EdgeInsets.symmetric(horizontal: 16.w),
+            child: Row(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        Theme.of(context).colorScheme.primary,
+                        Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.6),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .primary
+                            .withOpacity(0.25),
+                        blurRadius: 8,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'كيف نقدر نخدمك ؟',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ) ,
+          Gap(10.h),
 
           /// 🔹 قائمة الاستشارات القانونية
           Expanded(

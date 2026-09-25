@@ -20,21 +20,14 @@ class _AppWithOverlayState extends State<AppWithOverlay> {
   late StreamSubscription<ConnectionStatus> _subscription;
   String? _currentType;
 
-
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-
-    });
-
     final cubit = context.read<ConnectivityCubit>();
 
     _subscription = cubit.stream.listen((state) {
       // بناءً على الحالة من enum
       if (state == ConnectionStatus.connectedWithInternet) {
-
         _removeOverlay();
       } else if (state == ConnectionStatus.connectedNoInternet) {
         _showOverlay("wifi_off"); // حالة متصل بدون انترنت
@@ -55,9 +48,13 @@ class _AppWithOverlayState extends State<AppWithOverlay> {
       _overlayEntry = OverlayEntry(
         builder: (_) {
           if (type == "wifi_off") {
-            return  NoInternetScreen();
+            return NoInternetScreen(
+              onConnected: _removeOverlay,
+            );
           } else {
-            return  NoConnectionScreen();
+            return NoConnectionScreen(
+              onConnected: _removeOverlay,
+            );
           }
         },
       );
@@ -74,7 +71,11 @@ class _AppWithOverlayState extends State<AppWithOverlay> {
 
   void _removeOverlay() {
     if (_overlayEntry != null) {
-      _overlayEntry!.remove();
+      try {
+        _overlayEntry!.remove();
+      } catch (e) {
+        // Overlay might already be removed
+      }
       _overlayEntry = null;
       _currentType = null;
     }

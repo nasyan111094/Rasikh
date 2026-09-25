@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logger/logger.dart';
+import 'package:rasikh/features/Lawyer/lawyer-home/repo/lawyer_consultations_repo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:rasikh/config/localization/lang_repo.dart';
@@ -11,14 +12,13 @@ import 'package:rasikh/core/app/app_bloc.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/connectivity/cubit/connectivity_cubit.dart';
 import 'package:rasikh/core/utils/api/api_handler.dart';
-import 'package:rasikh/core/utils/api/api_helper.dart';
-import 'package:rasikh/core/utils/api/dio_helper.dart';
 
 import 'package:rasikh/features/common/Auth/bloc/auth_cubit.dart';
 import 'package:rasikh/features/common/Auth/repo/auth_repo.dart';
 import 'package:rasikh/features/common/splash/bloc/splash_bloc.dart';
 
 import 'package:rasikh/features/Lawyer/lawer_register_compilation/Repo/lawyer_register_complation_repo.dart';
+import 'package:rasikh/features/Lawyer/lawyer-appointments/repo/lawyer_appointments_repo.dart';
 import 'package:rasikh/features/Lawyer/lawer_register_compilation/cubit/lawyer_registeration_complation_cubit.dart';
 
 import 'package:rasikh/features/User/home/cubit/home_cubit.dart';
@@ -27,12 +27,20 @@ import 'package:rasikh/features/User/profile/repo/profile_repo.dart';
 
 import '../../features/Company/company_register_completion/bloc/company_completion_cubit.dart';
 import '../../features/Company/company_register_completion/repo/company_completion_repo.dart';
+import '../../features/Lawyer/lawyer-appointments/bloc/lawyer_appointments_cubit.dart';
+import '../../features/Lawyer/lawyer-home/bloc/avaiabilty_cubit.dart';
+import '../../features/Lawyer/lawyer-home/bloc/lawyer_consultations_cubit.dart';
+import '../../features/Lawyer/lawyer-home/repo/lawer_availability_rpeo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/help_center_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/lawyer_profile_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/Repo/specializations_repo.dart';
 import '../../features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import '../../features/Lawyer/lawyer_Settings/bloc/Specializations_cubit/specializations_cubit.dart';
+import '../../features/User/application/bloc/consulation_application_cubit.dart';
+import '../../features/User/application/repo/consulation_application_repo.dart';
+import '../../features/User/profile/bloc/wallet_cubit.dart';
 import '../../features/User/profile/cubit/profile_cubit.dart';
+import '../../features/User/profile/repo/wallet_repo.dart';
 import '../../features/User/user_register_completion/bloc/user_completion_cubit.dart';
 import '../../features/User/user_register_completion/repo/user_completion_repo.dart';
 import '../../features/common/notifications/bloc/notifications_cubit.dart';
@@ -60,8 +68,6 @@ Future<void> initializeDependencies() async {
 
     // ApiHandler depends on Dio → registered after
     getIt.registerLazySingleton<ApiHandler>(() => ApiHandler());
-    getIt.registerLazySingleton<ApiHelper>(() => ApiImpl());
-    getIt.registerLazySingleton<DioHelper>(() => DioImpl());
 
     // ─── Lang ─────────────────────────────────────────────────────────────────
     getIt.registerSingleton<LangRepo>(LangRepo());
@@ -134,6 +140,7 @@ Future<void> initializeDependencies() async {
           () => LawyerProfileCubit(getIt<LawyerProfileRepo>()),
     );
 
+
     getIt.registerLazySingleton<SpecializationsRepo>(() => SpecializationsRepo());
     getIt.registerFactory<SpecializationsCubit>(() => SpecializationsCubit());
 
@@ -147,6 +154,25 @@ Future<void> initializeDependencies() async {
           () => NotificationsCubit(getIt<NotificationsRepo>()),
     );
 
+
+
+
+
+
+
+    getIt.registerLazySingleton<ConsultationRepo>(
+          () => ConsultationRepo(),
+    );
+
+    getIt.registerLazySingleton<ConsultationApplicationCubit>(
+          () => ConsultationApplicationCubit(),
+    );
+
+
+
+
+
+
     getIt.registerLazySingleton<HelpCenterRepo>(
           () => HelpCenterRepo(),
     );
@@ -157,6 +183,31 @@ Future<void> initializeDependencies() async {
         level: kReleaseMode ? Level.off : Level.debug,
       ),
     );
+
+// Repo — factory so each call gets a fresh instance
+    getIt.registerFactory<LawyerAvailabilityRepo>(
+          () => LawyerAvailabilityRepo(),
+    );
+
+// Cubit — lazy singleton so it survives navigation
+    getIt.registerLazySingleton<LawyerAvailabilityCubit>(
+          () => LawyerAvailabilityCubit(getIt<LawyerAvailabilityRepo>()),
+    );
+
+// Repo — factory so each call gets a fresh instance
+    getIt.registerFactory<LawyerConsultationsRepo>(
+          () => LawyerConsultationsRepo(),
+    );
+
+// Cubit — lazy singleton so it survives navigation
+    getIt.registerLazySingleton<LawyerConsultationsCubit>(
+          () => LawyerConsultationsCubit(getIt<LawyerConsultationsRepo>()),
+    );
+
+    // ── Lawyer Appointments repo (used by LawyerAppointmentsScreen via getIt) ──
+    // Register as factory so each consumer gets a fresh instance when requested
+    getIt.registerFactory<LawyerAppointmentsRepo>(() => LawyerAppointmentsRepo());
+
 
 
 
@@ -169,6 +220,12 @@ Future<void> initializeDependencies() async {
 // Register it as a singleton cubit at app level:
     getIt.registerLazySingleton<ProfileCubit>(
           () => ProfileCubit(getIt<ProfileRepo>()),
+    );
+
+    // ─── Wallet ───────────────────────────────────────────────────────────────
+    getIt.registerLazySingleton<WalletRepo>(() => WalletRepo());
+    getIt.registerFactory<WalletCubit>(
+          () => WalletCubit(getIt<WalletRepo>()),
     );
   } catch (e, stackTrace) {
     print('Error in initializeDependencies: $e');

@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 
 import '../../../../../../core/cache/cache_helper.dart';
@@ -94,10 +95,34 @@ class LawyerProfileRepo {
     required List<String> mainSpecializationIds,
     required List<String> subSpecializationIds,
   }) async {
-    final formData = FormData.fromMap({
-      'mainSpecializations': jsonEncode(mainSpecializationIds),
-      'subSpecializations': jsonEncode(subSpecializationIds),
-    });
+    final formData = FormData();
+
+    // Main Specializations
+    for (final id in mainSpecializationIds) {
+      formData.fields.add(
+        MapEntry('mainSpecializations[]', id),
+      );
+    }
+
+    // Sub Specializations
+    for (final id in subSpecializationIds) {
+      formData.fields.add(
+        MapEntry('subSpecializations[]', id),
+      );
+    }
+
+    // Debug
+    debugPrint('========== FormData ==========');
+    for (final field in formData.fields) {
+      debugPrint('${field.key}: ${field.value}');
+    }
+
+    if (formData.files.isNotEmpty) {
+      for (final file in formData.files) {
+        debugPrint('${file.key}: ${file.value.filename}');
+      }
+    }
+    debugPrint('==============================');
 
     final result = await _adapter.put(
       _ProfileEndpoints.update,
@@ -105,9 +130,9 @@ class LawyerProfileRepo {
     );
 
     if (result.isRight) {
-      // Re-fetch the full profile so callers always get the canonical model.
       return getProfile();
     }
+
     return Left(_extractError(result.left));
   }
 

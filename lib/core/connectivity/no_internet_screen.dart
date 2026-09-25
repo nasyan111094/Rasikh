@@ -5,8 +5,11 @@ import '../utils/get_asset_path.dart';
 import '../widgets/picture.dart';
 import 'cubit/connectivity_cubit.dart';
 
+
 class NoInternetScreen extends StatefulWidget {
-  const NoInternetScreen({super.key});
+  final VoidCallback? onConnected;
+
+  const NoInternetScreen({super.key, this.onConnected});
 
   @override
   State<NoInternetScreen> createState() => _NoInternetScreenState();
@@ -51,6 +54,12 @@ class _NoInternetScreenState extends State<NoInternetScreen>
 
     // Call the Cubit's checkConnectivity method
     await cubit.checkConnectivity();
+
+    // Check if internet is now available and notify parent
+    await Future.delayed(const Duration(milliseconds: 500));
+    if (cubit.hasInternet && mounted) {
+      widget.onConnected?.call();
+    }
   }
 
 
@@ -87,7 +96,7 @@ class _NoInternetScreenState extends State<NoInternetScreen>
                   "انقطع الاتصال بالإنترنت",
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall?.copyWith(
-                    color: colorScheme.onBackground, // استخدام لون الثيم
+                    color: colorScheme.onBackground,
                     fontWeight: FontWeight.bold,
                     shadows: [
                       Shadow(

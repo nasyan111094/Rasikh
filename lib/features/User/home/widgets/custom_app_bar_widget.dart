@@ -1,27 +1,36 @@
-import 'package:rasikh/core/widgets/custom_dialog.dart';
-import 'package:rasikh/config/localization/loc_keys.dart';
-import 'package:rasikh/config/navigation/nav.dart';
-import 'package:rasikh/core/utils/get_asset_path.dart';
-import 'package:rasikh/core/widgets/my_custom_icon.dart';
-import 'package:rasikh/core/widgets/picture.dart';
-
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/config/theme/colors.dart';
+import 'package:rasikh/features/common/notifications/notifications_screen.dart';
 import 'package:size_config/size_config.dart';
 
+import '../../../../config/localization/loc_keys.dart';
+import '../../../../config/navigation/nav.dart';
 import '../../../../core/cache/cache_helper.dart';
 import '../../../../core/get_it_service/get_it_service.dart';
-import '../../profile/cubit/profile_cubit.dart';
+import '../../../../core/utils/get_asset_path.dart';
+import '../../../../core/widgets/custom_dialog.dart';
+import '../../../../core/widgets/my_custom_icon.dart';
+import '../../../../core/widgets/picture.dart';
 
-class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const CustomAppBar({super.key});
+class CustomAppBar<C extends StateStreamable<S>, S>
+    extends StatelessWidget
+    implements PreferredSizeWidget {
+  final String? Function(S state) getFullName;
+  final String? Function(S state) getAvatar;
+
+  const CustomAppBar({
+    super.key,
+    required this.getFullName,
+    required this.getAvatar,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final theme     = Theme.of(context);
-    final colors    = theme.colorScheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
     final textTheme = theme.textTheme;
     final bool isRtl = context.locale.languageCode != 'en';
 
@@ -31,21 +40,23 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         elevation: 0,
         toolbarHeight: 80.h,
 
-        // ── Avatar (leading) ────────────────────────────────────────────────
+        /// Avatar
         leading: Padding(
-          padding: EdgeInsets.symmetric(vertical: 6.h),
+          padding: EdgeInsets.symmetric(vertical: 4.h),
           child: Transform(
             alignment: Alignment.center,
             transform: Matrix4.rotationY(isRtl ? 0 : 3.14159),
             child: Container(
-              height: 60.h,
-              width: 60.w,
+
               padding: EdgeInsets.all(5.h),
               decoration: BoxDecoration(
+                border: Border.all(
+                  color: colors.primary.withOpacity(0.3),
+                ),
                 borderRadius: BorderRadius.only(
-                  topLeft:     Radius.circular(isRtl ? 50 : 0),
-                  bottomLeft:  Radius.circular(isRtl ? 50 : 0),
-                  topRight:    Radius.circular(isRtl ? 0 : 50),
+                  topLeft: Radius.circular(isRtl ? 50 : 0),
+                  bottomLeft: Radius.circular(isRtl ? 50 : 0),
+                  topRight: Radius.circular(isRtl ? 0 : 50),
                   bottomRight: Radius.circular(isRtl ? 0 : 50),
                 ),
                 gradient: LinearGradient(
@@ -53,33 +64,56 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     colors.primary.withOpacity(0.3),
                     colors.surface,
                   ],
-                  begin: isRtl ? Alignment.centerRight : Alignment.centerLeft,
-                  end:   isRtl ? Alignment.centerLeft  : Alignment.centerRight,
+                  begin:
+                  isRtl ? Alignment.centerRight : Alignment.centerLeft,
+                  end:
+                  isRtl ? Alignment.centerLeft : Alignment.centerRight,
                 ),
               ),
-              // ── Show network avatar when available ──────────────────────
-              child: BlocBuilder<ProfileCubit, ProfileState>(
+              child: BlocBuilder<C, S>(
                 builder: (context, state) {
-                  final avatarPath = state.data?.avatar;
-                  return ClipOval(
-                    child: avatarPath != null
-                        ? Image.network(
-                      'http://89.117.60.202:3050$avatarPath',
-                      fit: BoxFit.cover,
-                      height: 70.h,
-                      width:  70.h,
-                      errorBuilder: (_, __, ___) => Image.asset(
-                        getAssetImage('avatar.png'),
-                        fit: BoxFit.cover,
-                        height: 70.h,
-                        width:  70.h,
+                  final avatarPath = getAvatar(state);
+
+            return SizedBox(
+                    width: 55.w,
+                    height: 55.w,
+                    child: Container(
+
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: Colors.white,
+                          width: 4
+
+                        ),
                       ),
-                    )
-                        : Image.asset(
-                      getAssetImage('avatar.png'),
-                      fit: BoxFit.cover,
-                      height: 70.h,
-                      width:  70.h,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: primary,
+                              width: 1
+
+                          ),
+                        ),
+                        child: ClipOval(
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: double.infinity,
+                            child: avatarPath != null && avatarPath.isNotEmpty
+                                ? Image.network(
+                              avatarPath.startsWith('http')
+                                  ? avatarPath
+                                  : 'http://89.117.60.202:3050$avatarPath',
+                              fit: BoxFit.cover,
+                            )
+                                : Image.asset(
+                              getAssetImage('avatar.png'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -88,10 +122,10 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ),
 
-        // ── Title row ───────────────────────────────────────────────────────
+        /// Title
         title: Row(
           children: [
-       BlocBuilder<ProfileCubit, ProfileState>(
+            BlocBuilder<C, S>(
               builder: (context, state) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,7 +139,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                     ),
                     Gap(5.h),
                     Text(
-                      state.data?.fullName ?? '-',
+                      getFullName(state) ?? '-',
                       style: textTheme.bodyMedium?.copyWith(
                         color: colors.primary,
                         fontWeight: FontWeight.w500,
@@ -118,7 +152,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
             const Spacer(),
 
-            /// ── Search icon ───────────────────────────────────────────────
+            /// Search
             MyCustomIconsWidget(
               backGround: Colors.transparent,
               height: 40.h,
@@ -131,7 +165,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       child: Container(
                         color: Colors.transparent,
                         height: MediaQuery.of(context).size.height / 3,
-                        width:  MediaQuery.of(context).size.width / 1.2,
+                        width: MediaQuery.of(context).size.width / 1.2,
                         child: const CustomDialog(),
                       ),
                     ),
@@ -140,27 +174,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                   // Nav.searchPage(context);
                 }
               },
-              childWidget: Container(
-                padding: EdgeInsets.all(8.w),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: colors.primary.withOpacity(0.4),
-                    width: 1.5,
-                  ),
-                ),
-                child: Picture(
-                  getAssetIcon('search.svg'),
-                  width: 24.h,
-                  height: 24.h,
-                  color: colors.primary,
-                ),
-              ),
+              childWidget:SizedBox(),
             ),
 
             Gap(10.w),
 
-            /// ── Notification icon ─────────────────────────────────────────
+            /// Notification
             MyCustomIconsWidget(
               backGround: Colors.transparent,
               height: 40.h,
@@ -173,13 +192,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       child: Container(
                         color: Colors.transparent,
                         height: MediaQuery.of(context).size.height / 3,
-                        width:  MediaQuery.of(context).size.width / 1.2,
+                        width: MediaQuery.of(context).size.width / 1.2,
                         child: const CustomDialog(),
                       ),
                     ),
                   );
                 } else {
-                  // Nav.notificationPage(context);
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
                 }
               },
               childWidget: Stack(
@@ -196,24 +215,27 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       ),
                     ),
                     child: Picture(
-                      getAssetIcon('bell.svg'),
+                      getAssetIcon('notification.svg'),
                       width: 24.h,
                       height: 24.h,
                       color: colors.primary,
                     ),
                   ),
                   Positioned(
-                    top:   -3,
+                    top: -3,
                     right: -3,
                     child: Container(
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: colors.error,
                         shape: BoxShape.circle,
-                        border: Border.all(color: colors.surface, width: 1.2),
+                        border: Border.all(
+                          color: colors.surface,
+                          width: 1.2,
+                        ),
                       ),
                       constraints: const BoxConstraints(
-                        minWidth:  18,
+                        minWidth: 18,
                         minHeight: 18,
                       ),
                       child: Padding(
@@ -224,7 +246,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                             color: colors.onError,
                             fontWeight: FontWeight.bold,
                             fontSize: 10.sp,
-                            height: 1.0,
+                            height: 1,
                           ),
                         ),
                       ),

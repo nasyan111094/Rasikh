@@ -137,7 +137,7 @@ class _PhoneFieldState extends State<PhoneField>
 
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(10),
+          LengthLimitingTextInputFormatter(9),
         ],
 
         validator: widget.onValidated ?? validate,
@@ -317,7 +317,7 @@ class _PhoneFieldState extends State<PhoneField>
     final phone = value.trim();
 
     final regex = RegExp(
-      r'^(5\d{8}|05\d{8})$',
+      r'^(5\d{8}|05\d{7})$',
     );
 
     if (!regex.hasMatch(phone)) {

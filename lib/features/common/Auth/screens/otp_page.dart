@@ -26,6 +26,7 @@ import 'package:rasikh/core/widgets/gradiant_button.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:rasikh/core/widgets/snack_bar.dart';
 import 'package:rasikh/core/widgets/user_selector/general_app_button.dart';
+import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../../Shared/bottom_sheets/terms_conditions_button_sheet.dart';
@@ -449,113 +450,7 @@ class _OtpPageState extends State<OtpPage> {
 //   • Spinner — auto-navigates after 3 s
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _UserCongratulationDialog extends StatefulWidget {
-  final VoidCallback onDone;
-  const _UserCongratulationDialog({required this.onDone});
 
-  @override
-  State<_UserCongratulationDialog> createState() =>
-      _UserCongratulationDialogState();
-}
-
-class _UserCongratulationDialogState
-    extends State<_UserCongratulationDialog> {
-  @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) widget.onDone();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs    = theme.colorScheme;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24)),
-      backgroundColor: cs.surface,
-      insetPadding:    EdgeInsets.symmetric(horizontal: 28.w),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(24.w, 36.h, 24.w, 28.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── Avatar ────────────────────────────────────────────────
-            Container(
-              width:  120.w,
-              height: 120.w,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  begin:  Alignment.topLeft,
-                  end:    Alignment.bottomRight,
-                  colors: [Color(0xFFB8D8EE), Color(0xFFD6ECF7)],
-                ),
-                border: Border.all(
-                  color: const Color(0xFFB5A47A),
-                  width: 2.5,
-                ),
-              ),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/user_avatar.png',
-                  fit:          BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Icon(
-                    Icons.person_rounded,
-                    size:  56.sp,
-                    color: cs.primary,
-                  ),
-                ),
-              ),
-            ),
-
-            Gap(28.h),
-
-            // ── "عزيزي العميل، تهانينا 🎉" ───────────────────────────
-            Text(
-              'عزيزي العميل، تهانينا 🎉',
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color:      cs.primary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            Gap(14.h),
-
-            Text(
-              'حسابك جاهز للاستخدام. سيتم تحويلك إلى الصفحة الرئيسية خلال لحظات.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color:  cs.onSurfaceVariant,
-                height: 1.65,
-              ),
-              textAlign: TextAlign.center,
-            ),
-
-            Gap(32.h),
-
-            // ── Spinner ───────────────────────────────────────────────
-            SizedBox(
-              width:  36.w,
-              height: 36.w,
-              child: CircularProgressIndicator(
-                strokeWidth: 3,
-                color:       cs.primary,
-              ),
-            ),
-
-            Gap(4.h),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // _TermsFooter — shared pinned footer
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -671,7 +566,7 @@ class _CongratulationDialogState extends State<_CongratulationDialog> {
             Gap(24.h),
 
             Text(
-              "عزيزي المحامي، تهانينا 🎉",
+              "عزيزي ${getIt<CacheHelper>().cachedVendorType == VendorType.lawyer ? "المحامي" : "العميل"} ، تهانينا 🎉",
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color:      cs.primary,

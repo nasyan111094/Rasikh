@@ -11,6 +11,7 @@ import 'package:rasikh/core/widgets/delete_bottom_sheet.dart';
 import 'package:rasikh/core/widgets/image_cropper.dart';
 import 'package:rasikh/core/widgets/logout_bottom_sheet.dart';
 import 'package:rasikh/core/widgets/must_login_bottom_sheet.dart';
+import 'package:rasikh/features/Lawyer/lawyer-appointments/models/availability_slot_model.dart';
 
 
 
@@ -22,7 +23,7 @@ import 'package:rasikh/features/common/Auth/screens/otp_page.dart';
 import '../../Shared/bottom_sheets/terms_and_condition_sheet.dart';
 
 import '../../features/Company/company_register_completion/pages/company_completion_page.dart';
-import '../../features/Lawyer/adding_work_appointment/adding_work_appointment_screen.dart';
+import '../../features/Lawyer/lawyer-appointments/adding_work_appointment_screen.dart';
 import '../../features/Lawyer/lawer_register_compilation/screens/lawyer_license_page.dart';
 import '../../features/Lawyer/lawer_register_compilation/screens/lawyer_personal_info_page.dart';
 import '../../features/Lawyer/lawer_register_compilation/screens/lawyer_qualifications_page.dart';
@@ -35,6 +36,7 @@ import '../../features/Lawyer/lawyer_Settings/screens/lawyer_profile_screen.dart
 import '../../features/Lawyer/lawyer_Settings/screens/lawyer_rates_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/lawyer_specializations_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/lawyer_update_licence_screen.dart';
+import '../../features/Lawyer/lawyer_Settings/screens/top_up_wallet_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/wallet_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/withdraw_request_screen.dart';
 
@@ -51,7 +53,7 @@ import '../../features/User/application/end_session_screen.dart';
 import '../../features/User/application/payment_screen(5).dart';
 import '../../features/User/application/video_call_screen.dart';
 
-import '../../features/User/lawyer_details/lawyer_details_screen.dart';
+import '../../features/User/application/lawyer_details_screen.dart';
 
 import '../../features/User/profile/screens/change_phone_number.dart';
 import '../../features/User/profile/screens/financial_transactions_screen.dart';
@@ -327,6 +329,15 @@ abstract class Nav {
         const WithdrawRequestScreen(),
       );
 
+  static topUpWalletScreen(
+      BuildContext context,
+      ) async =>
+      await _push(
+        context,
+        PageKey.login,
+        const TopUpWalletScreen(),
+      );
+
   static walletScreen(
       BuildContext context,
       ) async =>
@@ -404,12 +415,12 @@ abstract class Nav {
   // ─────────────────────────────────────────────
 
   static addWorkAppointment(
-      BuildContext context,
+      BuildContext context, { String ? slotId ,  AvailabilitySlot ? initialSlot , int? dayIndex}
       ) async =>
       await _push(
         context,
         PageKey.login,
-        const AddingWorkAppointmentScreen(),
+        AddingWorkAppointmentScreen(slotId: slotId, initialSlot: initialSlot, dayIndex: dayIndex),
       );
 
   static lawyerAppointmentsScreen(
@@ -436,40 +447,63 @@ abstract class Nav {
 
   static lawyerDetailsScreen(
       BuildContext context,
+      {required String Id }
       ) async =>
       await _push(
         context,
         PageKey.login,
-        const LawyerDetailsScreen(),
+         LawyerDetailsScreen(lawyerId: Id,),
       );
 
-  static endSessionScreen(
-      BuildContext context,
-      ) async =>
-      await _push(
-        context,
-        PageKey.login,
-        const EndSessionScreen(),
-      );
 
   static chat(
-      BuildContext context,
-      ) async =>
+      BuildContext context, {
+
+        String? lawyerName,
+        String? lawyerPhotoUrl,
+        required String consultationId,
+        String ? lawyerId ,
+        String ?  clientId  ,
+
+
+      }) async =>
       await _push(
         context,
-        PageKey.login,
-        const ChatScreen(),
+        PageKey.login, // update PageKey if needed
+        ChatScreenSession(
+          consultationId: consultationId,
+          clientId: clientId ?? "",
+          lawyerId: lawyerId ?? "",
+          peerName: lawyerName,
+          peerPhotoUrl: lawyerPhotoUrl,
+        ),
       );
-
   static videoCallScreen(
-      BuildContext context,
-      ) async =>
+      BuildContext context, {
+
+        String? lawyerName,
+        String? lawyerPhotoUrl,
+         required String consultationId,
+        String ? consultationType,
+         String ? lawyerId ,
+         String ?  clientId  ,
+
+
+
+      }) async =>
       await _push(
         context,
-        PageKey.login,
-        const VideoCallScreen(),
-      );
+        PageKey.login, // update PageKey if needed
+        VideoCallScreen(
+          consultationId: consultationId,
+          lawyerName: lawyerName,
+          lawyerPhotoUrl: lawyerPhotoUrl,
+          clientId: clientId ?? "",
+          lawyerId: lawyerId ?? "",
+          consultationType: consultationType,
 
+        ),
+      );
   static connectingToLawyerScreen(
       BuildContext context,
       ) async =>
@@ -499,11 +533,12 @@ abstract class Nav {
 
   static chooseLawyerScreen(
       BuildContext context,
+      {required bool recommended}
       ) async =>
       await _push(
         context,
         PageKey.login,
-        const ChooseLawyerScreen(),
+         ChooseLawyerScreen(recommended: recommended,),
       );
 
   static appointmentDetailsScreen(

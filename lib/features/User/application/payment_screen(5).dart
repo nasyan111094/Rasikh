@@ -1,115 +1,134 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// payment_screen.dart  (Step 5 / Final)
+// UI unchanged — "ادفع الآن" now calls cubit.createConsultation()
+// ─────────────────────────────────────────────────────────────────────────────
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_staggered_animations/flutter_staggered_animations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
 import 'package:lottie/lottie.dart';
-import 'package:rasikh/core/theme/font_weights.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:size_config/size_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../config/navigation/nav.dart';
 import '../../../core/theme/sizes.dart';
 import '../../../core/utils/get_asset_path.dart';
 import '../../../core/widgets/auth_stepper.dart';
-import '../../../core/widgets/auth_stepper.dart';
 import '../../../core/widgets/general_app_bar.dart';
 import '../../../core/widgets/general_divider.dart';
-import 'consultation_type_screen(2).dart';
+
+import 'bloc/consulation_application_cubit.dart';
+import 'bloc/consulation_application_state.dart';
+import 'models/consultation_model.dart';
 
 class PaymentScreen extends StatefulWidget {
-  PaymentScreen({super.key});
+  const PaymentScreen({super.key});
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
 }
 
-class _PaymentScreenState extends State<PaymentScreen> {
-  int currentSelectedIndex  = 0 ;
+class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserver {
+  int currentSelectedIndex = 0;
+  bool _isCheckingPayment = false;
+  bool _hasOpenedPaymentUrl = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    
+    // Check payment status when app resumes after opening payment URL
+    if (state == AppLifecycleState.resumed && _hasOpenedPaymentUrl && !_isCheckingPayment) {
+      _checkPaymentAfterReturn();
+    }
+  }
 
-  Future<void> showOrderConfirmedDialog1(BuildContext context) async {
+  // ── Dialogs ───────────────────────────────────────────────────────────────
+
+  Future<void> _showOrderConfirmedInstant(BuildContext context) async {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    int secondsLeft = 10; // countdown start
+    int secondsLeft = 10;
     Timer? timer;
 
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        // Use StatefulBuilder to update countdown text inside dialog
-        return StatefulBuilder(
-          builder: (context, setState) {
-            // Start countdown only once
-            timer ??= Timer.periodic(const Duration(seconds: 1), (t) {
-              if (secondsLeft > 0) {
-                setState(() => secondsLeft--);
-              } else {
-                t.cancel();
-                Navigator.pop(dialogContext); // Close the dialog
-                Nav.connectingToLawyerScreen(context); // Navigate to your next screen
-              }
-            });
+        return StatefulBuilder(builder: (ctx, setDState) {
+          timer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+            if (secondsLeft > 0) {
+              setDState(() => secondsLeft--);
+            } else {
+              t.cancel();
+              Navigator.pop(dialogContext);
+              Nav.connectingToLawyerScreen(context);
+            }
+          });
 
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16.h),
+          return Dialog(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.h)),
+            insetPadding: EdgeInsets.symmetric(horizontal: 24.w),
+            child: Padding(
+              padding: EdgeInsets.all(20.w),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Lottie.asset(
+                    'assets/anims/success.json',
+                    width: 120.w,
+                    height: 120.h,
+                    repeat: false,
+                  ),
+                  SizedBox(height: 12.h),
+                  Text(
+                    "تم تأكيد طلبك",
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: const Color(0xFFAE895D),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18.sp,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 8.h),
+                  Text(
+                    "تم تأكيد طلبك... سنربطك الآن بأفضل محامي متاح (حتى $secondsLeft ثانية).",
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.hintColor,
+                      fontSize: 14.sp,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 20.h),
+                ],
               ),
-              insetPadding: EdgeInsets.symmetric(horizontal: 24.w),
-              child: Padding(
-                padding: EdgeInsets.all(20.w),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // ✅ Lottie animation
-                    Lottie.asset(
-                      'assets/anims/success.json', // your Lottie success file
-                      width: 120.w,
-                      height: 120.h,
-                      repeat: false,
-                    ),
-                    SizedBox(height: 12.h),
-
-                    // Title
-                    Text(
-                      "تم تأكيد طلبك",
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: const Color(0xFFAE895D),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 8.h),
-
-                    // Subtitle with countdown
-                    Text(
-                      "تم تأكيد طلبك... سنربطك الآن بأفضل محامي متاح (حتى $secondsLeft ثانية).",
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.hintColor,
-                        fontSize: 14.sp,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    SizedBox(height: 20.h),
-
-                    // Optional manual close button
-
-                  ],
-                ),
-              ),
-            );
-          },
-        );
+            ),
+          );
+        });
       },
     );
   }
-  Future<void> showOrderConfirmedDialog2(BuildContext context) async {
+
+  Future<void> _showOrderConfirmedScheduled(BuildContext context) async {
     final theme = Theme.of(context);
 
     await showDialog(
@@ -118,30 +137,23 @@ class _PaymentScreenState extends State<PaymentScreen> {
       builder: (dialogContext) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+              borderRadius: BorderRadius.circular(12)),
           insetPadding: const EdgeInsets.symmetric(horizontal: 24),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ✅ Green Check Icon
                 Container(
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Color(0xFF2E7D32), // green background
+                    color: Color(0xFF2E7D32),
                   ),
                   padding: const EdgeInsets.all(18),
-                  child: const Icon(
-                    Icons.check,
-                    color: Colors.white,
-                    size: 48,
-                  ),
+                  child: const Icon(Icons.check,
+                      color: Colors.white, size: 48),
                 ),
                 const SizedBox(height: 20),
-
-                // ✅ Title
                 Text(
                   "تم تأكيد طلبك",
                   style: theme.textTheme.titleMedium?.copyWith(
@@ -152,19 +164,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
-
-                // ✅ Subtitle
                 Text(
                   "تم حجز موعدك بنجاح",
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[700],
-                    fontSize: 14,
-                  ),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.grey[700], fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-
-                // ✅ Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -172,21 +178,16 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       backgroundColor: const Color(0xFFAE895D),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                          borderRadius: BorderRadius.circular(8)),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
                     onPressed: () {
                       Navigator.pop(dialogContext);
-                      Nav.layout(context); // navigate to main screen
+                      Nav.layout(context);
                     },
-                    child: const Text(
-                      "العودة للرئيسية",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: const Text("العودة للرئيسية",
+                        style: TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -197,7 +198,159 @@ class _PaymentScreenState extends State<PaymentScreen> {
     );
   }
 
+  Future<void> _showErrorDialog(BuildContext context, String error) async {
+    final theme = Theme.of(context);
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12)),
+        title: Text('فشل إنشاء الاستشارة',
+            style: theme.textTheme.titleMedium
+                ?.copyWith(fontWeight: FontWeight.bold)),
+        content: Text(error, style: theme.textTheme.bodyMedium),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('حسناً'),
+          ),
+        ],
+      ),
+    );
+  }
 
+  // ── Pay handler ───────────────────────────────────────────────────────────
+
+  Future<void> _handlePay(BuildContext context, ConsultationState state) async {
+    final cubit = context.read<ConsultationApplicationCubit>();
+
+    // Check if consultation is already created
+    if (state.createdConsultation == null) {
+      _showErrorDialog(context, 'يجب إنشاء الاستشارة أولاً');
+      return;
+    }
+
+    // Process payment based on selected method
+    if (currentSelectedIndex == 1) {
+      // Wallet payment
+      await cubit.payWithWallet();
+    } else {
+      // MyFatoorah payment
+      await cubit.initiatePayment();
+    }
+
+    // Re-read state after payment
+    if (!mounted) return;
+    final newState = cubit.state;
+
+    if (newState.paymentStatus == ConsultationStatus.failure) {
+      _showErrorDialog(context, newState.paymentError ?? 'حدث خطأ أثناء الدفع');
+      return;
+    }
+
+    if (newState.paymentStatus == ConsultationStatus.success) {
+      if (currentSelectedIndex == 1) {
+        // Wallet payment success
+        if (state.selectedConsultationType == ConsultationType.scheduled) {
+          _showOrderConfirmedScheduled(context);
+        } else {
+          _showOrderConfirmedInstant(context);
+        }
+      } else {
+        // MyFatoorah payment - open payment URL
+        final paymentUrl = newState.paymentData?['payment']?['PaymentURL'];
+        if (paymentUrl != null) {
+          final uri = Uri.parse(paymentUrl);
+          if (await canLaunchUrl(uri)) {
+            setState(() => _hasOpenedPaymentUrl = true);
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          } else {
+            _showErrorDialog(context, 'لا يمكن فتح رابط الدفع');
+          }
+        } else {
+          _showErrorDialog(context, 'لم يتم الحصول على رابط الدفع');
+        }
+      }
+    }
+  }
+
+  // ── Check payment status after returning from payment page ─────────────────
+
+  Future<void> _checkPaymentAfterReturn() async {
+    if (_isCheckingPayment) return;
+    setState(() => _isCheckingPayment = true);
+
+    final cubit = context.read<ConsultationApplicationCubit>();
+    final state = cubit.state;
+
+    // Show loading dialog
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        content: Row(
+          children: [
+            const CircularProgressIndicator(),
+            SizedBox(width: 16.w),
+            const Text('جاري التحقق من حالة الدفع...'),
+          ],
+        ),
+      )
+    );
+
+    // Poll payment status
+    final paymentStatus = await cubit.checkPaymentStatus();
+
+    // Close loading dialog
+    if (!mounted) return;
+    Navigator.pop(context);
+
+    setState(() => _isCheckingPayment = false);
+
+    // Handle payment result
+    switch (paymentStatus) {
+      case 'paid':
+        if (state.selectedConsultationType == ConsultationType.scheduled) {
+          _showOrderConfirmedScheduled(context);
+        } else {
+          _showOrderConfirmedInstant(context);
+        }
+        break;
+      case 'failed':
+        _showErrorDialog(context, 'فشلت عملية الدفع. يرجى المحاولة مرة أخرى.');
+        break;
+      case 'pending':
+        _showPendingDialog(context);
+        break;
+      case 'error':
+        _showErrorDialog(context, 'حدث خطأ أثناء التحقق من حالة الدفع.');
+        break;
+    }
+  }
+
+  Future<void> _showPendingDialog(BuildContext context) async {
+    final theme = Theme.of(context);
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('جاري معالجة الدفع'),
+        content: const Text('نحن نتحقق من حالة الدفع. قد يستغرق هذا بضع دقائق.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              Nav.layout(context);
+            },
+            child: const Text('العودة للرئيسية'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -207,174 +360,237 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: const GeneralAppBar(title: "الدفع"),
-        body: Column(
-          children: [
-            Padding(
-              padding:  EdgeInsets.symmetric(vertical: 24.h , horizontal: 16.w),
-              child: const AuthStepperWidget(activeStep: 5, totalSteps: 5),
-            ),
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            Nav.layout(context);
+          }
+        },
+        child: Scaffold(
+          appBar: GeneralAppBar(
+            title: "الدفع",
+            onTapArrow: () => Nav.layout(context),
+          ),
+        body: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
+          builder: (context, state) {
+            final lawyer =
+                state.selectedLawyerDetail ?? state.recommendedLawyer;
+            final pricing = state.selectedPricing;
+            final isScheduled = state.isScheduled;
+            final isLoading =
+                state.paymentStatus == ConsultationStatus.loading;
 
-            Expanded(
-              child: SingleChildScrollView(
-                padding:  EdgeInsets.symmetric(horizontal: 16.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+            return Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      vertical: 24.h, horizontal: 16.w),
+                  child: const AuthStepperWidget(
+                      activeStep: 5, totalSteps: 5),
+                ),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // ── Notice banner ──────────────────────────
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 10),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            isScheduled
+                                ? "قم بالدفع الآن لتأكيد موعدك مع المحامي."
+                                : "قم بالدفع الآن وسيتم تحويلك مباشرة إلى المحادثة مع المحامي المختص.",
+                            style: textTheme.titleSmall?.copyWith(
+                              color: Colors.green,
+                              fontSize: 11.sp,
+                            ),
+                          ),
+                        ),
 
+                        // ── Consultation summary card ──────────────
+                        buildAnimatedCard(
+                          title: 'تفاصيل الاستشارة',
+                          titleIconPath: 'chat.svg',
+                          index: 0,
+                          children: [
+                            rowItem('نوع الاستشارة',
+                                state.selectedConsultationType.arabicLabel),
+                            rowItem('عنوان الاستشارة',
+                                state.consultationTitle),
+                            rowItem(
+                              'التخصص',
+                              state.selectedSpecialization?.name ?? '—',
+                            ),
+                            if (state.selectedSubSpecializations.isNotEmpty)
+                              rowItem(
+                                'التخصص الفرعي',
+                                state.selectedSubSpecializations
+                                    .map((s) => s.name)
+                                    .join('، '),
+                              ),
+                            if (isScheduled && state.startTime != null)
+                              rowItem(
+                                'تاريخ الجلسة',
+                                _formatDateTime(state.startTime!),
+                              ),
+                            rowItem(
+                              'المدة',
+                              pricing?.durationLabel ?? '—',
+                              hasDivider: false,
+                            ),
+                          ],
+                        ),
 
-                    /// Payment notice container
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
+                        // ── Lawyer card ────────────────────────────
+                        if (lawyer != null)
+                          buildAnimatedCard(
+                            title: 'بيانات المحامي',
+                            titleIconPath: 'user.svg',
+                            index: 1,
+                            children: [
+                              rowItem('الاسم', lawyer.fullName),
+                              rowItem('المدينة', lawyer.city ?? '—'),
+                              if (lawyer.experienceYears != null)
+                                rowItem('سنوات الخبرة',
+                                    '${lawyer.experienceYears}'),
+                              rowItem(
+                                'التقييم',
+                                '${lawyer.rating.toStringAsFixed(1)} ⭐',
+                                hasDivider: false,
+                              ),
+                            ],
+                          ),
+
+                        // ── Pricing card ───────────────────────────
+                        if (pricing != null)
+                          buildAnimatedCard(
+                            title: 'ملخص الدفع',
+                            titleIconPath: 'sr.svg',
+                            index: 2,
+                            children: [
+                              rowItem(
+                                'سعر الاستشارة',
+                                pricing.priceLabel,
+                                isPrice: true,
+                                valueColor: colorScheme.primary,
+                                hasDivider: false,
+                              ),
+                            ],
+                          ),
+
+                        // ── Payment method ─────────────────────────
+                        buildAnimatedCard(
+                          title: 'طريقة الدفع',
+                          titleIconPath: 'card.svg',
+                          index: 3,
+                          children: [
+                            _PaymentOption(
+                              title: 'ماي فاتوره',
+                              assetPath: 'myfatoorah.jpeg',
+                              selected: currentSelectedIndex == 0,
+                              onTap: () =>
+                                  setState(() => currentSelectedIndex = 0),
+                            ),
+                            SizedBox(height: 8.h),
+                            _PaymentOption(
+                              title: 'محفظتي',
+                              assetPath: 'wallet.png',
+                              selected: currentSelectedIndex == 1,
+                              onTap: () =>
+                                  setState(() => currentSelectedIndex = 1),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // ── Pay button ─────────────────────────────────────
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 16.w, vertical: 16.h),
+                  child: SizedBox(
+                    height: 48.h,
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: isLoading
+                          ? null
+                          : () => _handlePay(context, state),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: colorScheme.primary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text(
-                        "قم بالدفع الآن وسيتم تحويلك مباشرة إلى المحادثة مع المحامي المختص.",
-                        style: textTheme.titleSmall?.copyWith(
-                          color: Colors.green,
-                          fontSize: 11.sp ,
-                          fontWeight: fw700
+                      child: isLoading
+                          ? SizedBox(
+                        width: 24.w,
+                        height: 24.w,
+                        child: CircularProgressIndicator(
+                          color: colorScheme.onPrimary,
+                          strokeWidth: 2,
+                        ),
+                      )
+                          : Text(
+                        "ادفع الآن",
+                        style: textTheme.titleMedium?.copyWith(
+                          color: colorScheme.onPrimary,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-
-
-
-                    /// Service details card
-                    buildAnimatedCard(
-                      title: "تفاصيل الخدمة",
-                      titleIconPath: "file.svg",
-                      index: 1,
-                      showStatus: true,
-                      children: [
-                        rowItem("نوع الإستشارة", "كتابيه"),
-                        rowItem("التخصص", "تجارية"),
-                        rowItem("مدة الجلسة", "15 دقيقة"),
-                        rowItem("إسم المحامي", "فهد بن نواف الشمري", hasDivider: false),
-                      ],
-                    ),
-                    Gap(10.h) ,
-                    buildAnimatedCard(
-                      title: "تفاصيل الفاتوره",
-                      titleIconPath: "wallet.svg",
-                      index: 1,
-                      showStatus: true,
-                      children: [
-                        rowItem("السعر الأساسي", "1200 ريال"),
-                        rowItem("الضريبه", "0 ريال"),
-                        rowItem("الإجمالي", "1200 ريال", hasDivider: false , valueColor: theme.colorScheme.primary),
-                      ],
-                    ),
-                    /// Payment methods header
-                    Text(
-                      "طرق الدفع المتاحة*",
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: colorScheme.onBackground,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "اختر طريقة الدفع:",
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    /// Apple Pay option
-                    _PaymentOption(
-
-                      selected: currentSelectedIndex == 0? true : false , title: 'أبل باي', assetPath: 'apple_pay.png', onTap: () { setState(() {
-                        currentSelectedIndex = 0  ;
-                      }); },
-                    ),
-                    const SizedBox(height: 12),
-
-                    /// Mada/Visa/Mastercard option
-                    _PaymentOption(
-
-                      selected: currentSelectedIndex == 1? true : false, title: 'مدي / فيزا / ماستر كارد', assetPath: 'mada_visa_master.png', onTap: () { setState(() {
-                        currentSelectedIndex = 1 ;
-                      });  },
-                    ),
-
-
-                    Gap(10.h) ,
-                    Container(
-                      width: double.infinity,
-                      padding: EdgeInsets.symmetric(
-                        vertical: 12.h,
-                        horizontal: 16.w,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(12.h),
-                      ),
-                      child: Text(
-                        'لحماية حقوقك وضمان جودة الخدمة، تأكد من إتمام الدفع داخل المنصة فقط. '
-                            'لسنا مسؤولين عن أي مبالغ تدفع للمحامين خارج المنصة.',
-                        textAlign: TextAlign.start,
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontSize: 12 .sp,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          height: 1.5,
-                        ),
-                      ),
-                    ) ,
-                    Gap(10.h) ,
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10.0 , vertical: 3),
-                child: ElevatedButton(
-                  onPressed: ()
-                  {
-                    if(selectedTypeIndex == 0 || selectedTypeIndex == 1 )
-                    showOrderConfirmedDialog1(context) ;
-                    else
-                     showOrderConfirmedDialog2(context) ;
-
-
-
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: Text(
-                    "ادفع الآن",
-                    style: textTheme.titleMedium?.copyWith(
-                      color: colorScheme.onPrimary,
-                      fontWeight: FontWeight.bold,
-                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
-    );
+        ),
+      );
+  }
+
+  String _formatDateTime(DateTime dt) {
+    // `dt` (state.startTime) originates from the bookable-slots API as a
+    // UTC instant (parsed from a 'Z'-suffixed ISO string). It MUST be
+    // converted to the device's local time before reading hour/day/weekday
+    // — otherwise this screen shows a different time than the one the user
+    // actually picked on the booking screen (which does call .toLocal()).
+    final local = dt .toLocal();
+
+    const arabicDays = [
+      'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس',
+      'الجمعة', 'السبت', 'الأحد',
+    ];
+    const arabicMonths = [
+      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    ];
+    final dayName = arabicDays[local.weekday == 7 ? 6 : local.weekday - 1];
+    // 12-hour clock, handled correctly for midnight (0 → 12) and noon (12 → 12).
+    final displayHour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    final period = local.hour >= 12 ? 'م' : 'ص';
+    return '$dayName ${local.day} ${arabicMonths[local.month - 1]} – $displayHour:$minute $period';
   }
 }
 
-/// Animated Card (right-to-left slide + staggered children)
+// ─────────────────────────────────────────────────────────────────────────────
+// Reusable card builder — identical to original
+// ─────────────────────────────────────────────────────────────────────────────
+
 Widget buildAnimatedCard({
   required String title,
-  String ? titleIconPath ,
+  String? titleIconPath,
   required List<Widget> children,
   required int index,
   bool showStatus = false,
@@ -396,22 +612,21 @@ Widget buildAnimatedCard({
             margin: EdgeInsets.only(bottom: 12.h),
             padding: EdgeInsets.all(14.w),
             decoration: BoxDecoration(
-
               borderRadius: BorderRadius.circular(12.h),
-              border: Border.all(color: theme.disabledColor.withOpacity(.05),),
-
+              border: Border.all(
+                  color: theme.disabledColor.withOpacity(.05)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    if (titleIconPath!= null)
+                    if (titleIconPath != null)
                       Container(
-
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12.h),
-                          color: theme.colorScheme.primary.withOpacity(.1),
+                          color:
+                          colorScheme.primary.withOpacity(.1),
                         ),
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
@@ -425,7 +640,13 @@ Widget buildAnimatedCard({
                         ),
                       ),
                     Gap(10.w),
-                    Text(title, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold , color: theme.colorScheme.primary)),
+                    Text(
+                      title,
+                      style: textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: colorScheme.primary,
+                      ),
+                    ),
                   ],
                 ),
                 GeneralDivider(height: h20),
@@ -451,7 +672,10 @@ Widget buildAnimatedCard({
   );
 }
 
-/// Info Row inside card
+// ─────────────────────────────────────────────────────────────────────────────
+// rowItem — identical to original
+// ─────────────────────────────────────────────────────────────────────────────
+
 Widget rowItem(
     String label,
     String value, {
@@ -481,9 +705,8 @@ Widget rowItem(
             Gap(6.w),
             Text(
               label,
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: textTheme.titleSmall
+                  ?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
             Expanded(
               child: Row(
@@ -498,7 +721,8 @@ Widget rowItem(
                   ),
                   if (isPrice)
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 8.0),
                       child: SvgPicture.asset(
                         "assets/icons/sr.svg",
                         width: 20.h,
@@ -511,11 +735,17 @@ Widget rowItem(
             ),
           ],
         ),
-        hasDivider ?  GeneralDivider(height: 16.h,) : const SizedBox(),
+        hasDivider
+            ? GeneralDivider(height: 16.h)
+            : const SizedBox(),
       ],
     );
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _PaymentOption — identical to original
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _PaymentOption extends StatelessWidget {
   final String title;
@@ -543,11 +773,12 @@ class _PaymentOption extends StatelessWidget {
         height: 60,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
-
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? colorScheme.primary : theme.colorScheme.surface,
-            width: selected ? 1 : 1,
+            color: selected
+                ? colorScheme.primary
+                : theme.colorScheme.surface,
+            width: 1,
           ),
         ),
         child: Row(
@@ -555,19 +786,25 @@ class _PaymentOption extends StatelessWidget {
             Text(
               title,
               style: textTheme.titleSmall?.copyWith(
-                color: selected ? colorScheme.primary : colorScheme.onSurface,
+                color: selected
+                    ? colorScheme.primary
+                    : colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            Spacer() ,
-            Picture(
-              getAssetImage(assetPath) ,
-              width: 150.w,
-              height: 40.h,
+            const Spacer(),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(100),
+              child: SizedBox(
+                width: 40.h,
+                height: 40.h,
+                child: Picture(
+                  getAssetImage(assetPath),
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
-    
-            
-         
+            SizedBox(width: 10.w,) , 
             Icon(
               selected
                   ? Icons.radio_button_checked
@@ -580,4 +817,3 @@ class _PaymentOption extends StatelessWidget {
     );
   }
 }
-

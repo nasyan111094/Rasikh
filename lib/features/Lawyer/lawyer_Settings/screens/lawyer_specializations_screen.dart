@@ -39,28 +39,57 @@ class _LawyerSpecializationsScreenState
   @override
   void initState() {
     super.initState();
-    _cubit.loadSpecializations();
+    _initialize();
+  }
+
+  Future<void> _initialize() async {
+    // Wait for the active catalog to actually arrive before comparing
+    // the lawyer's saved specialization IDs against it — otherwise
+    // `_cubit.catalog` is still empty and nothing gets pre-selected.
+    await _cubit.loadSpecializations();
+    if (!mounted) return;
     _prefillFromProfile();
+    setState(() {});
   }
 
   void _prefillFromProfile() {
     final cached = context.read<LawyerProfileCubit>().cachedProfile;
     if (cached == null) return;
 
+    // Get all active main specialization IDs
+    final activeMainIds = _cubit.catalog.map((cat) => cat.id).toSet();
+
     if (cached.specializationsByMain.isNotEmpty) {
       for (final main in cached.specializationsByMain) {
-        _selections[main.id] = {
-          for (final sub in main.selectedSubSpecializations) sub.id,
-        };
-        _expandedIds.add(main.id);
+        // Only pre-fill if this main specialization is still active
+        if (activeMainIds.contains(main.id)) {
+          // Get active sub-specializations for this main
+          final activeMain = _cubit.catalog.firstWhere((cat) => cat.id == main.id);
+          final activeSubIds = activeMain.subSpecializations.map((sub) => sub.id).toSet();
+
+          // Only add sub-specializations that are still active
+          _selections[main.id] = {
+            for (final sub in main.selectedSubSpecializations)
+              if (activeSubIds.contains(sub.id)) sub.id,
+          };
+          _expandedIds.add(main.id);
+        }
       }
     } else {
       if (cached.mainSpecializations.isNotEmpty) {
         final mainId = cached.mainSpecializations.first.id;
-        _selections[mainId] = {
-          for (final sub in cached.subSpecializations) sub.id,
-        };
-        _expandedIds.add(mainId);
+        // Only pre-fill if this main specialization is still active
+        if (activeMainIds.contains(mainId)) {
+          final activeMain = _cubit.catalog.firstWhere((cat) => cat.id == mainId);
+          final activeSubIds = activeMain.subSpecializations.map((sub) => sub.id).toSet();
+
+          // Only add sub-specializations that are still active
+          _selections[mainId] = {
+            for (final sub in cached.subSpecializations)
+              if (activeSubIds.contains(sub.id)) sub.id,
+          };
+          _expandedIds.add(mainId);
+        }
       }
     }
   }
@@ -408,7 +437,6 @@ class _LawyerSpecializationsScreenState
               'تم اختيار $subSelectedCount تخصص فرعي',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.primary,
-                fontWeight: FontWeight.w600,
               ),
             )
                 : Text(

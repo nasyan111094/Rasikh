@@ -64,16 +64,14 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
 
     // Set initial system UI style based on theme
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final theme = Theme.of(context);
-
       SystemChrome.setSystemUIOverlayStyle(
-        SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness:
-          theme.brightness == Brightness.dark ? Brightness.light : Brightness.dark,
-          systemNavigationBarColor: theme.colorScheme.surface,
-          systemNavigationBarIconBrightness:
-          theme.brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.white,
+          statusBarBrightness: Brightness.light,
+          statusBarIconBrightness: Brightness.dark,
+          systemNavigationBarColor: Colors.white,
+          systemNavigationBarIconBrightness: Brightness.dark,
+          systemNavigationBarDividerColor: Colors.transparent,
         ),
       );
     });

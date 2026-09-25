@@ -36,48 +36,50 @@ class AppButton extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return SizedBox(
-      width: width ?? double.infinity,
-      height: height,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          elevation: elevation,
-          backgroundColor:
-          backgroundColor ?? colorScheme.primary,
-          foregroundColor:
-          foregroundColor ?? colorScheme.onPrimary,
-          padding: padding ??
-              EdgeInsets.symmetric(
-                vertical: 14.h,
+    return SafeArea(
+      child: SizedBox(
+        width: width ?? double.infinity,
+        height: height,
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            elevation: elevation,
+            backgroundColor:
+            backgroundColor ?? colorScheme.primary,
+            foregroundColor:
+            foregroundColor ?? colorScheme.onPrimary,
+            padding: padding ??
+                EdgeInsets.symmetric(
+                  vertical: 14.h,
+                ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(
+                borderRadius.h,
               ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(
-              borderRadius.h,
+              side: borderSide ?? BorderSide.none,
             ),
-            side: borderSide ?? BorderSide.none,
           ),
-        ),
-        child: isLoading
-            ? SizedBox(
-          width: 20.w,
-          height: 20.h,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.w,
-          ),
-        )
-            : Padding(
-              padding:  EdgeInsets.symmetric(vertical: 2.h),
-              child: child ??
-              Text(
-                title,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: foregroundColor ??
-                      colorScheme.onPrimary,
-                  fontWeight: FontWeight.bold,
+          child: isLoading
+              ? SizedBox(
+            width: 20.w,
+            height: 20.h,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.w,
+            ),
+          )
+              : Padding(
+                padding:  EdgeInsets.symmetric(vertical: 2.h),
+                child: child ??
+                Text(
+                  title,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: foregroundColor ??
+                        colorScheme.onPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
+        ),
       ),
     );
   }

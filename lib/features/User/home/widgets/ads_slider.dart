@@ -92,7 +92,7 @@ class _AdsSliderState extends State<AdsSlider> {
                   borderRadius: BorderRadius.circular(12.0),
                   child: Picture(
                     widget.imageUrls[index].image,
-                    fit: BoxFit.cover,
+                    fit: BoxFit.fill,
                   ),
                 ),
               );

@@ -11,6 +11,7 @@ import 'package:size_config/size_config.dart';
 
 
 import '../../../../core/widgets/fields/prefix_text_filed_icon.dart';
+import '../../../../core/widgets/general_app_bar.dart';
 import '../cubit/profile_cubit.dart';
 import '../models/update_profile_parameters.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
@@ -41,8 +42,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
     _nameCtrl.text  = getIt<ProfileCubit>().profile?.fullName ?? '';
     _emailCtrl.text = getIt<ProfileCubit>().profile?.email    ?? '';
-    const valid = {'الرياض', 'جدة', 'الدمام', 'مكة', 'المدينة'};
-    if (getIt<ProfileCubit>().profile?.city != null && valid.contains(getIt<ProfileCubit>().profile?.city)) {
+
+    if (getIt<ProfileCubit>().profile?.city != null) {
       setState(() => _city = getIt<ProfileCubit>().profile?.city);
     }
   }
@@ -145,7 +146,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: Scaffold(
-            appBar: const HeaderCapsuleAppBar(title: 'تعديل الملف الشخصي'),
+            appBar: const GeneralAppBar(title: 'تعديل الملف الشخصي'),
             body: SafeArea(
               child: Form(
                 key: _formKey,

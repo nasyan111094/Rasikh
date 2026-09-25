@@ -62,6 +62,8 @@ class ProfileRepo {
       final data = UserModel.fromJson(result.right.data).data;
       return Right(data);
     }
-    return Left(result.left.toString());
+
+
+    return Left(result.left);
   }
 }
