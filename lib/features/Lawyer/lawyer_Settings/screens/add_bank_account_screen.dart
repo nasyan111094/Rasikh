@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:size_config/size_config.dart';
 import '../../../User/profile/bloc/wallet_cubit.dart';
 import '../../../User/profile/bloc/wallet_state.dart';
 
 /// Call this to show the "Add Bank Account" dialog.
+///
+/// Reuses the [WalletCubit] already provided higher up the tree (e.g. by
+/// WalletScreen or WithdrawRequestScreen) instead of creating a brand new
+/// one, so a successfully added account shows up immediately on the screen
+/// that opened the dialog — no manual refresh needed.
 Future<void> showAddBankAccountDialog(BuildContext context) {
+  final cubit = context.read<WalletCubit>();
   return showDialog(
     context: context,
     barrierDismissible: true,
-    builder: (_) => const AddBankAccountDialog(),
+    builder: (_) => AddBankAccountDialog(cubit: cubit),
   );
 }
 
 class AddBankAccountDialog extends StatefulWidget {
-  const AddBankAccountDialog({super.key});
+  const AddBankAccountDialog({super.key, required this.cubit});
+
+  final WalletCubit cubit;
 
   @override
   State<AddBankAccountDialog> createState() => _AddBankAccountDialogState();
@@ -37,6 +45,36 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
     super.dispose();
   }
 
+  /// Validate IBAN format with specific error messages
+  String? _validateIBAN(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'يرجى إدخال رقم الآيبان';
+    }
+
+    final cleanValue = value.replaceAll(' ', '').toUpperCase();
+
+    // Check length - Saudi IBAN should be 24 characters
+    if (cleanValue.length < 24) {
+      return 'رقم الآيبان يجب أن يكون 24 حرف على الأقل';
+    }
+    if (cleanValue.length > 24) {
+      return 'رقم الآيبان لا يجب أن يتجاوز 24 حرف';
+    }
+
+    // Check if it starts with SA (Saudi Arabia code)
+    if (!cleanValue.startsWith('SA')) {
+      return 'رقم الآيبان يجب أن يبدأ بـ SA (المملكة العربية السعودية)';
+    }
+
+    // Check if the rest are digits
+    final ibanNumbers = cleanValue.substring(2);
+    if (!RegExp(r'^[0-9]+$').hasMatch(ibanNumbers)) {
+      return 'رقم الآيبان يجب أن يحتوي على أرقام فقط بعد SA';
+    }
+
+    return null;
+  }
+
   void _handleAddBankAccount(WalletCubit cubit) {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -45,7 +83,7 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
     cubit.addBankAccount(
       bankName: _bankNameController.text.trim(),
       accountHolderName: _accountHolderNameController.text.trim(),
-      iban: _ibanController.text.trim(),
+      iban: _ibanController.text.trim().replaceAll(' ', '').toUpperCase(),
     );
   }
 
@@ -54,13 +92,17 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
-    return BlocProvider(
-      create: (_) => getIt<WalletCubit>(),
+    return BlocProvider.value(
+      value: widget.cubit,
       child: BlocListener<WalletCubit, WalletState>(
         listener: (context, state) {
           if (state.bankAccountsStatus == WalletStatus.success) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تم إضافة الحساب البنكي بنجاح')),
+              const SnackBar(
+                content: Text('تم إضافة الحساب البنكي بنجاح'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 2),
+              ),
             );
             Navigator.pop(context);
           } else if (state.bankAccountsStatus == WalletStatus.failure) {
@@ -68,6 +110,8 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
               SnackBar(
                 content:
                 Text(state.bankAccountsError ?? 'فشل إضافة الحساب البنكي'),
+                backgroundColor: Colors.red,
+                duration: const Duration(seconds: 3),
               ),
             );
           }
@@ -121,6 +165,7 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
                         Gap(10.h),
                         TextFormField(
                           controller: _bankNameController,
+                          enabled: !isLoading,
                           decoration: InputDecoration(
                             hintText: 'مثال: مصرف الراجحي',
                             border: OutlineInputBorder(
@@ -151,6 +196,7 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
                         Gap(10.h),
                         TextFormField(
                           controller: _accountHolderNameController,
+                          enabled: !isLoading,
                           decoration: InputDecoration(
                             hintText: 'الاسم الكامل',
                             border: OutlineInputBorder(
@@ -181,10 +227,15 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
                         Gap(10.h),
                         TextFormField(
                           controller: _ibanController,
+                          enabled: !isLoading,
                           textDirection: TextDirection.ltr,
-                          maxLength: 24,
+                          maxLength: 29, // Allow spaces: SA12 1234 5678 ...
+                          inputFormatters: [
+                            _IBANInputFormatter(),
+                          ],
                           decoration: InputDecoration(
-                            hintText: 'SA1234567890123456789012',
+                            hintText: 'SA12 1234 5678 9012 3456 7890',
+                            helperText: 'يجب أن يبدأ بـ SA ويتبعه 22 رقم',
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12.h),
                             ),
@@ -193,15 +244,7 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
                               vertical: 12.h,
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'يرجى إدخال رقم الآيبان';
-                            }
-                            if (value.length < 24) {
-                              return 'رقم الآيبان يجب أن يكون 24 حرف على الأقل';
-                            }
-                            return null;
-                          },
+                          validator: _validateIBAN,
                         ),
                         Gap(24.h),
 
@@ -263,6 +306,8 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
                             ),
                           ],
                         ),
+                        // Extra padding at the bottom to match requirement #1
+                        Gap(16.h),
                       ],
                     ),
                   ),
@@ -272,6 +317,36 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
           },
         ),
       ),
+    );
+  }
+}
+
+/// Input formatter for IBAN - formats as SA12 1234 5678 9012 3456 7890
+class _IBANInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    String text = newValue.text.replaceAll(' ', '').toUpperCase();
+
+    // Limit to 24 characters
+    if (text.length > 24) {
+      text = text.substring(0, 24);
+    }
+
+    // Format with spaces: SA12 1234 5678 9012 3456 7890
+    StringBuffer formatted = StringBuffer();
+    for (int i = 0; i < text.length; i++) {
+      if (i > 0 && i % 4 == 0) {
+        formatted.write(' ');
+      }
+      formatted.write(text[i]);
+    }
+
+    return TextEditingValue(
+      text: formatted.toString(),
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }

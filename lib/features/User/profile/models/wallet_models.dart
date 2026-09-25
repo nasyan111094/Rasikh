@@ -12,6 +12,7 @@ class WalletModel {
   final String id;
   final String clientId;
   final double availableBalance;
+  final double totalBalance;
   final double disputePendingBalance;
   final double withdrawalPendingBalance;
   final double pendingBalance;
@@ -23,6 +24,7 @@ class WalletModel {
     required this.id,
     required this.clientId,
     required this.availableBalance,
+    required this.totalBalance,
     required this.disputePendingBalance,
     required this.withdrawalPendingBalance,
     required this.pendingBalance,
@@ -35,7 +37,8 @@ class WalletModel {
     return WalletModel(
       id: json['id'] as String,
       clientId: getIt<CacheHelper>().cachedVendorType==VendorType.user ?json['clientId'] :json['lawyerId'] as String,
-      availableBalance: (json['availableBalance'] as num).toDouble(),
+      availableBalance: getIt<CacheHelper>().cachedVendorType == VendorType.user ? (json['availableBalance'] as num).toDouble()  :(json['availableBalance'] as num).toDouble(),
+      totalBalance: (json['totalBalance'] as num?)?.toDouble() ?? (json['availableBalance'] as num).toDouble(),
       disputePendingBalance: (json['disputePendingBalance'] as num?)?.toDouble() ?? 0,
       withdrawalPendingBalance: (json['withdrawalPendingBalance'] as num?)?.toDouble() ?? 0,
       pendingBalance: (json['pendingBalance'] as num?)?.toDouble() ?? 0,
@@ -50,6 +53,7 @@ class WalletModel {
       'id': id,
       'clientId': clientId,
       'availableBalance': availableBalance,
+      'totalBalance': totalBalance,
       'disputePendingBalance': disputePendingBalance,
       'withdrawalPendingBalance': withdrawalPendingBalance,
       'pendingBalance': pendingBalance,

@@ -20,6 +20,7 @@ import 'package:size_config/size_config.dart';
 import '../Repo/lawyer_ratings_repo.dart';
 import '../bloc/Ratings_cubit/lawyer_ratings_cubit.dart';
 import '../models/lawyer_ratings_model.dart';
+import 'rating_detail_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Entry-point
@@ -214,13 +215,10 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
                       children: [
                         Gap(40.h),
 
-                        _buildRatingSummary(
-                            theme, colorScheme, ratingsModel.meta)
+                        _RatingSummary(model: ratingsModel)
                             .animate()
-                            .fadeIn(duration: 700.ms)
-                            .slideY(begin: 0.3, end: 0)
-                            .then()
-                            .shimmer(duration: 1.seconds),
+                            .fadeIn(duration: 500.ms, curve: Curves.easeOut)
+                            .slideY(begin: 0.2, end: 0, duration: 600.ms),
 
                         Gap(30.h),
 
@@ -281,7 +279,7 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            
+
             if(ratings.isEmpty) NoDataWidget(title: " لا توجد تقييمات بعد", message: "سيظهر تقييم العملاء هنا بمجرد تلقيك لتقييمات"),
             ...ratings.asMap().entries.map((entry) {
               final i = entry.key;
@@ -319,86 +317,7 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
   }
 
   // ── Rating summary ────────────────────────────────────────────────────────
-
-  Widget _buildRatingSummary(
-      ThemeData theme, ColorScheme colorScheme, RatingsMeta meta) {
-    final avg = meta.averageRating;
-    final fullStars = avg.floor();
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Column(
-          children: [
-            Text(
-              avg.toStringAsFixed(1),
-              style: TextStyle(
-                fontSize: 52,
-                fontWeight: FontWeight.w700,
-                color: colorScheme.primary,
-                height: 1,
-              ),
-            ),
-            Gap(4.h),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: List.generate(5, (index) {
-                IconData icon;
-                if (index < fullStars) {
-                  icon = Icons.star_rounded;
-                } else if (index == fullStars && (avg - fullStars) >= 0.5) {
-                  icon = Icons.star_half_rounded;
-                } else {
-                  icon = Icons.star_outline_rounded;
-                }
-                return Icon(icon, color: colorScheme.primary, size: 22);
-              }),
-            ),
-            Gap(6.h),
-            Text(
-              'بناءً على ${meta.total} تقييماً',
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontSize: 12,
-                color: theme.hintColor,
-              ),
-            ),
-          ],
-        ),
-        Gap(24.w),
-        Expanded(
-          child: Column(
-            children: List.generate(5, (index) {
-              final barIndex = 4 - index;
-              const widthFactors = [0.95, 0.85, 0.65, 0.45, 0.25];
-              return Padding(
-                padding: EdgeInsets.symmetric(vertical: 7.h),
-                child: Container(
-                  width: 220.w,
-                  height: 5.h,
-                  decoration: BoxDecoration(
-                    color: theme.dividerColor.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(4.h),
-                  ),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: FractionallySizedBox(
-                      widthFactor: widthFactors[barIndex],
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withOpacity(0.85),
-                          borderRadius: BorderRadius.circular(4.h),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ],
-    );
-  }
+  // Extracted into `_RatingSummary` at the bottom of this file.
 
   // ── Single review card ────────────────────────────────────────────────────
 
@@ -411,143 +330,156 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
       }) {
     final formattedDate = DateFormat('dd/MM/yyyy' , 'en_US').format(review.createdAt);
 
-    return Container(
-      margin: EdgeInsets.symmetric(vertical: 6.h),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16.h),
-        border: Border.all(color: const Color(0xFFF3F3F3)),
-        color: Colors.white,
-      ),
-      child: Padding(
-        padding: EdgeInsets.all(12.w),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Gap(10.w),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Author
-                      Row(
-                        children: [
-              CircleAvatar(
-              radius: 25.w,
-                backgroundColor: colorScheme.primary.withOpacity(0.15),
-                child: ClipOval(
-                  child: CachedNetworkImage(
-                    imageUrl: AppConfig.baseImgUrl+ review.client.avatar ?? '',
-                    width: 50.w,
-                    height: 50.w,
-                    fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => Center(
-                      child: Text(
-                        review.client.fullName.isNotEmpty
-                            ? review.client.fullName[0].toUpperCase()
-                            : '?',
-                        style: TextStyle(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18.sp,
-                        ),
-                      ),
-                    ),
-                    placeholder: (_, __) => const CircularProgressIndicator(),
-                  ),
-                ),
-              )
-                  .animate(onPlay: (c) => c.repeat(reverse: true))
-                  .scaleXY(
-                begin: 1,
-                end: 1.05,
-                duration: 800.ms,
-                curve: Curves.easeInOut,
-              ),
-                          Gap(6.w),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                review.client.fullName,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14.sp,
-                                ),
-                              ),
-                              Gap(5),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Picture(getAssetIcon("Calendar.svg"),
-                                      width: 20.w, height: 20.h),
-                                  Gap(4.w),
-                                  Text(
-                                    formattedDate,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: Colors.grey,
-                                      fontFamily: "cairo",
-                                      fontSize: 13.sp,
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => BlocProvider(
+              create: (_) => LawyerRatingsCubit(LawyerRatingsRepo()),
+              child: RatingDetailScreen(ratingId: review.id),
+            ),
+          ),
+        );
+      },
+      child: Container(
+        margin: EdgeInsets.symmetric(vertical: 6.h),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16.h),
+          border: Border.all(color: const Color(0xFFF3F3F3)),
+          color: Colors.white,
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(12.w),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Gap(10.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Author
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 25.w,
+                              backgroundColor: colorScheme.primary.withOpacity(0.15),
+                              child: ClipOval(
+                                child: CachedNetworkImage(
+                                  imageUrl: AppConfig.baseImgUrl+ review.client.avatar ?? '',
+                                  width: 50.w,
+                                  height: 50.w,
+                                  fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => Center(
+                                    child: Text(
+                                      review.client.fullName.isNotEmpty
+                                          ? review.client.fullName[0].toUpperCase()
+                                          : '?',
+                                      style: TextStyle(
+                                        color: colorScheme.primary,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18.sp,
+                                      ),
                                     ),
                                   ),
-                                ],
+                                  placeholder: (_, __) => const CircularProgressIndicator(),
+                                ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      // Stars + report
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                          review.stars.toStringAsFixed(1),
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            fontFamily: "cairo",
-                            fontSize: 15.sp,
-                          ),
+                            )
+                                .animate(onPlay: (c) => c.repeat(reverse: true))
+                                .scaleXY(
+                              begin: 1,
+                              end: 1.05,
+                              duration: 800.ms,
+                              curve: Curves.easeInOut,
+                            ),
+                            Gap(6.w),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  review.client.fullName,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14.sp,
+                                  ),
+                                ),
+                                Gap(5),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Picture(getAssetIcon("Calendar.svg"),
+                                        width: 20.w, height: 20.h),
+                                    Gap(4.w),
+                                    Text(
+                                      formattedDate,
+                                      style: theme.textTheme.bodySmall?.copyWith(
+                                        color: Colors.grey,
+                                        fontFamily: "cairo",
+                                        fontSize: 13.sp,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                          Gap(5.w),
-                          Picture(getAssetIcon("golden_start.svg"),
-                              width: 25.h, height: 25.h),
-                          Gap(4.w),
 
-                          isReporting
-                              ? SizedBox(
-                            width: 20.w,
-                            height: 20.w,
-                            child: const CircularProgressIndicator(
-                                strokeWidth: 2),
-                          )
-                              : WarningButton(
-                            isReported: isReported,
-                            onTap: isReported
-                                ? null
-                                : () => _onReportTap(review.id),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Gap(8.h),
-                  Text(
-                    review.comment,
-                    textAlign: TextAlign.right,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.textTheme.bodyMedium?.color
-                          ?.withOpacity(0.8),
-                      fontSize: 13.sp,
-                      height: 1.4,
+                        // Stars + report
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              review.stars.toStringAsFixed(1),
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                fontFamily: "cairo",
+                                fontSize: 15.sp,
+                              ),
+                            ),
+                            Gap(5.w),
+                            Picture(getAssetIcon("golden_start.svg"),
+                                width: 25.h, height: 25.h),
+                            Gap(4.w),
+
+                            isReporting
+                                ? SizedBox(
+                              width: 20.w,
+                              height: 20.w,
+                              child: const CircularProgressIndicator(
+                                  strokeWidth: 2),
+                            )
+                                : WarningButton(
+                              isReported: isReported,
+                              onTap: isReported
+                                  ? null
+                                  : () => _onReportTap(review.id),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    Gap(8.h),
+                    Text(
+                      review.comment,
+                      textAlign: TextAlign.right,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.textTheme.bodyMedium?.color
+                            ?.withOpacity(0.8),
+                        fontSize: 13.sp,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -759,6 +691,203 @@ class _ShimmerReviewCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rating summary (average + stars distribution bars)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _RatingSummary extends StatelessWidget {
+  const _RatingSummary({required this.model});
+
+  final LawyerRatingsModel model;
+
+  /// Arabic-correct label for the ratings count.
+  static String _countLabel(int n) {
+    if (n == 0) return 'لا توجد تقييمات بعد';
+    if (n == 1) return 'بناءً على تقييم واحد';
+    if (n == 2) return 'بناءً على تقييمين';
+    if (n <= 10) return 'بناءً على $n تقييمات';
+    return 'بناءً على $n تقييماً';
+  }
+
+  /// Full / half / empty star for position [index] (0-based) given [avg].
+  static IconData _starIcon(int index, double avg) {
+    final diff = avg - index;
+    if (diff >= 0.75) return Icons.star_rounded;
+    if (diff >= 0.25) return Icons.star_half_rounded;
+    return Icons.star_outline_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final avg = model.effectiveAverage.clamp(0.0, 5.0);
+    final total = model.effectiveTotal;
+    final distribution = model.effectiveDistribution;
+    final isEmpty = total == 0;
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 14.w, vertical: 16.h),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18.h),
+        border: Border.all(color: const Color(0xFFF3F3F3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // ── Average block ──────────────────────────────────────────────
+          SizedBox(
+            width: 108.w,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  avg.toStringAsFixed(1),
+                  style: TextStyle(
+                    fontSize: 46.sp,
+                    fontWeight: FontWeight.w700,
+                    color: isEmpty ? theme.hintColor : colorScheme.primary,
+                    height: 1,
+                  ),
+                ),
+                Gap(6.h),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(
+                    5,
+                        (i) => Icon(
+                      _starIcon(i, avg),
+                      size: 18.w,
+                      color: isEmpty
+                          ? theme.dividerColor
+                          : colorScheme.primary,
+                    ),
+                  ),
+                ),
+                Gap(6.h),
+                Text(
+                  _countLabel(total),
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: 11.sp,
+                    color: theme.hintColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Gap(12.w),
+          Container(width: 1, height: 84.h, color: theme.dividerColor.withOpacity(0.25)),
+          Gap(12.w),
+
+          // ── Distribution bars (5 → 1) ──────────────────────────────────
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final item in distribution)
+                  _DistributionBar(
+                    item: item,
+                    // Stagger so bars fill top-to-bottom.
+                    delay: ((5 - item.stars) * 80).ms,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DistributionBar extends StatelessWidget {
+  const _DistributionBar({required this.item, required this.delay});
+
+  final RatingDistributionItem item;
+  final Duration delay;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final hasValue = item.count > 0;
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4.h),
+      child: Row(
+        children: [
+          // ── Star label ─────────────────────────────────────────────────
+          Text(
+            '${item.stars}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w600,
+              color: theme.hintColor,
+            ),
+          ),
+          Gap(3.w),
+          Icon(Icons.star_rounded, size: 11.w, color: colorScheme.primary),
+          Gap(8.w),
+
+          // ── Track + fill ───────────────────────────────────────────────
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4.h),
+              child: Container(
+                height: 6.h,
+                color: theme.dividerColor.withOpacity(0.18),
+                child: Align(
+                  // Direction-aware: fills from the start edge (right in RTL).
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: item.fraction),
+                    duration: 800.ms,
+                    curve: Curves.easeOutCubic,
+                    builder: (_, value, __) => FractionallySizedBox(
+                      // 0 would render nothing; keep a tiny cap visible
+                      // only when the value is actually > 0.
+                      widthFactor: value <= 0 ? 0.0 : value.clamp(0.02, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: colorScheme.primary
+                              .withOpacity(hasValue ? 0.9 : 0.0),
+                          borderRadius: BorderRadius.circular(4.h),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          Gap(8.w),
+
+          // ── Percentage ─────────────────────────────────────────────────
+          SizedBox(
+            width: 32.w,
+            child: Text(
+              '${item.percentage.round()}%',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontSize: 10.sp,
+                fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
+                color: hasValue ? theme.hintColor : theme.dividerColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    )
+        .animate(delay: delay)
+        .fadeIn(duration: 350.ms)
+        .slideX(begin: 0.08, end: 0, curve: Curves.easeOut);
   }
 }
 

@@ -526,6 +526,13 @@ class _ConsultationCard extends StatelessWidget {
                         SizedBox(height: 14.h),
                       ],
 
+                      // ── Pending payment banner ───────────────────────
+                      if (consultation.status == ConsultationStatus.pending &&
+                          consultation.isPaymentPending) ...[
+                        const _PendingPaymentBanner(),
+                        SizedBox(height: 14.h),
+                      ],
+
                       // ── Date / time / duration row ─────────────────────
                       _TimePriceRow(
                         date: _formatDate(startDt),
@@ -552,6 +559,17 @@ class _ConsultationCard extends StatelessWidget {
 
   Widget _buildBottomAction(BuildContext context) {
     switch (consultation.status) {
+      case ConsultationStatus.pending:
+      // Awaiting payment / confirmation — route into the details screen,
+      // which already owns the "إتمام الدفع" payment flow.
+        return SizedBox(
+          width: double.infinity,
+          child: GradiantButton(
+            text: consultation.isPaymentPending ? 'إتمام الدفع' : 'عرض التفاصيل',
+            onTap: onTap,
+          ),
+        );
+
       case ConsultationStatus.active:
         return SizedBox(
           width: double.infinity,
@@ -580,6 +598,17 @@ class _ConsultationCard extends StatelessWidget {
         );
 
       case ConsultationStatus.completed:
+      // Rating button is only shown for users, not lawyers
+        final isLawyer = getIt<CacheHelper>().cachedVendorType == VendorType.lawyer;
+        if (isLawyer) {
+          return Row(
+            children: [
+              Expanded(
+                child: GradiantButton(text: 'عرض الملخص', onTap: onTap),
+              ),
+            ],
+          );
+        }
         return Row(
           children: [
             Expanded(
@@ -920,6 +949,46 @@ class _CancelledWarningBanner extends StatelessWidget {
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: Colors.red.shade400,
+                fontWeight: FontWeight.bold,
+                fontSize: 12.sp,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pending Payment Banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PendingPaymentBanner extends StatelessWidget {
+  const _PendingPaymentBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+      decoration: BoxDecoration(
+        color: Colors.amber.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10.w),
+        border: Border.all(color: Colors.amber.withOpacity(0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.access_time_filled_rounded,
+              size: 18.sp, color: Colors.amber.shade800),
+          SizedBox(width: 8.w),
+          Expanded(
+            child: Text(
+              'بانتظار إتمام الدفع لتأكيد هذه الاستشارة.',
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Colors.amber.shade800,
                 fontWeight: FontWeight.bold,
                 fontSize: 12.sp,
               ),
@@ -1383,6 +1452,10 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
 // Dispute Details Popup
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Dispute Details Popup
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _DisputeDetailsPopup extends StatelessWidget {
   final ConsultationModel consultation;
 
@@ -1392,6 +1465,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final dispute = consultation.dispute;
 
     return Dialog(
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
@@ -1399,93 +1473,212 @@ class _DisputeDetailsPopup extends StatelessWidget {
         borderRadius: BorderRadius.circular(20.w),
       ),
       insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 40.h),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 20.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 32.w,
-                    height: 32.h,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF5F5F5),
-                      shape: BoxShape.circle,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 20.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Header ─────────────────────────────────────────────
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 32.w,
+                      height: 32.h,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF5F5F5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, size: 16),
                     ),
-                    child: const Icon(Icons.close, size: 16),
+                  ),
+                  Gap(16.w),
+                  Text(
+                    consultation.type == "instant"
+                        ? "إستشاره فوريه"
+                        : consultation.type == "written"
+                        ? "إستشاره كتابيه"
+                        : consultation.type == "scheduled"
+                        ? "إستشاره مجدوله"
+                        : "غير معروف",
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17.sp,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10.h),
+              GeneralDivider(),
+              SizedBox(height: 10.h),
+
+              // ── رقم النزاع ─────────────────────────────────────────
+              if (dispute?.disputeNumber != null &&
+                  dispute!.disputeNumber!.isNotEmpty) ...[
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'رقم النزاع: ${dispute.disputeNumber}',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12.sp,
+                    ),
                   ),
                 ),
-                Gap(16.w),
-                Text(
-                  consultation.type == "instant"
-                      ? "إستشاره فوريه"
-                      : consultation.type == "written"
-                      ? "إستشاره كتابيه"
-                      : consultation.type == "scheduled"
-                      ? "إستشاره مجدوله"
-                      : "غير معوف",
+                SizedBox(height: 12.h),
+              ],
+
+              // ── سبب النزاع ─────────────────────────────────────────
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'سبب النزاع',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    fontSize: 17.sp,
+                    fontSize: 15.sp,
+                  ),
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  dispute?.reason ?? '—',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 14.sp,
+                  ),
+                ),
+              ),
+
+              // ── تفاصيل النزاع ──────────────────────────────────────
+              if (dispute?.description != null) ...[
+                SizedBox(height: 20.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'تفاصيل النزاع',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15.sp,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    dispute!.description!,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 14.sp,
+                    ),
                   ),
                 ),
               ],
-            ),
-            SizedBox(height: 10.h),
-            GeneralDivider(),
-            SizedBox(height: 10.h),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'سبب النزاع',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15.sp,
+
+              // ── حالة النزاع ────────────────────────────────────────
+              if (dispute?.status != null) ...[
+                SizedBox(height: 16.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'حالة النزاع',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15.sp,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                consultation.dispute!.reason ?? 'تأخير في موعد الحضور',
-                textAlign: TextAlign.right,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
-              ),
-            ),
-            SizedBox(height: 20.h),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'تفاصيل النزاع',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15.sp,
+                SizedBox(height: 8.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _translateDisputeStatus(dispute!.status!),
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 14.sp,
+                    ),
+                  ),
                 ),
+              ],
+
+              // ── القرار المتخذ (يظهر فقط عند Closed) ────────────────
+              if (dispute?.status != null &&
+                  dispute!.status!.toLowerCase() == 'closed' &&
+                  dispute.decision != null &&
+                  dispute.decision!.toLowerCase() != 'none') ...[
+                SizedBox(height: 20.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'القرار المتخذ',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15.sp,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _translateDisputeDecision(dispute.decision!),
+                    style: TextStyle(
+                      color: dispute.decision!.toLowerCase() == 'lawyer'
+                          ? Colors.blue.shade700
+                          : Colors.green.shade700,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+
+              SizedBox(height: 10.h),
+              GeneralDivider(),
+              SizedBox(height: 10.h),
+
+              GradiantButton(
+                text: 'تم',
+                onTap: () => Navigator.pop(context),
               ),
-            ),
-            SizedBox(height: 8.h),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                consultation.dispute!.description ??
-                    'المحامي دخل الجلسة متأخر حوالي 10 دقائق مما أثّر على وقت الاستشارة.',
-                textAlign: TextAlign.right,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
-              ),
-            ),
-            SizedBox(height: 10.h),
-            GeneralDivider(),
-            SizedBox(height: 10.h),
-            GradiantButton(text: 'تم', onTap: () => Navigator.pop(context)),
-          ],
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  // ── ترجمة حالة النزاع ─────────────────────────────────────────────
+  String _translateDisputeStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return 'مفتوح';
+      case 'under review':
+        return 'قيد المراجعة';
+      case 'closed':
+        return 'مغلق';
+      default:
+        return status;
+    }
+  }
+
+  // ── ترجمة القرار المتخذ ──────────────────────────────────────────
+  String _translateDisputeDecision(String decision) {
+    switch (decision.toLowerCase()) {
+      case 'lawyer':
+        return 'تم حسم النزاع لصالح المحامي';
+      case 'client':
+        return 'تم حسم النزاع لصالح العميل';
+      default:
+        return decision;
+    }
   }
 }
 
@@ -1568,6 +1761,8 @@ class _StatusBadge extends StatelessWidget {
 
   Color get _bgColor {
     switch (status) {
+      case ConsultationStatus.pending:
+        return Colors.amber.withOpacity(0.12);
       case ConsultationStatus.active:
         return Colors.green.withOpacity(0.1);
       case ConsultationStatus.upcoming:
@@ -1585,6 +1780,8 @@ class _StatusBadge extends StatelessWidget {
 
   Color get _textColor {
     switch (status) {
+      case ConsultationStatus.pending:
+        return Colors.amber.shade800;
       case ConsultationStatus.active:
         return Colors.green.shade700;
       case ConsultationStatus.upcoming:
@@ -1600,6 +1797,13 @@ class _StatusBadge extends StatelessWidget {
     }
   }
 
+  // NOTE: previously the API's "pending" status collapsed into the local
+  // ConsultationStatus.none sentinel (whose label is "الكل" / "All"), so this
+  // badge patched the label at render time to show "قيد الإنتظار" instead.
+  // ConsultationStatus now has a real `pending` value with its own correct
+  // label, so that patch is gone — the badge just shows whatever the status
+  // actually is, and "none" (the local "no filter" sentinel) is never a
+  // status a real consultation carries.
   String get _label => status.label;
 
   @override
@@ -1611,7 +1815,7 @@ class _StatusBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(50.w),
       ),
       child: Text(
-       _label == "الكل" ? "قيد الإنتظار" :_label,
+        _label,
         style: TextStyle(
           color: _textColor,
           fontWeight: FontWeight.bold,

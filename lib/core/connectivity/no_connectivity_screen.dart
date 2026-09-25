@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:app_settings/app_settings.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 
 import '../theme/sizes.dart';
+import 'cubit/connectivity_cubit.dart';
+
 
 class NoConnectionScreen extends StatefulWidget {
-  const NoConnectionScreen({super.key});
+  final VoidCallback? onConnected;
+
+  const NoConnectionScreen({super.key, this.onConnected});
 
   @override
   State<NoConnectionScreen> createState() => _NoConnectionScreenState();
@@ -55,7 +60,7 @@ class _NoConnectionScreenState extends State<NoConnectionScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        color: colorScheme.background, // background حسب الثيم
+        color: colorScheme.background,
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -74,7 +79,7 @@ class _NoConnectionScreenState extends State<NoConnectionScreen>
                   "لا يوجد اتصال بالإنترنت",
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall?.copyWith(
-                    color: colorScheme.onBackground, // نص حسب الثيم
+                    color: colorScheme.onBackground,
                     fontWeight: FontWeight.bold,
                     shadows: [
                       Shadow(
@@ -90,8 +95,7 @@ class _NoConnectionScreenState extends State<NoConnectionScreen>
                   "شغّل بيانات الجوال من إعدادات الشبكة أو من شريط الإشعارات علشان تقدر تكمل الاتصال",
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleMedium?.copyWith(
-                    color: colorScheme.onBackground, // نص حسب الثيم
-
+                    color: colorScheme.onBackground,
                     shadows: [
                       Shadow(
                         blurRadius: 6,

@@ -38,6 +38,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   // ── Timer ──────────────────────────────────────────────────────────────────
   Timer? _navTimer;
+  Timer? _fallbackTimer;
+  bool _navigated = false;
 
   // ─────────────────────────────────────────────────────────────────────────
   @override
@@ -57,6 +59,14 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
     // Trigger the single check — reads currentToken + onBoardingDone from cache
     _splashBloc.checkUser();
+
+    // Fallback: never trap the user on splash. If the Lottie animation
+    // fails to load (missing asset, codec issue), still navigate.
+    _fallbackTimer = Timer(const Duration(seconds: 6), () {
+      if (mounted && !_navigated) {
+        _navigate();
+      }
+    });
   }
 
   @override
@@ -69,8 +79,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   @override
   void dispose() {
     _navTimer?.cancel();
+    _fallbackTimer?.cancel();
     _controller.dispose();
 
+    // Restore full-screen system UI for the rest of the app
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.edgeToEdge,
+    );
 
 
 
@@ -85,7 +100,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   /// Called once both the animation ends AND the bloc has responded.
   void _navigate() {
-    if (!mounted) return;
+    if (!mounted || _navigated) return;
+    _navigated = true;
+    _navTimer?.cancel();
+    _fallbackTimer?.cancel();
 
 
 
@@ -152,6 +170,18 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                     _waitForStateAndNavigate();
                   }
                 });
+              },
+              errorBuilder: (context, error, stackTrace) {
+                // If the animation can't render, don't trap the user —
+                // navigate on the next frame.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_stateResolved) {
+                    _navigate();
+                  } else {
+                    _waitForStateAndNavigate();
+                  }
+                });
+                return const SizedBox.shrink();
               },
             ),
           ),

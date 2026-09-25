@@ -26,6 +26,8 @@ class ApiHandler {
   // Single Refresh Mechanism: Prevent concurrent token refresh operations
   static bool _isRefreshing = false;
   static Completer<void>? _refreshCompleter;
+  static const int _maxRefreshRetries = 2;
+  static int _refreshRetryCount = 0;
 
   DioAdapterBase _apiConfig() {
     return DioAdapterBase(
@@ -51,20 +53,14 @@ class ApiHandler {
       options.contentType = 'multipart/form-data';
     }
 
-    if (options.path == EndPoints.loginWithDataBase) {
+    // Always send Accept-Language: ar for all requests
+    if (token == null) {
       options.headers.addAll({'Accept-Language': 'ar'});
     } else {
-      await getIt.get<LangRepo>().getLang();
-      final appLang = getIt.get<LangRepo>().lang ?? "ar";
-
-      if (token == null) {
-        options.headers.addAll({'Accept-Language': appLang});
-      } else {
-        options.headers.addAll({
-          'Authorization': 'Bearer $token',
-          'Accept-Language': appLang,
-        });
-      }
+      options.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept-Language': 'ar',
+      });
     }
     return options;
   }
@@ -109,11 +105,7 @@ class ApiHandler {
             if (newToken != null) {
               final RequestOptions requestOptions = error.requestOptions;
               requestOptions.headers['Authorization'] = 'Bearer $newToken';
-
-              // Get the current language
-              await getIt.get<LangRepo>().getLang();
-              final appLang = getIt.get<LangRepo>().lang ?? "ar";
-              requestOptions.headers["Accept-Language"] = appLang;
+              requestOptions.headers["Accept-Language"] = 'ar';
 
               final retryResponse = await _retryRequest(requestOptions);
               handler.resolve(retryResponse);
@@ -136,6 +128,11 @@ class ApiHandler {
           final refreshEither = await authRepo.refreshToken(
             refreshToken: refreshToken,
             vendor: vendorType,
+          ).timeout(
+            const Duration(seconds: 10),
+            onTimeout: () {
+              throw Exception('Token refresh timeout');
+            },
           );
 
           final refreshResponse = refreshEither.fold(
@@ -151,15 +148,14 @@ class ApiHandler {
           // Save the new tokens
           await cacheHelper.setUserToken(newAccessToken);
           await cacheHelper.setRefreshToken(newRefreshToken);
+          
+          // Reset retry count on successful refresh
+          _refreshRetryCount = 0;
 
           // Update the original request with new token
           final RequestOptions requestOptions = error.requestOptions;
           requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
-
-          // Get the current language
-          await getIt.get<LangRepo>().getLang();
-          final appLang = getIt.get<LangRepo>().lang ?? "ar";
-          requestOptions.headers["Accept-Language"] = appLang;
+          requestOptions.headers["Accept-Language"] = 'ar';
 
           // Retry the original request with new token
           try {
@@ -184,9 +180,24 @@ class ApiHandler {
         } catch (e) {
           Logger().e("Token refresh failed: $e");
           
+          // Increment retry count
+          _refreshRetryCount++;
+          
           // Mark refresh as complete
           _isRefreshing = false;
           _refreshCompleter?.complete();
+          
+          // If we haven't exceeded max retries and the error might be temporary, retry
+          if (_refreshRetryCount <= _maxRefreshRetries && 
+              (e.toString().contains('timeout') || e.toString().contains('network'))) {
+            Logger().i("Retrying token refresh (attempt $_refreshRetryCount/$_maxRefreshRetries)");
+            // Retry the refresh after a short delay
+            await Future.delayed(const Duration(milliseconds: 500));
+            // Re-trigger the error handling to attempt refresh again
+            // Don't recursively call with the same handler - just reject the error
+            handler.reject(error);
+            return error;
+          }
           
           // Only clear session if refresh endpoint itself failed (not a generic exception)
           await getIt<CacheHelper>().clearUserSession().then((_) {
@@ -218,6 +229,29 @@ class ApiHandler {
         ));
         return error;
       }
+    } else {
+      // Handle other errors (not 401)
+      // Safely extract error message from response data
+      String? errorMessage;
+      if (error.response?.data is Map) {
+        errorMessage = error.response?.data['message']?.toString();
+      } else if (error.response?.data is String) {
+        errorMessage = error.response?.data;
+      }
+      
+      AppLogger.info(errorMessage);
+      
+      // Handle other errors
+      print('Error: ${error.message}');
+      handler.reject(DioException(
+        message: errorMessage ?? error.message?.toString() ?? 'An error occurred',
+        error: error.error,
+        requestOptions: error.requestOptions,
+        response: error.response,
+        type: error.type,
+        stackTrace: error.stackTrace,
+      ));
+      return error;
     }
     
     // Safely extract error message from response data

@@ -16,6 +16,8 @@ import 'package:dio_adapter/dio_adapter.dart';
 import '../../../../core/cache/cache_helper.dart';
 import '../../../../core/get_it_service/get_it_service.dart';
 import '../../../../core/utils/api/api_handler.dart';
+import '../../../../features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
+import '../../../../features/User/profile/cubit/profile_cubit.dart';
 import '../models/auth_model.dart';
 
 // ── Endpoint builder ──────────────────────────────────────────────────────────
@@ -93,6 +95,27 @@ class GeneralAuthRepo {
     if (result.isRight) {
       final model = SharedVerifyOtpModel.fromJson(result.right.data);
 
+      // Clear cached profile data before saving new token
+      _cache.currentUser = null;
+      
+      // Clear lawyer profile cache if exists
+      if (getIt.isRegistered<LawyerProfileCubit>()) {
+        try {
+          getIt<LawyerProfileCubit>().cachedProfile = null;
+        } catch (e) {
+          // Ignore if cubit not yet initialized
+        }
+      }
+      
+      // Clear user profile cache if exists
+      if (getIt.isRegistered<ProfileCubit>()) {
+        try {
+          getIt<ProfileCubit>().emit(const ProfileState());
+        } catch (e) {
+          // Ignore if cubit not yet initialized
+        }
+      }
+      
       // Persist token so completion features can read it without re-auth.
       _cache.registerToken = model.accessToken;
       await _cache.setUserToken(model.accessToken);

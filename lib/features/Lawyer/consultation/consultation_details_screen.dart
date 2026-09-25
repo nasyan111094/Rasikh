@@ -35,6 +35,8 @@ import 'models/consultation_model.dart';
 // AppointmentBookingScreen is the same reschedule flow the card uses.
 // Double check these paths resolve correctly for your actual folder layout.
 import '../../User/application/appointment_booking_screen(3.3).dart';
+import '../../User/application/bloc/consulation_application_cubit.dart';
+import '../../User/application/models/consultation_model.dart' as app_models;
 import 'consultations_screen.dart';
 
 const String _kBaseUrl = 'http://89.117.60.202:3050';
@@ -76,7 +78,8 @@ class _LawyerConsultationDetailsScreenState
 
   /// True once a session can actually be entered: either it's already
   /// [active], or it's [upcoming] AND its corrected start time has been
-  /// reached. Mirrors `_canEnterSession` in consultations_screen.dart so the
+  /// reached, or it's paid with pending status (ready to start).
+  /// Mirrors `_canEnterSession` in consultations_screen.dart so the
   /// behaviour stays consistent between the list and the details screen.
   bool _canEnterSession(ConsultationModel item) {
     if (item.status == ConsultationStatus.active) return true;
@@ -85,6 +88,8 @@ class _LawyerConsultationDetailsScreenState
       if (start == null) return true;
       return !DateTime.now().isBefore(start .toLocal  ());
     }
+    // Allow entry for paid consultations with pending status
+    if (item.isPaymentPaid && item.status == ConsultationStatus.none) return true;
     return false;
   }
 
@@ -119,6 +124,84 @@ class _LawyerConsultationDetailsScreenState
   /// treatment here, instead of silently rendering nothing.
   List<Widget> _buildStatusAction(
       BuildContext context, ConsultationModel consultation) {
+    // Handle pending payment status
+    if (consultation.isPaymentPending) {
+      return [
+        Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 24.h),
+          child: SizedBox(
+            width: double.infinity,
+            child: GradiantButton(
+              text: "إتمام الدفع",
+              onTap: () async {
+                // Convert ConsultationModel to CreatedConsultationModel
+                final createdConsultation = app_models.CreatedConsultationModel(
+                  id: consultation.id,
+                  consultationNumber: consultation.consultationNumber,
+                  title: consultation.title,
+                  details: consultation.details ?? '',
+                  voiceNoteUrl: consultation.voiceNoteUrl,
+                  voiceNoteDurationSeconds: consultation.voiceNoteDurationSeconds,
+                  attachments: consultation.attachments.map((a) => a.url).toList(),
+                  type: consultation.type,
+                  startTime: consultation.startTime,
+                  endTime: consultation.endTime,
+                  status: consultation.status.apiValue,
+                  durationMin: consultation.durationMin,
+                  priceAmountHalala: consultation.priceAmountHalala,
+                  currency: consultation.currency ?? 'SAR',
+                  hideClientFromLawyer: consultation.hideClientFromLawyer,
+                  createdAt: consultation.createdAt ?? '',
+                );
+
+                // Load consultation into cubit and navigate to payment screen
+                await context.read<ConsultationApplicationCubit>()
+                    .loadExistingConsultationForPayment(createdConsultation);
+
+                if (context.mounted) {
+                  Nav.paymentScreen(context);
+                }
+              },
+            ),
+          ),
+        ),
+      ];
+    }
+
+    // Handle paid consultations - navigate directly to start consultation
+    if (consultation.isPaymentPaid) {
+      // For paid instant/written consultations, start immediately
+      if (consultation.isInstant) {
+        return [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 24.h),
+            child: SizedBox(
+              width: double.infinity,
+              child: GradiantButton(
+                text: "بدء الاستشارة",
+                onTap: () => _enterSession(context, consultation),
+              ),
+            ),
+          ),
+        ];
+      }
+      if (consultation.isWritten) {
+        return [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 24.h),
+            child: SizedBox(
+              width: double.infinity,
+              child: GradiantButton(
+                text: "بدء المحادثة",
+                onTap: () => _enterSession(context, consultation),
+              ),
+            ),
+          ),
+        ];
+      }
+      // For scheduled consultations, they should be upcoming status
+    }
+
     switch (consultation.status) {
       case ConsultationStatus.active:
         return [
@@ -186,6 +269,10 @@ class _LawyerConsultationDetailsScreenState
       // but "عرض الملخص" just opens this very details screen — which is
       // redundant since the summary is already shown inline in the body
       // above. So only the rating action carries over here.
+      // Rating button is only shown for users, not lawyers
+      if (getIt<CacheHelper>().cachedVendorType == VendorType.lawyer) {
+        return const [];
+      }
         return [
           Padding(
             padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 24.h),
@@ -1866,16 +1953,53 @@ class _DetailsDisputePopup extends StatelessWidget {
               ),
             ],
 
-            if (dispute?.status != null || dispute?.decision != null) ...[
+            if (dispute?.status != null) ...[
               SizedBox(height: 16.h),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  if (dispute?.status != null)
-                    _InfoColumn(label: 'حالة النزاع', value: dispute!.status!),
-                  if (dispute?.decision != null)
-                    _InfoColumn(label: 'القرار', value: dispute!.decision!),
-                ],
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'حالة النزاع',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15.sp,
+                  ),
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _translateDisputeStatus(dispute!.status!),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
+                ),
+              ),
+            ],
+
+            if (dispute?.status == 'Closed' && dispute?.decision != null) ...[
+              SizedBox(height: 20.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'القرار المتخذ',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15.sp,
+                  ),
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _translateDisputeDecision(dispute!.decision!),
+                  style: TextStyle(
+                    color: dispute!.decision == 'Lawyer'
+                        ? Colors.blue.shade700
+                        : Colors.green.shade700,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
 
@@ -1887,6 +2011,30 @@ class _DetailsDisputePopup extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _translateDisputeStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return 'مفتوح';
+      case 'under review':
+        return 'قيد المراجعة';
+      case 'closed':
+        return 'مغلق';
+      default:
+        return status;
+    }
+  }
+
+  String _translateDisputeDecision(String decision) {
+    switch (decision.toLowerCase()) {
+      case 'lawyer':
+        return 'تم حسم النزاع لصالح المحامي';
+      case 'client':
+        return 'تم حسم النزاع لصالح العميل';
+      default:
+        return decision;
+    }
   }
 }
 
@@ -2102,6 +2250,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:gap/gap.dart';
+import 'package:logger/logger.dart';
 import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
@@ -2116,6 +2265,8 @@ import '../../../../core/widgets/general_divider.dart';
 import '../../../../core/widgets/gradiant_button.dart';
 import '../../../config/navigation/nav.dart';
 
+import '../../User/application/bloc/consulation_application_cubit.dart';
+import '../../User/application/models/consultation_model.dart' as app_models;
 import 'Bloc/consultation_details_cubit.dart';
 import 'Bloc/consultations_cubit.dart';
 import 'Bloc/consultations_states.dart';
@@ -2181,7 +2332,8 @@ class _LawyerConsultationDetailsScreenState
 
   /// True once a session can actually be entered: either it's already
   /// [active], or it's [upcoming] AND its corrected start time has been
-  /// reached. Mirrors `_canEnterSession` in consultations_screen.dart so the
+  /// reached, or it's paid with pending status (ready to start).
+  /// Mirrors `_canEnterSession` in consultations_screen.dart so the
   /// behaviour stays consistent between the list and the details screen.
   bool _canEnterSession(ConsultationModel item) {
     if (item.status == ConsultationStatus.active) return true;
@@ -2190,6 +2342,8 @@ class _LawyerConsultationDetailsScreenState
       if (start == null) return true;
       return !DateTime.now().isBefore(start.toLocal());
     }
+    // Allow entry for paid consultations with pending status
+    if (item.isPaymentPaid && item.status == ConsultationStatus.none) return true;
     return false;
   }
 
@@ -2224,6 +2378,57 @@ class _LawyerConsultationDetailsScreenState
   /// treatment here, instead of silently rendering nothing.
   List<Widget> _buildStatusAction(
       BuildContext context, ConsultationModel consultation) {
+    // Handle pending payment status
+    Logger().d("llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll" );
+    Logger().d(consultation.isPaymentPending && consultation.isConsultationPending );
+    Logger().d("llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll" );
+
+    if (consultation.isPaymentPending && consultation.isConsultationPending ) {
+      return [
+        Padding(
+          padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 24.h),
+          child: SizedBox(
+            width: double.infinity,
+            child: GradiantButton(
+              text: "إتمام الدفع",
+              onTap: () async {
+                // Convert ConsultationModel to CreatedConsultationModel
+                final createdConsultation = app_models.CreatedConsultationModel(
+                  id: consultation.id,
+                  consultationNumber: consultation.consultationNumber,
+                  title: consultation.title,
+                  details: consultation.details ?? '',
+                  voiceNoteUrl: consultation.voiceNoteUrl,
+                  voiceNoteDurationSeconds: consultation.voiceNoteDurationSeconds,
+                  attachments: consultation.attachments.map((a) => a.url).toList(),
+                  type: consultation.type,
+                  startTime: consultation.startTime,
+                  endTime: consultation.endTime,
+                  status: consultation.status.apiValue,
+                  durationMin: consultation.durationMin,
+                  priceAmountHalala: consultation.priceAmountHalala,
+                  currency: consultation.currency ?? 'SAR',
+                  hideClientFromLawyer: consultation.hideClientFromLawyer,
+                  createdAt: consultation.createdAt ?? '',
+                );
+
+                // Load consultation into cubit and navigate to payment screen
+                await context.read<ConsultationApplicationCubit>()
+                    .loadExistingConsultationForPayment(createdConsultation);
+
+                if (context.mounted) {
+                  Nav.paymentScreen(context);
+                }
+              },
+            ),
+          ),
+        ),
+      ];
+    }
+
+    // Handle paid consultations - navigate directly to start consultation
+
+
     switch (consultation.status) {
       case ConsultationStatus.active:
         return [
@@ -2294,6 +2499,10 @@ class _LawyerConsultationDetailsScreenState
       // but "عرض الملخص" just opens this very details screen — which is
       // redundant since the summary is already shown inline in the body
       // above. So only the rating action carries over here.
+      // Rating button is only shown for users, not lawyers
+        if (getIt<CacheHelper>().cachedVendorType == VendorType.lawyer) {
+          return const [];
+        }
         return [
           Padding(
             padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 24.h),
@@ -2322,6 +2531,9 @@ class _LawyerConsultationDetailsScreenState
     // before.
       case ConsultationStatus.none:
         return const [];
+      case ConsultationStatus.pending:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 
@@ -2865,7 +3077,7 @@ class _DetailsContent extends StatelessWidget {
                         color: primary.withOpacity(.1),
                         width: 1,
                       ),
-   
+
                     ),
                     child: Row(
                       children: [
@@ -3062,6 +3274,8 @@ class _DetailsStatusBadge extends StatelessWidget {
         return Colors.orange.withOpacity(0.1);
       case ConsultationStatus.none:
         return Colors.black.withOpacity(0.1);
+      case ConsultationStatus.pending:
+        return Colors.orange.withOpacity(.1);
     }
   }
 
@@ -3080,6 +3294,8 @@ class _DetailsStatusBadge extends StatelessWidget {
         return Colors.orange.shade700;
       case ConsultationStatus.none:
         return Colors.black;
+      case ConsultationStatus.pending:
+        return Colors.orange;
     }
   }
 
@@ -4226,7 +4442,7 @@ class _DetailsDisputeNotice extends StatelessWidget {
             text: 'عرض تفاصيل النزاع',
             onTap: () => showDialog<void>(
               context: context,
-              builder: (_) => _DetailsDisputePopup(consultation: consultation),
+              builder: (_) => _DisputeDetailsPopup(consultation: consultation),
             ),
           ),
         ),
@@ -4235,10 +4451,14 @@ class _DetailsDisputeNotice extends StatelessWidget {
   }
 }
 
-class _DetailsDisputePopup extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// Dispute Details Popup
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DisputeDetailsPopup extends StatelessWidget {
   final ConsultationModel consultation;
 
-  const _DetailsDisputePopup({required this.consultation});
+  const _DisputeDetailsPopup({required this.consultation});
 
   @override
   Widget build(BuildContext context) {
@@ -4249,81 +4469,72 @@ class _DetailsDisputePopup extends StatelessWidget {
     return Dialog(
       backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(_UI.radiusLg),
+        borderRadius: BorderRadius.circular(20.w),
       ),
       insetPadding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 40.h),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 20.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    width: 32.w,
-                    height: 32.h,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF5F5F5),
-                      shape: BoxShape.circle,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(20.w, 20.h, 20.w, 20.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // ── Header ─────────────────────────────────────────────
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      width: 32.w,
+                      height: 32.h,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF5F5F5),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close, size: 16),
                     ),
-                    child: const Icon(Icons.close, size: 16),
+                  ),
+                  Gap(16.w),
+                  Text(
+                    consultation.type == "instant"
+                        ? "إستشاره فوريه"
+                        : consultation.type == "written"
+                        ? "إستشاره كتابيه"
+                        : consultation.type == "scheduled"
+                        ? "إستشاره مجدوله"
+                        : "غير معروف",
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 17.sp,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10.h),
+              GeneralDivider(),
+              SizedBox(height: 10.h),
+
+              // ── رقم النزاع ─────────────────────────────────────────
+              if (dispute?.disputeNumber != null &&
+                  dispute!.disputeNumber!.isNotEmpty) ...[
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'رقم النزاع: ${dispute.disputeNumber}',
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 12.sp,
+                    ),
                   ),
                 ),
-                Gap(16.w),
-                Text(
-                  'تفاصيل النزاع',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 17.sp,
-                  ),
-                ),
+                SizedBox(height: 12.h),
               ],
-            ),
-            SizedBox(height: 10.h),
-            GeneralDivider(),
-            SizedBox(height: 10.h),
 
-            if (dispute?.disputeNumber != null) ...[
+              // ── سبب النزاع ─────────────────────────────────────────
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'رقم النزاع: ${dispute!.disputeNumber}',
-                  style:
-                  TextStyle(color: Colors.grey.shade500, fontSize: 12.sp),
-                ),
-              ),
-              SizedBox(height: 12.h),
-            ],
-
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                'سبب النزاع',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15.sp,
-                ),
-              ),
-            ),
-            SizedBox(height: 8.h),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                dispute?.reason ?? '—',
-                textAlign: TextAlign.right,
-                style: TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
-              ),
-            ),
-
-            if (dispute?.description != null) ...[
-              SizedBox(height: 20.h),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text(
-                  'تفاصيل النزاع',
+                  'سبب النزاع',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 15.sp,
@@ -4334,40 +4545,143 @@ class _DetailsDisputePopup extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  dispute!.description!,
+                  dispute?.reason ?? '—',
                   textAlign: TextAlign.right,
-                  style:
-                  TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 14.sp,
+                  ),
                 ),
               ),
-            ],
 
-            if (dispute?.status != null || dispute?.decision != null) ...[
-              SizedBox(height: 16.h),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  if (dispute?.status != null)
-                    _InfoColumn(label: 'حالة النزاع', value: dispute!.status!),
-                  if (dispute?.decision != null)
-                    _InfoColumn(label: 'القرار', value: dispute!.decision!),
-                ],
+              // ── تفاصيل النزاع ──────────────────────────────────────
+              if (dispute?.description != null) ...[
+                SizedBox(height: 20.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'تفاصيل النزاع',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15.sp,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    dispute!.description!,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ),
+              ],
+
+              // ── حالة النزاع ────────────────────────────────────────
+              if (dispute?.status != null) ...[
+                SizedBox(height: 16.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'حالة النزاع',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15.sp,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _translateDisputeStatus(dispute!.status!),
+                    style: TextStyle(
+                      color: Colors.grey.shade500,
+                      fontSize: 14.sp,
+                    ),
+                  ),
+                ),
+              ],
+
+              // ── القرار المتخذ (يظهر فقط عند Closed) ────────────────
+              if (dispute?.status != null &&
+                  dispute!.status!.toLowerCase() == 'closed' &&
+                  dispute.decision != null &&
+                  dispute.decision!.toLowerCase() != 'none') ...[
+                SizedBox(height: 20.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'القرار المتخذ',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15.sp,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 8.h),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    _translateDisputeDecision(dispute.decision!),
+                    style: TextStyle(
+                      color: dispute.decision!.toLowerCase() == 'lawyer'
+                          ? Colors.blue.shade700
+                          : Colors.green.shade700,
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+
+              SizedBox(height: 10.h),
+              GeneralDivider(),
+              SizedBox(height: 10.h),
+
+              GradiantButton(
+                text: 'تم',
+                onTap: () => Navigator.pop(context),
               ),
             ],
-
-            SizedBox(height: 10.h),
-            GeneralDivider(),
-            SizedBox(height: 10.h),
-            SizedBox(
-              height: 50.h,
-              child: GradiantButton(text: 'تم', onTap: () => Navigator.pop(context)),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+
+  // ── ترجمة حالة النزاع ─────────────────────────────────────────────
+  String _translateDisputeStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return 'مفتوح';
+      case 'under review':
+        return 'قيد المراجعة';
+      case 'closed':
+        return 'مغلق';
+      default:
+        return status;
+    }
+  }
+
+  // ── ترجمة القرار المتخذ ──────────────────────────────────────────
+  String _translateDisputeDecision(String decision) {
+    switch (decision.toLowerCase()) {
+      case 'lawyer':
+        return 'تم حسم النزاع لصالح المحامي';
+      case 'client':
+        return 'تم حسم النزاع لصالح العميل';
+      default:
+        return decision;
+    }
+  }
 }
+
+
 
 // ── Rating Bottom Sheet ────────────────────────────────────────────────────────
 

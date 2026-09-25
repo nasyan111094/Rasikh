@@ -6,6 +6,7 @@
 
 enum ConsultationStatus {
   none,
+  pending,
   active,
   upcoming,
   completed,
@@ -18,6 +19,8 @@ extension ConsultationStatusX on ConsultationStatus {
     switch (this) {
       case ConsultationStatus.none:
         return 'الكل';
+      case ConsultationStatus.pending:
+        return 'قيد الانتظار';
       case ConsultationStatus.active:
         return 'نشطة';
       case ConsultationStatus.upcoming:
@@ -35,6 +38,8 @@ extension ConsultationStatusX on ConsultationStatus {
     switch (this) {
       case ConsultationStatus.none:
         return '';
+      case ConsultationStatus.pending:
+        return 'pending';
       case ConsultationStatus.active:
         return 'active';
       case ConsultationStatus.upcoming:
@@ -55,7 +60,7 @@ extension ConsultationStatusX on ConsultationStatus {
       case 'upcoming':
         return ConsultationStatus.upcoming;
       case 'pending':
-        return ConsultationStatus.none;
+        return ConsultationStatus.pending;
       case 'completed':
         return ConsultationStatus.completed;
       case 'cancelled':
@@ -351,6 +356,8 @@ class ConsultationModel {
 
   final ConsultationStatus status;
 
+  final String? paymentStatus;
+
   final int? durationMin;
   final int? priceAmountHalala;
   final String? currency;
@@ -391,6 +398,7 @@ class ConsultationModel {
     this.attachments = const [],
     required this.type,
     required this.status,
+    this.paymentStatus,
     this.durationMin,
     this.priceAmountHalala,
     this.currency,
@@ -431,6 +439,13 @@ class ConsultationModel {
   bool get isUpcoming => status == ConsultationStatus.upcoming;
 
   bool get isDisputed => status == ConsultationStatus.disputes;
+
+  bool get isPending => status == ConsultationStatus.pending;
+
+  bool get isPaymentPending => paymentStatus == 'pending';
+  bool get isConsultationPending => status == ConsultationStatus.pending;
+
+  bool get isPaymentPaid => paymentStatus == 'completed';
 
   DateTime? get effectiveStartDateTime {
     final raw = startTime ?? instantSessionStartedAt;
@@ -539,6 +554,7 @@ class ConsultationModel {
       status: ConsultationStatusX.fromString(
         json['status']?.toString() ?? '',
       ),
+      paymentStatus: json['paymentStatus']?.toString(),
       durationMin: json['durationMin'] as int?,
       priceAmountHalala: json['priceAmountHalala'] as int?,
       currency: json['currency']?.toString(),
@@ -576,6 +592,7 @@ class ConsultationModel {
     attachments.map((e) => e.toJson()).toList(),
     'type': type,
     'status': status.apiValue,
+    'paymentStatus': paymentStatus,
     'durationMin': durationMin,
     'priceAmountHalala': priceAmountHalala,
     'currency': currency,

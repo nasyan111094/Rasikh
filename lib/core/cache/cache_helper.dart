@@ -650,6 +650,16 @@ class CacheHelper {
     );
 
     await removeData(
+      PrefKeys.lawyerToken,
+      isSensitive: true,
+    );
+
+    await removeData(
+      PrefKeys.otpToken,
+      isSensitive: true,
+    );
+
+    await removeData(
       PrefKeys.currentUser,
       isSensitive: true,
     );

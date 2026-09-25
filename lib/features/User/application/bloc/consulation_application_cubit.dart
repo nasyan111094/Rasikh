@@ -475,6 +475,16 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(const ConsultationState());
   }
 
+  // ── Load existing consultation for payment ───────────────────────────────
+
+  Future<void> loadExistingConsultationForPayment(
+      CreatedConsultationModel consultation) async {
+    emit(state.copyWith(
+      createdConsultation: consultation,
+      createStatus: ConsultationStatus.success,
+    ));
+  }
+
   // ── Step-7: Payment ───────────────────────────────────────────────────────
 
   Future<void> payWithWallet() async {

@@ -96,9 +96,25 @@ class ConsultationsRepo {
     if (result.isRight) {
       Logger().i(result.right.data);
       final data = result.right.data;
-      final json = data is Map<String, dynamic>
-          ? (data['data'] as Map<String, dynamic>? ?? data)
-          : data as Map<String, dynamic>;
+      
+      // Handle both Map and List responses
+      Map<String, dynamic> json;
+      if (data is Map<String, dynamic>) {
+        // If data has a 'data' field that is a list, extract the first item
+        final dataField = data['data'];
+        if (dataField is List && dataField.isNotEmpty) {
+          json = dataField[0] as Map<String, dynamic>;
+        } else if (dataField is Map<String, dynamic>) {
+          json = dataField;
+        } else {
+          json = data;
+        }
+      } else if (data is List && data.isNotEmpty) {
+        json = data[0] as Map<String, dynamic>;
+      } else {
+        return Left('Invalid response format');
+      }
+      
       return Right(ConsultationModel.fromJson(json));
     }
     return Left(_extractError(result.left));

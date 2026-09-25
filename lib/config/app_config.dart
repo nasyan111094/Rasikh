@@ -5,7 +5,7 @@ abstract class AppConfig {
   static String version = 'v1/';
 
   // Agora Chat SDK
-  static String agoraChatAppKey = '61200025732#200034431';
+  static String agoraChatAppKey = '41200059252#200082844';
 }
 
 ///firebase

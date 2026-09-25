@@ -49,26 +49,22 @@ class _WalletScreenState extends State<WalletScreen> {
           title: 'المحفظة الإلكترونيه',
 
         ),
-        bottomNavigationBar: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0.w),
-          child: SizedBox(
-            width: double.infinity,
-            height: 45,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                showAddBankAccountDialog(context);
-              },
-              icon: const Icon(Icons.add_circle_outline,
-                  size: 18, color: primary),
-              label: Text('إضافة حساب جديد',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleSmall!
-                      .copyWith(color: primary)),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: colors.primary.withOpacity(0.3)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+        bottomNavigationBar: Builder(
+          builder: (context) => Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.0.w, vertical: 30.h),
+            child: SizedBox(
+              width: double.infinity,
+              height: 45,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  showAddBankAccountDialog(context); // now a valid descendant context
+                },
+                icon: const Icon(Icons.add_circle_outline, size: 18, color: primary),
+                label: Text('إضافة حساب جديد',
+                    style: Theme.of(context).textTheme.titleSmall!.copyWith(color: primary)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: colors.primary.withOpacity(0.3)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ),
@@ -76,11 +72,7 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
         body: BlocListener<WalletCubit, WalletState>(
           listener: (context, state) {
-            if (state.bankAccountsStatus == WalletStatus.success) {
-              if (state.bankAccountsError == null) {
-
-              }
-            } else if (state.bankAccountsStatus == WalletStatus.failure) {
+            if (state.bankAccountsStatus == WalletStatus.failure) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content: Text(state.bankAccountsError ??
@@ -233,11 +225,13 @@ class _WalletScreenState extends State<WalletScreen> {
   // ------------------ 💰 الرصيد الحالي ------------------
   Widget _buildBalanceCard(ThemeData theme, ColorScheme colors, TextTheme text,
       BuildContext context, WalletModel? wallet) {
-    final totalBalance = wallet?.availableBalance ?? 0;
-    final availableBalance = wallet?.availableBalance ?? 0;
-    final pendingBalance = (wallet?.disputePendingBalance ?? 0) +
-        (wallet?.withdrawalPendingBalance ?? 0) +
-        (wallet?.pendingBalance ?? 0);
+    final isUser = getIt<CacheHelper>().cachedVendorType == VendorType.user;
+    final totalBalance = wallet?.totalBalance ?? 0;
+    final availableBalance = wallet?.availableBalance ?? 10;
+    final pendingBalance = wallet?.pendingBalance ?? 0;
+    final clientTotalBalance = availableBalance + pendingBalance;
+
+
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -259,10 +253,10 @@ class _WalletScreenState extends State<WalletScreen> {
             child: Picture(getAssetIcon("wallet.svg")),
           ),
           Gap(10.h),
-          Text('رصيدك الحالي', style: text.bodyMedium),
+          Text('الرصيد الحالي', style: text.bodyMedium),
           const SizedBox(height: 8),
           Text(
-            '${totalBalance.toStringAsFixed(2)} ريال',
+            '${(isUser ? clientTotalBalance : totalBalance).toStringAsFixed(2)} ريال',
             style: text.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: const Color(0xFFC7A47B),
@@ -337,8 +331,13 @@ class _WalletScreenState extends State<WalletScreen> {
                   width: double.infinity,
                   height: 40,
                   child: ElevatedButton(
-                    onPressed: () {
-                      Nav.withdrawRequestScreen(context);
+                    onPressed: () async {
+                      final cubit = context.read<WalletCubit>();
+                      await Nav.withdrawRequestScreen(context);
+                      if (context.mounted) {
+                        cubit.getWallet();
+                        cubit.getBankAccounts();
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primary.withOpacity(.1),

@@ -360,8 +360,18 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
 
     return Directionality(
       textDirection: TextDirection.rtl,
-      child: Scaffold(
-        appBar: const GeneralAppBar(title: "الدفع"),
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            Nav.layout(context);
+          }
+        },
+        child: Scaffold(
+          appBar: GeneralAppBar(
+            title: "الدفع",
+            onTapArrow: () => Nav.layout(context),
+          ),
         body: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
             final lawyer =
@@ -545,7 +555,8 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
           },
         ),
       ),
-    );
+        ),
+      );
   }
 
   String _formatDateTime(DateTime dt) {

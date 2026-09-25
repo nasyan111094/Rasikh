@@ -88,10 +88,10 @@ class _ConsultationDetailsScreenState
       type: FileType.custom,
       allowedExtensions: ['pdf', 'jpeg', 'jpg', 'png', 'doc', 'docx'],
     );
-    if (result != null && result.single.path != null) {
+    if (result.isNotEmpty && result.first.path != null) {
       context
           .read<ConsultationApplicationCubit>()
-          .addAttachment(File(result.single.path!));
+          .addAttachment(File(result.first.path!));
     }
   }
 

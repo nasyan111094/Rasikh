@@ -422,6 +422,8 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
         return 'متنازع عليها';
       case ConsultationStatus.none:
         return '';
+      case ConsultationStatus.pending:
+        return 'قيد الإنتظار';
     }
   }
 }
@@ -914,6 +916,9 @@ class AppointmentCard extends StatelessWidget {
             onTap: onDetails ?? () {},
           ),
         );
+      case ConsultationStatus.pending:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 
@@ -1403,6 +1408,8 @@ class _StatusBadge extends StatelessWidget {
         return Colors.orange.withOpacity(0.1);
       case ConsultationStatus.none:
         return Colors.black.withOpacity(0.1);
+      case ConsultationStatus.pending:
+        return Colors.orange.withOpacity(0.1);
     }
   }
 
@@ -1420,6 +1427,8 @@ class _StatusBadge extends StatelessWidget {
         return Colors.orange.shade700;
       case ConsultationStatus.none:
         return Colors.black;
+      case ConsultationStatus.pending:
+        return Colors.orange;
     }
   }
 
@@ -1772,6 +1781,18 @@ class _DisputeDetailsPopup extends StatelessWidget {
             SizedBox(height: 10.h),
             GeneralDivider(),
             SizedBox(height: 10.h),
+
+            if (consultation.dispute?.disputeNumber != null) ...[
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'رقم النزاع: ${consultation.dispute!.disputeNumber}',
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 12.sp),
+                ),
+              ),
+              SizedBox(height: 12.h),
+            ],
+
             Align(
               alignment: Alignment.centerRight,
               child: Text(
@@ -1812,6 +1833,57 @@ class _DisputeDetailsPopup extends StatelessWidget {
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
               ),
             ),
+
+            if (consultation.dispute?.status != null) ...[
+              SizedBox(height: 20.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'حالة النزاع',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15.sp,
+                  ),
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _translateDisputeStatus(consultation.dispute!.status!),
+                  style: TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
+                ),
+              ),
+            ],
+
+            if (consultation.dispute?.status == 'Closed' && consultation.dispute?.decision != null) ...[
+              SizedBox(height: 20.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  'القرار المتخذ',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15.sp,
+                  ),
+                ),
+              ),
+              SizedBox(height: 8.h),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text(
+                  _translateDisputeDecision(consultation.dispute!.decision!),
+                  style: TextStyle(
+                    color: consultation.dispute!.decision == 'Lawyer' 
+                        ? Colors.blue.shade700 
+                        : Colors.green.shade700,
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+
             SizedBox(height: 10.h),
             GeneralDivider(),
             SizedBox(height: 10.h),
@@ -1820,6 +1892,30 @@ class _DisputeDetailsPopup extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _translateDisputeStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'open':
+        return 'مفتوح';
+      case 'under review':
+        return 'قيد المراجعة';
+      case 'closed':
+        return 'مغلق';
+      default:
+        return status;
+    }
+  }
+
+  String _translateDisputeDecision(String decision) {
+    switch (decision.toLowerCase()) {
+      case 'lawyer':
+        return 'تم حسم النزاع لصالح المحامي';
+      case 'client':
+        return 'تم حسم النزاع لصالح العميل';
+      default:
+        return decision;
+    }
   }
 }
 

@@ -12,8 +12,6 @@ import 'package:rasikh/core/app/app_bloc.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/connectivity/cubit/connectivity_cubit.dart';
 import 'package:rasikh/core/utils/api/api_handler.dart';
-import 'package:rasikh/core/utils/api/api_helper.dart';
-import 'package:rasikh/core/utils/api/dio_helper.dart';
 
 import 'package:rasikh/features/common/Auth/bloc/auth_cubit.dart';
 import 'package:rasikh/features/common/Auth/repo/auth_repo.dart';
@@ -70,8 +68,6 @@ Future<void> initializeDependencies() async {
 
     // ApiHandler depends on Dio → registered after
     getIt.registerLazySingleton<ApiHandler>(() => ApiHandler());
-    getIt.registerLazySingleton<ApiHelper>(() => ApiImpl());
-    getIt.registerLazySingleton<DioHelper>(() => DioImpl());
 
     // ─── Lang ─────────────────────────────────────────────────────────────────
     getIt.registerSingleton<LangRepo>(LangRepo());

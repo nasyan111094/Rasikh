@@ -40,9 +40,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
   void initState() {
     super.initState();
     final profileCubit = context.read<LawyerProfileCubit>();
-    if (profileCubit.cachedProfile == null) {
-      profileCubit.getProfile();
-    }
+    // Always fetch profile on init to ensure fresh data after login
+    profileCubit.getProfile();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final cubit = context.read<LawyerConsultationsCubit>();
       cubit.fetchConsultations();
@@ -405,6 +404,16 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
               setState(() {
                 _isAvailable =
                     state.profile.activityStatus == 'available_now';
+              });
+            }
+          },
+        ),
+        BlocListener<LawyerConsultationsCubit, LawyerConsultationsState>(
+          listener: (context, state) {
+            if (state is DashboardLoaded) {
+              setState(() {
+                _isAvailable = state.dashboardData.availability ==
+                    LawyerAvailabilityStatus.availableNow;
               });
             }
           },
