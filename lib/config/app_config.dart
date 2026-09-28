@@ -1,11 +1,20 @@
 abstract class AppConfig {
   static String baseUrl = "https://rasekhapi.alnasyan.com/api/v1/";
+  static String baseApiUrl = "https://rasekhapi.alnasyan.com/api/";
   static String baseImgUrl = "http://89.117.60.202:3050";
 
   static String version = 'v1/';
 
   // Agora Chat SDK
   static String agoraChatAppKey = '41200059252#200082844';
+
+  // ── Store links (fallback when the API storeUrl is missing) ──────────────
+  static const String appleStoreUrl =
+      'https://apps.apple.com/us/app/%D8%B1%D8%A7%D8%B3%D8%AE-%D8%A7%D9%84%D8%B0%D9%83%D9%8A-rasikh/id6810118137';
+  static const String googlePlayUrl =
+      'https://play.google.com/store/apps/details?id=com.rasikh.rasikh_smart';
+  static const String websiteUrl =
+      'https://v0-raskh-landing-page-design.vercel.app/';
 }
 
 ///firebase

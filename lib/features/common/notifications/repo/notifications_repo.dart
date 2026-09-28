@@ -14,6 +14,7 @@ class _NotificationsEndpoints {
   static const String myNotifications = 'notifications/my';
   static const String markRead = 'notifications'; // PATCH /notifications/:id/read
   static const String markAllRead = 'notifications/mark-all-read';
+  static const String unreadCount = 'notifications/unread-count'; // GET unread badge count
 }
 
 // ── Repository ────────────────────────────────────────────────────────────────
@@ -80,6 +81,37 @@ class NotificationsRepo {
 
     if (result.isRight) {
       return const Right(true);
+    }
+    return Left(_extractError(result.left));
+  }
+
+  // ── GET unread notifications count (badge) ───────────────────────────────
+  // GET /api/v1/notifications/unread-count → { "count": 3 }
+
+  Future<Either<String, int>> getUnreadCount() async {
+    final result = await _adapter.get(
+      _NotificationsEndpoints.unreadCount,
+    );
+
+    if (result.isRight) {
+      try {
+        final data = result.right.data;
+        if (data is Map) {
+          // Direct shape: { "count": 3 }
+          if (data['count'] is num) {
+            return Right((data['count'] as num).toInt());
+          }
+          // Wrapped shapes: { "data": { "count": 3 } } or { "data": 3 }
+          final wrapped = data['data'];
+          if (wrapped is num) return Right(wrapped.toInt());
+          if (wrapped is Map && wrapped['count'] is num) {
+            return Right((wrapped['count'] as num).toInt());
+          }
+        }
+        return const Left('تعذر قراءة عدد الإشعارات');
+      } catch (_) {
+        return const Left('تعذر قراءة عدد الإشعارات');
+      }
     }
     return Left(_extractError(result.left));
   }

@@ -23,11 +23,12 @@ class ApiHandler {
   DioAdapterBase? _adapterBase;
   DioAdapterBase get dioAdapterBase => _adapterBase!;
 
-  // Single Refresh Mechanism: Prevent concurrent token refresh operations
-  static bool _isRefreshing = false;
-  static Completer<void>? _refreshCompleter;
-  static const int _maxRefreshRetries = 2;
-  static int _refreshRetryCount = 0;
+  // ── Centralized session/refresh orchestration ─────────────────────────────
+  // Single-flight: concurrent 401s share ONE refresh call instead of firing N.
+  static Future<bool>? _refreshFuture;
+
+  // Guards the forced-logout navigation so stacked 401s navigate only once.
+  static bool _logoutNavigated = false;
 
   DioAdapterBase _apiConfig() {
     return DioAdapterBase(
@@ -69,212 +70,246 @@ class ApiHandler {
     return response;
   }
 
+  // ═════════════════════════════════════════════════════════════════════════
+  // Central error interceptor — single entry point for EVERY request/response.
+  //
+  // 401 → always treated as expired session: single-flight refresh, then the
+  //        original request is retried once with the new token.
+  // 400 → refresh ONLY when the body carries an auth signal (expired/invalid
+  //        token, unauthorized...). Plain validation 400s must NOT trigger a
+  //        refresh, otherwise every form error would log the user out.
+  // Refresh failure (or nothing to refresh with) → wipe all cached data and
+  // navigate to AccountTypeScreen removing every route.
+  // ═════════════════════════════════════════════════════════════════════════
+
   Future<DioException> _customErrorHandler(
-      DioException error,
-      ErrorInterceptorHandler handler,
-      ) async {
-
-    if (error.response?.statusCode == 401 /*|| error.response?.statusCode == 400*/) {
-      Logger().e(" 😭 Your Token Is Expired, SO: I Will Refresh Your Token Now ");
-
-      try {
-        final cacheHelper = getIt.get<CacheHelper>();
-        final refreshToken = await cacheHelper.getRefreshToken();
-        final vendorType = await cacheHelper.getCachedVendorType();
-
-        if (refreshToken == null || vendorType == null) {
-          // No refresh token available or vendor type not set
-          await cacheHelper.clearUserSession();
-          handler.reject(DioException(
-            message: "No refresh token available, please login again.",
-            requestOptions: error.requestOptions,
-            type: DioExceptionType.badResponse,
-          ));
-          return error;
-        }
-
-        // Check if refresh is already in progress
-        if (_isRefreshing) {
-          Logger().i("Token refresh already in progress, waiting for completion...");
-          // Wait for the ongoing refresh to complete
-          await _refreshCompleter!.future;
-          
-          // After refresh completes, retry the original request with updated token
-          try {
-            final newToken = await cacheHelper.getUserToken();
-            if (newToken != null) {
-              final RequestOptions requestOptions = error.requestOptions;
-              requestOptions.headers['Authorization'] = 'Bearer $newToken';
-              requestOptions.headers["Accept-Language"] = 'ar';
-
-              final retryResponse = await _retryRequest(requestOptions);
-              handler.resolve(retryResponse);
-              return error;
-            }
-          } catch (retryError) {
-            Logger().e("Failed to retry request after waiting for token refresh: $retryError");
-            handler.reject(error);
-            return error;
-          }
-        }
-
-        // Mark that refresh is starting
-        _isRefreshing = true;
-        _refreshCompleter = Completer<void>();
-
-        try {
-          // Use the auth repo to refresh the token
-          final authRepo = GeneralAuthRepo();
-          final refreshEither = await authRepo.refreshToken(
-            refreshToken: refreshToken,
-            vendor: vendorType,
-          ).timeout(
-            const Duration(seconds: 10),
-            onTimeout: () {
-              throw Exception('Token refresh timeout');
-            },
-          );
-
-          final refreshResponse = refreshEither.fold(
-                (l) => throw Exception(l),
-                (r) => r,
-          );
-
-          final newAccessToken = refreshResponse.accessToken;
-          final newRefreshToken = refreshResponse.refreshToken;
-          
-          Logger().e(" 😍 Your New Token is: $newAccessToken ");
-
-          // Save the new tokens
-          await cacheHelper.setUserToken(newAccessToken);
-          await cacheHelper.setRefreshToken(newRefreshToken);
-          
-          // Reset retry count on successful refresh
-          _refreshRetryCount = 0;
-
-          // Update the original request with new token
-          final RequestOptions requestOptions = error.requestOptions;
-          requestOptions.headers['Authorization'] = 'Bearer $newAccessToken';
-          requestOptions.headers["Accept-Language"] = 'ar';
-
-          // Retry the original request with new token
-          try {
-            final retryResponse = await _retryRequest(requestOptions);
-            
-            // Mark refresh as complete
-            _isRefreshing = false;
-            _refreshCompleter?.complete();
-            
-            handler.resolve(retryResponse);
-            return error;
-          } catch (retryError) {
-            Logger().e("Failed to retry request after token refresh: $retryError");
-            
-            // Mark refresh as complete before clearing session
-            _isRefreshing = false;
-            _refreshCompleter?.complete();
-            
-            handler.reject(error);
-            return error;
-          }
-        } catch (e) {
-          Logger().e("Token refresh failed: $e");
-          
-          // Increment retry count
-          _refreshRetryCount++;
-          
-          // Mark refresh as complete
-          _isRefreshing = false;
-          _refreshCompleter?.complete();
-          
-          // If we haven't exceeded max retries and the error might be temporary, retry
-          if (_refreshRetryCount <= _maxRefreshRetries && 
-              (e.toString().contains('timeout') || e.toString().contains('network'))) {
-            Logger().i("Retrying token refresh (attempt $_refreshRetryCount/$_maxRefreshRetries)");
-            // Retry the refresh after a short delay
-            await Future.delayed(const Duration(milliseconds: 500));
-            // Re-trigger the error handling to attempt refresh again
-            // Don't recursively call with the same handler - just reject the error
-            handler.reject(error);
-            return error;
-          }
-          
-          // Only clear session if refresh endpoint itself failed (not a generic exception)
-          await getIt<CacheHelper>().clearUserSession().then((_) {
-            Nav.mainNavKey.currentState?.pushAndRemoveUntil(
-              MaterialPageRoute(
-                builder: (_) => const AccountTypeScreen(),
-              ),
-                  (route) => false,
-            );
-          });
-          handler.reject(DioException(
-            message: "Session expired, please login again.",
-            requestOptions: error.requestOptions,
-            type: DioExceptionType.badResponse,
-          ));
-          return error;
-        }
-      } catch (e) {
-        Logger().e("Unexpected error in token refresh: $e");
-        
-        // Mark refresh as complete
-        _isRefreshing = false;
-        _refreshCompleter?.complete();
-        
-        handler.reject(DioException(
-          message: "An unexpected error occurred, please login again.",
-          requestOptions: error.requestOptions,
-          type: DioExceptionType.badResponse,
-        ));
+    DioException error,
+    ErrorInterceptorHandler handler,
+  ) async {
+    if (_shouldAttemptRefresh(error)) {
+      final retried = await _refreshAndRetry(error.requestOptions);
+      if (retried != null) {
+        handler.resolve(retried);
         return error;
       }
-    } else {
-      // Handle other errors (not 401)
-      // Safely extract error message from response data
-      String? errorMessage;
-      if (error.response?.data is Map) {
-        errorMessage = error.response?.data['message']?.toString();
-      } else if (error.response?.data is String) {
-        errorMessage = error.response?.data;
-      }
-      
-      AppLogger.info(errorMessage);
-      
-      // Handle other errors
-      print('Error: ${error.message}');
-      handler.reject(DioException(
-        message: errorMessage ?? error.message?.toString() ?? 'An error occurred',
-        error: error.error,
-        requestOptions: error.requestOptions,
-        response: error.response,
-        type: error.type,
-        stackTrace: error.stackTrace,
-      ));
+      await _forceLogout(handler, error);
       return error;
     }
-    
-    // Safely extract error message from response data
-    String? errorMessage;
-    if (error.response?.data is Map) {
-      errorMessage = error.response?.data['message']?.toString();
-    } else if (error.response?.data is String) {
-      errorMessage = error.response?.data;
+
+    handler.reject(_cleanError(error));
+    return error;
+  }
+
+  // ── Should this failure enter the refresh flow? ───────────────────────────
+
+  bool _shouldAttemptRefresh(DioException error) {
+    // Never intercept the auth endpoints themselves (login/register/OTP/
+    // refresh) — a 401 there means wrong credentials, not an expired session,
+    // and intercepting refresh would loop forever.
+    if (_isAuthEndpoint(error.requestOptions.path)) return false;
+
+    // Only requests that actually sent credentials participate. Public calls
+    // (or logged-out users) are rejected untouched — never wipe their cache.
+    final sentAuth =
+        error.requestOptions.headers['Authorization']?.toString().isNotEmpty ==
+            true;
+    if (!sentAuth) return false;
+
+    final status = error.response?.statusCode;
+    if (status == 401) return true;
+    if (status == 400) return _looksLikeAuthError(error.response?.data);
+    return false;
+  }
+
+  bool _isAuthEndpoint(String path) {
+    final p = path.toLowerCase();
+    if (p.endsWith('/refresh')) return true;
+    const markers = [
+      '/login',
+      '/register',
+      '/verify-otp',
+      '/resend-otp',
+      '/confirm-login',
+      '/confirm-register',
+      '/initialize-otp',
+      'user-management/refresh-token',
+    ];
+    for (final m in markers) {
+      if (p.contains(m)) return true;
     }
-    
-    AppLogger.info(errorMessage);
-    
-    // Handle other errors
-    print('Error: ${error.message}');
+    return false;
+  }
+
+  /// A 400 counts as auth-related only when its payload says so.
+  bool _looksLikeAuthError(dynamic data) {
+    final buffer = StringBuffer();
+    void collect(dynamic value) {
+      if (value == null) return;
+      if (value is String) {
+        buffer.write(value);
+        buffer.write(' ');
+      } else if (value is Map) {
+        value.values.forEach(collect);
+      } else if (value is List) {
+        value.forEach(collect);
+      }
+    }
+
+    collect(data);
+    final text = buffer.toString().toLowerCase();
+
+    const signals = [
+      'token',
+      'unauthor',
+      'unauthen',
+      'expired',
+      'session',
+      'authenticate',
+      'login again',
+      // Arabic backend messages
+      'انتهت',
+      'منتهي',
+      'تسجيل الدخول',
+      'غير مصرح',
+      'غير مسموح',
+      'رمز',
+      'الجلسة',
+    ];
+    for (final s in signals) {
+      if (text.contains(s)) return true;
+    }
+    return false;
+  }
+
+  // ── Single-flight refresh + one retry of the failed request ───────────────
+
+  Future<Response?> _refreshAndRetry(RequestOptions failedRequest) async {
+    final future = _refreshFuture ??= _performRefresh();
+    bool refreshed = false;
+    try {
+      refreshed = await future;
+    } catch (_) {
+      refreshed = false;
+    } finally {
+      if (identical(_refreshFuture, future)) _refreshFuture = null;
+    }
+
+    if (!refreshed) return null;
+
+    String? newToken;
+    try {
+      newToken = await getIt.get<CacheHelper>().getUserToken();
+    } catch (_) {
+      return null;
+    }
+    if (newToken == null || newToken.isEmpty) return null;
+
+    failedRequest.headers['Authorization'] = 'Bearer $newToken';
+    failedRequest.headers['Accept-Language'] = 'ar';
+
+    try {
+      return await _retryRequest(failedRequest)
+          .timeout(const Duration(seconds: 30));
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Returns true when fresh tokens were obtained AND persisted.
+  Future<bool> _performRefresh() async {
+    try {
+      final cacheHelper = getIt.get<CacheHelper>();
+      final refreshToken = await cacheHelper.getRefreshToken();
+      final vendorType = await cacheHelper.getCachedVendorType();
+      if (refreshToken == null ||
+          refreshToken.isEmpty ||
+          vendorType == null) {
+        return false;
+      }
+
+      final refreshEither = await GeneralAuthRepo()
+          .refreshToken(refreshToken: refreshToken, vendor: vendorType)
+          .timeout(
+            const Duration(seconds: 10),
+            onTimeout: () => throw TimeoutException('Token refresh timeout'),
+          );
+
+      return await refreshEither.fold(
+        (_) async => false,
+        (tokens) async {
+          if (tokens.accessToken.isEmpty) return false;
+          await cacheHelper.setUserToken(tokens.accessToken);
+          if (tokens.refreshToken.isNotEmpty) {
+            await cacheHelper.setRefreshToken(tokens.refreshToken);
+          }
+          Logger().i('Access token refreshed — retrying queued requests');
+          return true;
+        },
+      );
+    } catch (e) {
+      Logger().e('Token refresh failed: $e');
+      return false;
+    }
+  }
+
+  // ── Unrecoverable session: wipe everything + hard reset navigation ────────
+
+  Future<void> _forceLogout(
+    ErrorInterceptorHandler handler,
+    DioException error,
+  ) async {
+    try {
+      await getIt<CacheHelper>().clearAllData();
+    } catch (_) {
+      // Storage must never block the logout navigation.
+    }
+
+    if (!_logoutNavigated) {
+      _logoutNavigated = true;
+      try {
+        await Nav.mainNavKey.currentState?.pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (_) => const AccountTypeScreen(),
+          ),
+          (route) => false,
+        );
+      } catch (_) {
+        // Navigator may be unavailable (background isolate, tests).
+      }
+      // Re-arm for the next login session.
+      Future.delayed(
+        const Duration(seconds: 2),
+        () => _logoutNavigated = false,
+      );
+    }
+
     handler.reject(DioException(
+      message: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى',
+      requestOptions: error.requestOptions,
+      response: error.response,
+      type: DioExceptionType.badResponse,
+    ));
+  }
+
+  // ── Plain (non-auth) failures: clean, user-readable message ───────────────
+
+  DioException _cleanError(DioException error) {
+    String? errorMessage;
+    final data = error.response?.data;
+    if (data is Map) {
+      errorMessage = data['message']?.toString();
+    } else if (data is String && data.isNotEmpty) {
+      errorMessage = data;
+    }
+    if (errorMessage != null) AppLogger.info(errorMessage);
+    return DioException(
       message: errorMessage ?? error.message?.toString() ?? 'An error occurred',
       error: error.error,
       requestOptions: error.requestOptions,
       response: error.response,
       type: error.type,
       stackTrace: error.stackTrace,
-    ));
-    return error;
+    );
   }
 
   // Helper method to retry the original request

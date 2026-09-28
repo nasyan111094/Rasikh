@@ -1006,12 +1006,12 @@ class _ChatBodyState extends State<_ChatBody> {
       ],
     );
 
-    if (result.isEmpty) {
+    if (result == null || result.files.isEmpty) {
       return;
     }
 
-    final path =
-        result.single.path;
+    final picked = result.files.single;
+    final path = picked.path;
 
     if (path == null) {
       return;
@@ -1031,8 +1031,7 @@ class _ChatBodyState extends State<_ChatBody> {
       return;
     }
 
-    final fileName =
-        result.single.name;
+    final fileName = picked.name;
 
     final msg =
     ChatMessage.createFileSendMessage(

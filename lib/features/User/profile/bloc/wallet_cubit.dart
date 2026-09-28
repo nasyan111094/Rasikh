@@ -254,12 +254,53 @@ class WalletCubit extends Cubit<WalletState> {
         transactionsPage: response.page,
         transactionsLimit: response.limit,
         transactionsTotalPages: response.totalPages,
+        transactionsIsLoadingMore: false,
       )),
     );
   }
 
-  Future<void> getTransactionById({required String id}) async {
-    emit(state.copyWith(
+  /// Appends the next page of transactions (infinite scroll).
+  /// No-op when already loading, on first-load, or when all pages are loaded.
+  Future<void> loadMoreTransactions({
+    String? type,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? limit,
+  }) async {
+    if (state.transactionsIsLoadingMore) return;
+    if (state.transactionsStatus == WalletStatus.loading) return;
+    if (state.transactionsPage >= state.transactionsTotalPages) return;
+
+    emit(state.copyWith(transactionsIsLoadingMore: true));
+
+    final nextPage = state.transactionsPage + 1;
+    final result = await _repo.getTransactions(
+      type: type,
+      startDate: startDate,
+      endDate: endDate,
+      page: nextPage,
+      limit: limit ?? state.transactionsLimit,
+    );
+
+    result.fold(
+      // Keep the old list visible on failure.
+      (error) => emit(state.copyWith(
+        transactionsIsLoadingMore: false,
+        transactionsError: error,
+      )),
+      (response) => emit(state.copyWith(
+        transactionsStatus: WalletStatus.success,
+        transactions: [...state.transactions, ...response.transactions],
+        transactionsTotal: response.total,
+        transactionsPage: response.page,
+        transactionsLimit: response.limit,
+        transactionsTotalPages: response.totalPages,
+        transactionsIsLoadingMore: false,
+      )),
+    );
+  }
+
+  Future<void> getTransactionById({required String id}) async {    emit(state.copyWith(
       transactionDetailStatus: WalletStatus.loading,
       transactionDetailError: null,
     ));

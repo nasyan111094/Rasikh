@@ -12,6 +12,8 @@ import 'package:rasikh/core/get_it_service/get_it_service.dart';
 
 import '../bloc/splash_bloc.dart';
 import '../bloc/splash_state.dart';
+import '../../app_version/bloc/app_version_cubit.dart';
+import '../../app_version/widgets/app_update_dialog.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -27,6 +29,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   // ── Bloc ───────────────────────────────────────────────────────────────────
   // Store once; never call getIt inside build/timer callbacks
   late final SplashBloc _splashBloc;
+  late final AppVersionCubit _appVersionCubit;
 
   // ── State ──────────────────────────────────────────────────────────────────
   late ThemeData _cachedTheme;
@@ -49,6 +52,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
 
     _splashBloc = getIt<SplashBloc>();
+    _appVersionCubit = getIt<AppVersionCubit>();
     _controller = AnimationController(vsync: this);
 
     // Hide navigation bar during splash; keep status bar visible
@@ -81,6 +85,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _navTimer?.cancel();
     _fallbackTimer?.cancel();
     _controller.dispose();
+    _appVersionCubit.close();
 
     // Restore full-screen system UI for the rest of the app
     SystemChrome.setEnabledSystemUIMode(
@@ -99,8 +104,21 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
 
   /// Called once both the animation ends AND the bloc has responded.
-  void _navigate() {
+  /// Runs the app-version gate first: FORCE blocks, OPTIONAL asks, NONE
+  /// (or any check failure) proceeds normally.
+  Future<void> _navigate() async {
     if (!mounted || _navigated) return;
+
+    final proceed = await _handleVersionCheck();
+    if (!mounted) return;
+
+    if (!proceed) {
+      // FORCE update dialog is on screen — stay on splash, never navigate.
+      _navTimer?.cancel();
+      _fallbackTimer?.cancel();
+      return;
+    }
+
     _navigated = true;
     _navTimer?.cancel();
     _fallbackTimer?.cancel();
@@ -119,6 +137,30 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       Nav.account_type_screen(context);
     } else {
       Nav.onBoarding(context);
+    }
+  }
+
+  /// Version gate — returns false only for a FORCE update (stay blocked).
+  /// Any failure (offline, timeout, bad response) proceeds normally so the
+  /// user is never trapped on splash.
+  Future<bool> _handleVersionCheck() async {
+    try {
+      await _appVersionCubit.checkVersion().timeout(
+            const Duration(seconds: 10),
+          );
+      if (!mounted) return true;
+
+      final state = _appVersionCubit.state;
+      if (state is AppVersionForceUpdate) {
+        await showForceUpdateDialog(context, state.info);
+        return false;
+      }
+      if (state is AppVersionOptionalUpdate) {
+        await showOptionalUpdateDialog(context, state.info);
+      }
+      return true;
+    } catch (_) {
+      return true;
     }
   }
 

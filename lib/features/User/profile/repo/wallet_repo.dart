@@ -79,7 +79,43 @@ class WalletRepo {
       final data = result.right.data['data'] as Map<String, dynamic>;
       return Right(BankAccountModel.fromJson(data));
     }
-    return Left(result.left.toString());
+    return Left(_extractError(result.left));
+  }
+
+  // ── Error helper: surfaces the specific server message (e.g. IBAN
+  // validation details) instead of a vague generic error ────────────────────
+
+  String _extractError(dynamic left) {
+    try {
+      if (left is DioException) {
+        final data = left.response?.data;
+        if (data is Map) {
+          final errors = data['errors'];
+          if (errors is Map && errors.isNotEmpty) {
+            final first = errors.values.first;
+            if (first is List && first.isNotEmpty) {
+              return first.first.toString();
+            }
+            if (first is String && first.isNotEmpty) return first;
+          }
+          if (errors is List && errors.isNotEmpty) {
+            final first = errors.first;
+            if (first is Map) {
+              return (first['message'] ?? first['msg'] ?? first.toString())
+                  .toString();
+            }
+            return first.toString();
+          }
+          final message = data['message']?.toString() ??
+              data['error']?['details']?.toString();
+          if (message != null && message.isNotEmpty) return message;
+          return 'حدث خطأ غير متوقع';
+        }
+      }
+      return left.toString();
+    } catch (_) {
+      return 'حدث خطأ غير متوقع';
+    }
   }
 
   // ── 4. POST initiate top-up ─────────────────────────────────────────────────

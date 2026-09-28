@@ -26,53 +26,152 @@ class FinancialTransactionsScreen extends StatefulWidget {
 }
 
 class _FinancialTransactionsScreenState extends State<FinancialTransactionsScreen> {
+  static const int _pageSize = 10;
+
+  late final ScrollController _scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      context.read<WalletCubit>().loadMoreTransactions(limit: _pageSize);
+    }
+  }
+
+  Future<void> _onRefresh() =>
+      context.read<WalletCubit>().getTransactions(page: 1, limit: _pageSize);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return BlocProvider(
-      create: (_) => getIt<WalletCubit>()..getTransactions(limit: 20),
-      child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        appBar:  GeneralAppBar(
-          title: 'المعاملات المالية',
-        ),
-        body: BlocBuilder<WalletCubit, WalletState>(
-          builder: (context, state) {
-            final transactions = state.transactions;
-            final isLoading = state.transactionsStatus == WalletStatus.loading;
+      create: (_) =>
+          getIt<WalletCubit>()..getTransactions(page: 1, limit: _pageSize),
+      child: Builder(
+        builder: (context) {
+          return Scaffold(
+            backgroundColor: theme.scaffoldBackgroundColor,
+            appBar: GeneralAppBar(
+              title: 'المعاملات المالية',
+            ),
+            body: BlocBuilder<WalletCubit, WalletState>(
+              builder: (context, state) {
+                final transactions = state.transactions;
+                final isLoading =
+                    state.transactionsStatus == WalletStatus.loading;
+                final isLoadingMore = state.transactionsIsLoadingMore;
 
-            if (isLoading && transactions.isEmpty) {
-              return const Center(child: CircularProgressIndicator());
-            }
+                if (isLoading && transactions.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            if (transactions.isEmpty) {
-              return const Center(child: NoDataWidget(title: 'لا توجد معاملات'));
-            }
+                if (state.transactionsStatus == WalletStatus.failure &&
+                    transactions.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        SizedBox(height: 160.h),
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.wifi_off_rounded,
+                                  size: 48, color: Colors.red),
+                              Gap(12.h),
+                              Padding(
+                                padding:
+                                    EdgeInsets.symmetric(horizontal: 32.w),
+                                child: Text(
+                                  state.transactionsError ??
+                                      'تعذر تحميل المعاملات',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodyMedium
+                                      ?.copyWith(color: Colors.red),
+                                ),
+                              ),
+                              Gap(12.h),
+                              TextButton(
+                                onPressed: _onRefresh,
+                                child: const Text('إعادة المحاولة'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: transactions.length,
-              separatorBuilder: (_, __) => Divider(
-                color: colorScheme.outline.withOpacity(0.15),
-                thickness: 0.6,
-                height: 24,
-              ),
-              itemBuilder: (context, i) {
-                final tx = transactions[i];
-                return InkWell(
-                  borderRadius: BorderRadius.circular(14),
-                  onTap: () => showTransactionDetailsDialog(context, tx),
-                  child: _buildTransactionCard(tx, theme, colorScheme, i),
-                );
+                if (transactions.isEmpty) {
+                  return RefreshIndicator(
+                    onRefresh: _onRefresh,
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: const [
+                        SizedBox(height: 120),
+                        Center(
+                            child: NoDataWidget(
+                                title: 'لا توجد معاملات')),
+                      ],
+                    ),
+                  );
+                }
+
+                return RefreshIndicator(
+                  onRefresh: _onRefresh,
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    itemCount:
+                        transactions.length + (isLoadingMore ? 1 : 0),
+                    separatorBuilder: (_, __) => Divider(
+                      color: colorScheme.outline.withOpacity(0.15),
+                      thickness: 0.6,
+                      height: 24,
+                    ),
+                    itemBuilder: (context, i) {
+                      if (i == transactions.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Center(
+                              child: CircularProgressIndicator()),
+                        );
+                      }
+                      final tx = transactions[i];
+                      return InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: () =>
+                            showTransactionDetailsDialog(context, tx),
+                        child:
+                            _buildTransactionCard(tx, theme, colorScheme, i),
+                      );
+                    },
+                  ),
+                )
+                    .animate()
+                    .fadeIn(duration: 600.ms)
+                    .slideY(begin: 0.05, end: 0);
               },
-            )
-                .animate()
-                .fadeIn(duration: 600.ms)
-                .slideY(begin: 0.05, end: 0);
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -504,15 +603,21 @@ class TransactionDetailsDialog extends StatelessWidget {
                   ),
                   _detailRow(
                     context,
+                    label: 'الرصيد قبل العملية',
+                    value: '${transaction.balanceBefore.toStringAsFixed(0)} ريال',
+                    index: 5,
+                  ),
+                  _detailRow(
+                    context,
                     label: 'الرصيد بعد العملية',
                     value: '${transaction.balanceAfter.toStringAsFixed(0)} ريال',
-                    index: 5,
+                    index: 6,
                   ),
                   _detailRow(
                     context,
                     label: 'ملاحظات إضافية',
                     value: notes,
-                    index: 6,
+                    index: 7,
                     isLast: true,
                   ),
                 ],

@@ -51,7 +51,13 @@ class _WalletScreenState extends State<WalletScreen> {
         ),
         bottomNavigationBar: Builder(
           builder: (context) => Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16.0.w, vertical: 30.h),
+            // 1) مسافة مريحة بين زر الإضافة وأسفل الشاشة (تشمل منطقة الأمان)
+            padding: EdgeInsets.fromLTRB(
+              16.0.w,
+              30.h,
+              16.0.w,
+              30.h + MediaQuery.of(context).padding.bottom,
+            ),
             child: SizedBox(
               width: double.infinity,
               height: 45,
@@ -333,10 +339,18 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       final cubit = context.read<WalletCubit>();
-                      await Nav.withdrawRequestScreen(context);
+                      // true when a withdrawal was actually created.
+                      final created =
+                          await Nav.withdrawRequestScreen(context);
                       if (context.mounted) {
-                        cubit.getWallet();
-                        cubit.getBankAccounts();
+                        await Future.wait([
+                          cubit.getWallet(),
+                          cubit.getBankAccounts(),
+                          // Recent ops must include the new withdrawal
+                          // immediately on return.
+                          if (created == true)
+                            cubit.getTransactions(limit: 5),
+                        ]);
                       }
                     },
                     style: ElevatedButton.styleFrom(

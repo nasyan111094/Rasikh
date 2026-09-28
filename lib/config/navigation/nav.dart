@@ -41,6 +41,7 @@ import '../../features/Lawyer/lawyer_Settings/screens/wallet_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/withdraw_request_screen.dart';
 
 import '../../features/User/Appointments/appointment_details_screen.dart';
+import '../../features/User/ratings/screens/client_ratings_screen.dart';
 
 import '../../features/User/application/appointment_booking_screen(3.3).dart';
 import '../../features/User/application/chat_screen.dart';
@@ -363,6 +364,15 @@ abstract class Nav {
         context,
         PageKey.login,
         const LawyerRatesScreen(),
+      );
+
+  static clientRatingsScreen(
+      BuildContext context,
+      ) async =>
+      await _push(
+        context,
+        PageKey.login,
+        const ClientRatingsScreen(),
       );
 
   static financialTransactionsScreen(

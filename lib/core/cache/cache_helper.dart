@@ -667,6 +667,59 @@ class CacheHelper {
     _logger.i('User session cleared');
   }
 
+  /// Wipes ALL cached data after an unrecoverable session expiry:
+  /// tokens, user/vendor data, preferences and secure storage.
+  /// Only app language, theme choice and onboarding state are preserved so
+  /// the user lands back on a usable login screen.
+  Future<void> clearAllData() async {
+    await _ensureInitialized();
+
+    // ── Preserve UX preferences ──────────────────────────────────────────
+    final lang = _prefs.getString(PrefKeys.userLangKey);
+    final onboardingDone = _prefs.getBool(PrefKeys.onBoardingDone);
+    final onboardingSkipped = _prefs.getBool(PrefKeys.userOnBoardIsSkipped);
+    final isDark = _prefs.getBool(PrefKeys.kIsDarkTheme);
+    final themeMode = _prefs.getString(PrefKeys.themeModeKey);
+
+    // ── Reset in-memory state ────────────────────────────────────────────
+    currentToken = null;
+    registerToken = null;
+    currentUser = null;
+    cachedVendorType = null;
+
+    // ── Wipe persistent storage ──────────────────────────────────────────
+    await _prefs.clear();
+    try {
+      await _secureStorage.deleteAll(
+        iOptions: _getIOSOptions(),
+        aOptions: _getAndroidOptions(),
+      );
+    } catch (e, st) {
+      _logger.e('Failed to clear secure storage', error: e, stackTrace: st);
+    }
+
+    // ── Restore preserved preferences ────────────────────────────────────
+    if (lang != null) await _prefs.setString(PrefKeys.userLangKey, lang);
+    if (onboardingDone != null) {
+      await _prefs.setBool(PrefKeys.onBoardingDone, onboardingDone);
+    } else {
+      onBoardingDone = false;
+    }
+    if (onboardingSkipped != null) {
+      await _prefs.setBool(
+          PrefKeys.userOnBoardIsSkipped, onboardingSkipped);
+    }
+    if (isDark != null) {
+      await _prefs.setBool(PrefKeys.kIsDarkTheme, isDark);
+      isDarkTheme = isDark;
+    }
+    if (themeMode != null) {
+      await _prefs.setString(PrefKeys.themeModeKey, themeMode);
+    }
+
+    _logger.i('All cached data cleared (session expired)');
+  }
+
   // ─────────────────────────────────────────────────────────────────────────
   // Onboarding
   // ─────────────────────────────────────────────────────────────────────────

@@ -63,11 +63,13 @@ class RatingConsultation {
   final String id;
   final String type;
   final String status;
+  final String consultationNumber;
 
   const RatingConsultation({
     required this.id,
     required this.type,
     required this.status,
+    this.consultationNumber = '',
   });
 
   factory RatingConsultation.fromJson(Map<String, dynamic> json) =>
@@ -75,6 +77,7 @@ class RatingConsultation {
         id: json['id']?.toString() ?? '',
         type: json['type']?.toString() ?? '',
         status: json['status']?.toString() ?? '',
+        consultationNumber: json['consultationNumber']?.toString() ?? '',
       );
 }
 

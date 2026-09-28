@@ -43,8 +43,13 @@ import '../../features/User/profile/cubit/profile_cubit.dart';
 import '../../features/User/profile/repo/wallet_repo.dart';
 import '../../features/User/user_register_completion/bloc/user_completion_cubit.dart';
 import '../../features/User/user_register_completion/repo/user_completion_repo.dart';
+import '../../features/common/notifications/bloc/notification_badge_cubit.dart';
 import '../../features/common/notifications/bloc/notifications_cubit.dart';
 import '../../features/common/notifications/repo/notifications_repo.dart';
+import '../../features/User/ratings/bloc/client_ratings_cubit.dart';
+import '../../features/User/ratings/repo/client_ratings_repo.dart';
+import '../../features/common/app_version/bloc/app_version_cubit.dart';
+import '../../features/common/app_version/repo/app_version_repo.dart';
 import '../theme/theme_cubit/theme_cubit.dart';
 
 export 'package:get_it/get_it.dart';
@@ -152,6 +157,24 @@ Future<void> initializeDependencies() async {
 
     getIt.registerFactory<NotificationsCubit>(
           () => NotificationsCubit(getIt<NotificationsRepo>()),
+    );
+
+    getIt.registerFactory<NotificationBadgeCubit>(
+          () => NotificationBadgeCubit(getIt<NotificationsRepo>()),
+    );
+
+    // ─── Client ratings (my ratings in client app) ──────────────────────────
+    getIt.registerLazySingleton<ClientRatingsRepo>(
+          () => ClientRatingsRepo(),
+    );
+    getIt.registerFactory<ClientRatingsCubit>(
+          () => ClientRatingsCubit(getIt<ClientRatingsRepo>()),
+    );
+
+    // ─── App version check (force / optional update) ────────────────────────
+    getIt.registerLazySingleton<AppVersionRepo>(() => AppVersionRepo());
+    getIt.registerFactory<AppVersionCubit>(
+          () => AppVersionCubit(getIt<AppVersionRepo>()),
     );
 
 

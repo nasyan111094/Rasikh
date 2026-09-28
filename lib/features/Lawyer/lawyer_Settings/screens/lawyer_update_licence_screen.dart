@@ -16,7 +16,6 @@ import 'package:rasikh/core/widgets/custom_dotted_container.dart';
 import 'package:rasikh/core/widgets/fields/prefix_text_filed_icon.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/user_selector/general_app_button.dart';
-import 'package:rasikh/features/Lawyer/lawyer-appointments/widgets/date_picker_field.dart';
 import 'package:rasikh/features/common/account_type_selection/screens/account_type_screen.dart';
 import 'package:size_config/size_config.dart';
 
@@ -545,6 +544,32 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
     );
   }
 
+  /// Expiry-date field — opens a calendar date picker (not a time picker).
+  Future<void> _pickExpiryDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _expiryDate ?? now,
+      firstDate: DateTime(now.year - 20),
+      lastDate: DateTime(now.year + 30),
+      builder: (ctx, child) {
+        final theme = Theme.of(ctx);
+        return Theme(
+          data: theme.copyWith(
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() => _expiryDate = picked);
+    }
+  }
+
   Widget _buildDatePickerField() {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -553,14 +578,49 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
         ? '${_expiryDate!.day}/${_expiryDate!.month}/${_expiryDate!.year}'
         : '';
 
-    return DatePickerField(
-        label: "",
-        value: _expiryDate,
-        onSelect: (date) {
-          if (date != null) {
-            setState(() => _expiryDate = date);
-          }
-        });
+    return GestureDetector(
+      onTap: _pickExpiryDate,
+      child: Container(
+        height: 60.h,
+
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: _expiryDate != null
+                ? cs.primary.withOpacity(0.5)
+                : cs.outline.withOpacity(0.5),
+          ),
+          borderRadius: BorderRadius.all(Radius.circular(12.w)),
+        ),
+        child: Row(
+          children: [
+            PrefixTextFiledIcon(
+              icon: 'assets/icons/Calendar.svg',
+              colorBorer: cs.outline,
+              colorIcon: cs.onSurface,
+            ),
+            Gap(10.w),
+            Expanded(
+              child: Text(
+                displayDate.isEmpty ? 'يوم / شهر / سنة' : displayDate,
+                style: displayDate.isEmpty
+                    ? _hintStyle
+                    : TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        height: 1.2,
+                        letterSpacing: -0.24,
+                      ),
+              ),
+            ),
+            Icon(
+              Icons.expand_more_rounded,
+              color: theme.hintColor,
+              size: 20.sp,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

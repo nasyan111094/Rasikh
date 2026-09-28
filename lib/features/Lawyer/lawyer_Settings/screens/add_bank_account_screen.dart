@@ -37,6 +37,10 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
   final TextEditingController _ibanController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
+  /// Guards against handling the same success state twice (the refresh
+  /// triggered below emits a second success while the dialog is still mounted).
+  bool _successHandled = false;
+
   @override
   void dispose() {
     _bankNameController.dispose();
@@ -96,7 +100,9 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
       value: widget.cubit,
       child: BlocListener<WalletCubit, WalletState>(
         listener: (context, state) {
-          if (state.bankAccountsStatus == WalletStatus.success) {
+          if (state.bankAccountsStatus == WalletStatus.success &&
+              !_successHandled) {
+            _successHandled = true;
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('تم إضافة الحساب البنكي بنجاح'),
@@ -104,6 +110,9 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
                 duration: Duration(seconds: 2),
               ),
             );
+            // 3) Re-fetch from the server so the accounts list behind the
+            // dialog updates automatically — no need to leave and re-enter.
+            widget.cubit.getBankAccounts();
             Navigator.pop(context);
           } else if (state.bankAccountsStatus == WalletStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(

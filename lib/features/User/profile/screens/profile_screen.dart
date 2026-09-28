@@ -189,6 +189,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         divider,
                         AccountItem(
+                          svgAsset: 'assets/icons/star.svg',
+                          label: 'تقييماتي',
+                          trailingChevronRight: true,
+                          onTap: () => Nav.clientRatingsScreen(context),
+                        ),
+                        divider,
+                        AccountItem(
                           svgAsset: 'assets/icons/Setting_icon.svg',
                           label: 'الإعدادات',
                           trailingChevronRight: true,

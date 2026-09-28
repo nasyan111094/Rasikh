@@ -99,8 +99,9 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('تم إرسال طلب السحب بنجاح')),
             );
-            Navigator.pop(context);
             context.read<WalletCubit>().resetWithdrawalRequest();
+            // true = a withdrawal was created → wallet screen refreshes.
+            Navigator.pop(context, true);
           } else if (state.withdrawalRequestStatus == WalletStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(state.withdrawalRequestError ?? 'فشل إرسال طلب السحب')),

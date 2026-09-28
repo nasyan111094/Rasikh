@@ -14,6 +14,7 @@ import '../../../../core/utils/get_asset_path.dart';
 import '../../../../core/widgets/custom_dialog.dart';
 import '../../../../core/widgets/my_custom_icon.dart';
 import '../../../../core/widgets/picture.dart';
+import '../../../common/notifications/bloc/notification_badge_cubit.dart';
 
 class CustomAppBar<C extends StateStreamable<S>, S>
     extends StatelessWidget
@@ -179,80 +180,121 @@ class CustomAppBar<C extends StateStreamable<S>, S>
 
             Gap(10.w),
 
-            /// Notification
-            MyCustomIconsWidget(
-              backGround: Colors.transparent,
-              height: 40.h,
-              width: 40.w,
-              onTap: () {
-                if (getIt<CacheHelper>().currentToken == null) {
-                  Nav.soonDialog(
-                    context,
-                    Center(
-                      child: Container(
-                        color: Colors.transparent,
-                        height: MediaQuery.of(context).size.height / 3,
-                        width: MediaQuery.of(context).size.width / 1.2,
-                        child: const CustomDialog(),
-                      ),
-                    ),
-                  );
-                } else {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const NotificationsScreen()));
+            /// Notification (badge = GET /notifications/unread-count)
+            BlocProvider(
+              create: (_) {
+                final cubit = getIt<NotificationBadgeCubit>();
+                // Guest has no token → keep badge hidden, no API call.
+                if (getIt<CacheHelper>().currentToken != null) {
+                  cubit.fetchUnreadCount();
                 }
+                return cubit;
               },
-              childWidget: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    padding: EdgeInsets.all(8.w),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: colors.primary.withOpacity(0.4),
-                        width: 1.5,
-                      ),
-                    ),
-                    child: Picture(
-                      getAssetIcon('notification.svg'),
-                      width: 24.h,
-                      height: 24.h,
-                      color: colors.primary,
-                    ),
-                  ),
-                  Positioned(
-                    top: -3,
-                    right: -3,
-                    child: Container(
+              child: Builder(
+                builder: (badgeContext) {
+                  return MyCustomIconsWidget(
+                    backGround: Colors.transparent,
+                    height: 40.h,
+                    width: 40.w,
+                    onTap: () {
+                      if (getIt<CacheHelper>().currentToken == null) {
+                        Nav.soonDialog(
+                          context,
+                          Center(
+                            child: Container(
+                              color: Colors.transparent,
+                              height: MediaQuery.of(context).size.height / 3,
+                              width: MediaQuery.of(context).size.width / 1.2,
+                              child: const CustomDialog(),
+                            ),
+                          ),
+                        );
+                      } else {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const NotificationsScreen(),
+                          ),
+                        ).then((_) {
+                          // Refresh badge when returning from notifications.
+                          if (badgeContext.mounted) {
+                            badgeContext
+                                .read<NotificationBadgeCubit>()
+                                .fetchUnreadCount();
+                          }
+                        });
+                      }
+                    },
+                    childWidget: Stack(
+                      clipBehavior: Clip.none,
                       alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: colors.error,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: colors.surface,
-                          width: 1.2,
-                        ),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 18,
-                        minHeight: 18,
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 1),
-                        child: Text(
-                          '5',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: colors.onError,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 10.sp,
-                            height: 1,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(8.w),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: colors.primary.withOpacity(0.4),
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Picture(
+                            getAssetIcon('notification.svg'),
+                            width: 24.h,
+                            height: 24.h,
+                            color: colors.primary,
                           ),
                         ),
-                      ),
+                        BlocBuilder<NotificationBadgeCubit,
+                            NotificationBadgeState>(
+                          builder: (context, state) {
+                            int? count;
+                            if (state is NotificationBadgeLoaded) {
+                              count = state.count;
+                            } else if (state is NotificationBadgeLoading) {
+                              count = state.previousCount;
+                            }
+                            if (count == null || count <= 0) {
+                              return const SizedBox.shrink();
+                            }
+                            return Positioned(
+                              top: -3,
+                              right: -3,
+                              child: Container(
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: colors.error,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: colors.surface,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                constraints: const BoxConstraints(
+                                  minWidth: 18,
+                                  minHeight: 18,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: 1, left: 4, right: 4),
+                                  child: Text(
+                                    count > 99 ? '99+' : '$count',
+                                    style: textTheme.labelSmall?.copyWith(
+                                      color: colors.onError,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 10.sp,
+                                      height: 1,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ],

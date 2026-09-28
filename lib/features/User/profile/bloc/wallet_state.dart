@@ -42,6 +42,9 @@ class WalletState extends Equatable {
   final int transactionsTotalPages;
   final String? transactionsError;
 
+  /// True while the next page is being appended (infinite scroll).
+  final bool transactionsIsLoadingMore;
+
   // ── Transaction detail ──────────────────────────────────────────────────────
   final WalletStatus transactionDetailStatus;
   final TransactionModel? transactionDetail;
@@ -84,6 +87,7 @@ class WalletState extends Equatable {
     this.transactionsLimit = 10,
     this.transactionsTotalPages = 1,
     this.transactionsError,
+    this.transactionsIsLoadingMore = false,
 
     // Transaction detail
     this.transactionDetailStatus = WalletStatus.initial,
@@ -128,6 +132,7 @@ class WalletState extends Equatable {
     int? transactionsLimit,
     int? transactionsTotalPages,
     String? transactionsError,
+    bool? transactionsIsLoadingMore,
 
     // Transaction detail
     WalletStatus? transactionDetailStatus,
@@ -167,6 +172,8 @@ class WalletState extends Equatable {
       transactionsLimit: transactionsLimit ?? this.transactionsLimit,
       transactionsTotalPages: transactionsTotalPages ?? this.transactionsTotalPages,
       transactionsError: transactionsError ?? this.transactionsError,
+      transactionsIsLoadingMore:
+          transactionsIsLoadingMore ?? this.transactionsIsLoadingMore,
 
       transactionDetailStatus: transactionDetailStatus ?? this.transactionDetailStatus,
       transactionDetail: transactionDetail ?? this.transactionDetail,
@@ -203,6 +210,7 @@ class WalletState extends Equatable {
         transactionsLimit,
         transactionsTotalPages,
         transactionsError,
+        transactionsIsLoadingMore,
         transactionDetailStatus,
         transactionDetail,
         transactionDetailError,
