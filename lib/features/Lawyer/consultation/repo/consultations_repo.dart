@@ -155,7 +155,7 @@ class ConsultationsRepo {
   Future<Either<String, bool>> cancelConsultation({
     required String id,
   }) async {
-    final result = await _adapter.patch(
+    final result = await _adapter.put(
       _Endpoints.cancel(id),
     );
 

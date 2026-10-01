@@ -62,7 +62,7 @@ class NotificationsRepo {
   // ── MARK single notification as read ─────────────────────────────────────
 
   Future<Either<String, bool>> markAsRead(String notificationId) async {
-    final result = await _adapter.patch(
+    final result = await _adapter.put(
       '${_NotificationsEndpoints.markRead}/$notificationId/read',
     );
 

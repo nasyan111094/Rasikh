@@ -1,6 +1,15 @@
 import 'package:flutter/material.dart';
 
-class NavObs extends NavigatorObserver {
+/// Extends [RouteObserver] (not plain [NavigatorObserver]) so screens can use
+/// the route lifecycle via [RouteAware]. Since Flutter 3.35 `subscribe` /
+/// `unsubscribe` live on [RouteObserver]; `didPush` / `didPop` below call
+/// `super`, which is what notifies the subscribed [RouteAware]s.
+class NavObs extends RouteObserver<Route<dynamic>> {
+  /// Shared instance registered on the root [MaterialApp].
+  /// Screens that need a route lifecycle callback ([RouteAware]) must subscribe
+  /// to *this* exact observer, so it has to be reachable as a singleton.
+  static final NavObs instance = NavObs('MAIN');
+
   final String title;
 
   NavObs(this.title);

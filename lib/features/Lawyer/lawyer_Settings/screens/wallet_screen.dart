@@ -20,6 +20,7 @@ import 'package:size_config/size_config.dart';
 
 import '../../../../Shared/widgets/icon_with_bg.dart';
 import '../../../../config/navigation/nav.dart';
+import '../../../../config/navigation/nav_obs.dart';
 import '../../../../config/theme/colors.dart' as colors;
 import '../../../../core/widgets/general_app_bar.dart';
 import '../../../User/profile/widgets/header_capsule_appbar_widget.dart';
@@ -32,7 +33,49 @@ class WalletScreen extends StatefulWidget {
   State<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen> {
+class _WalletScreenState extends State<WalletScreen> with RouteAware {
+  WalletCubit? _cubit;
+  Route<dynamic>? _route;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null && route != _route) {
+      _route = route;
+      NavObs.instance.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // Fired whenever this route becomes current again (returning from the
+    // withdrawal request, top-up, transactions list, ...). Re-fetch so the new
+    // withdrawal — balance, deducted amount and its status — appears without a
+    // manual pull-to-refresh.
+    _refreshWallet().ignore();
+  }
+
+  @override
+  void dispose() {
+    if (_route != null) {
+      NavObs.instance.unsubscribe(this);
+    }
+    _route = null;
+    super.dispose();
+  }
+
+  /// Single source of truth for reloading wallet data.
+  Future<void> _refreshWallet() {
+    final cubit = _cubit;
+    if (!mounted || cubit == null) return Future<void>.value();
+    return Future.wait([
+      cubit.getWallet(),
+      cubit.getBankAccounts(),
+      cubit.getTransactions(limit: 5),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -40,7 +83,7 @@ class _WalletScreenState extends State<WalletScreen> {
     final textTheme = theme.textTheme;
 
     return BlocProvider(
-      create: (_) => getIt<WalletCubit>()
+      create: (_) => _cubit = getIt<WalletCubit>()
         ..getWallet()
         ..getBankAccounts()
         ..getTransactions(limit: 5),
@@ -99,14 +142,7 @@ class _WalletScreenState extends State<WalletScreen> {
 
             return RefreshIndicator(
               color: const Color(0xFFC7A47B),
-              onRefresh: () async {
-                final cubit = context.read<WalletCubit>();
-                await Future.wait([
-                  cubit.getWallet(),
-                  cubit.getBankAccounts(),
-                  cubit.getTransactions(limit: 5),
-                ]);
-              },
+              onRefresh: _refreshWallet,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.all(16.w),
@@ -338,20 +374,9 @@ class _WalletScreenState extends State<WalletScreen> {
                   height: 40,
                   child: ElevatedButton(
                     onPressed: () async {
-                      final cubit = context.read<WalletCubit>();
-                      // true when a withdrawal was actually created.
-                      final created =
-                          await Nav.withdrawRequestScreen(context);
-                      if (context.mounted) {
-                        await Future.wait([
-                          cubit.getWallet(),
-                          cubit.getBankAccounts(),
-                          // Recent ops must include the new withdrawal
-                          // immediately on return.
-                          if (created == true)
-                            cubit.getTransactions(limit: 5),
-                        ]);
-                      }
+                      // Nav._push does not return the pop result, so the refresh
+                      // is driven by the route lifecycle in didPopNext above.
+                      await Nav.withdrawRequestScreen(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primary.withOpacity(.1),

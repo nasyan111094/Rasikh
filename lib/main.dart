@@ -209,7 +209,7 @@ class _RashikhAppState extends State<RashikhApp> {
                   themeMode:  ThemeMode.light /*getIt<AppCubit>().themeMode*/,
                   debugShowCheckedModeBanner: false,
                   navigatorKey: Nav.mainNavKey,
-                  navigatorObservers: [NavObs('MAIN')],
+                  navigatorObservers: [NavObs.instance],
                   localizationsDelegates: [
                     CountryLocalizations.delegate,
                     ...context.localizationDelegates,
