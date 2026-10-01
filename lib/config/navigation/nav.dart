@@ -321,14 +321,28 @@ abstract class Nav {
   // Lawyer Settings
   // ─────────────────────────────────────────────
 
-  static withdrawRequestScreen(
+  /// Returns true when a withdrawal was actually created (pop result),
+  /// so the wallet screen can fully refresh. Unlike [_push], this awaits
+  /// the route because [_push] discards pop results (always returns null).
+  static Future<bool?> withdrawRequestScreen(
       BuildContext context,
-      ) async =>
-      await _push(
-        context,
-        PageKey.login,
-        const WithdrawRequestScreen(),
-      );
+      ) async {
+    await _closeDrawer(context);
+
+    if (!context.mounted) return null;
+
+    return Navigator.push<bool>(
+      context,
+      PageTransition(
+        type: PageTransitionType.fade,
+        duration: const Duration(milliseconds: 400),
+        alignment: Alignment.bottomCenter,
+        settings: RouteSettings(name: PageKey.login.name),
+        child: const WithdrawRequestScreen(),
+        childCurrent: context.widget,
+      ),
+    );
+  }
 
   static topUpWalletScreen(
       BuildContext context,
