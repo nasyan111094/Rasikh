@@ -41,6 +41,7 @@ import '../../features/Lawyer/lawyer_Settings/screens/wallet_screen.dart';
 import '../../features/Lawyer/lawyer_Settings/screens/withdraw_request_screen.dart';
 
 import '../../features/User/Appointments/appointment_details_screen.dart';
+import '../../features/User/profile/bloc/wallet_cubit.dart';
 import '../../features/User/ratings/screens/client_ratings_screen.dart';
 
 import '../../features/User/application/appointment_booking_screen(3.3).dart';
@@ -322,27 +323,17 @@ abstract class Nav {
   // ─────────────────────────────────────────────
 
   /// Returns true when a withdrawal was actually created (pop result),
-  /// so the wallet screen can fully refresh. Unlike [_push], this awaits
-  /// the route because [_push] discards pop results (always returns null).
+  /// so the wallet screen can fully refresh. A shared [walletCubit] keeps
+  /// both screens on the same state instance.
   static Future<bool?> withdrawRequestScreen(
-      BuildContext context,
-      ) async {
-    await _closeDrawer(context);
-
-    if (!context.mounted) return null;
-
-    return Navigator.push<bool>(
-      context,
-      PageTransition(
-        type: PageTransitionType.fade,
-        duration: const Duration(milliseconds: 400),
-        alignment: Alignment.bottomCenter,
-        settings: RouteSettings(name: PageKey.login.name),
-        child: const WithdrawRequestScreen(),
-        childCurrent: context.widget,
-      ),
-    );
-  }
+      BuildContext context, {
+        WalletCubit? walletCubit,
+      }) async =>
+      await _push<bool>(
+        context,
+        PageKey.login,
+        WithdrawRequestScreen(walletCubit: walletCubit),
+      );
 
   static topUpWalletScreen(
       BuildContext context,
@@ -735,7 +726,8 @@ abstract class Nav {
 
     if (!context.mounted) return null;
 
-    Navigator.push(
+    // Awaited: the pop result reaches callers (e.g. wallet refresh flows).
+    return Navigator.push<T>(
       context,
       PageTransition(
         type: PageTransitionType.fade,
@@ -746,8 +738,6 @@ abstract class Nav {
         childCurrent: page,
       ),
     );
-
-    return null;
   }
 
   static Future<T?> _replace<T, TO>(

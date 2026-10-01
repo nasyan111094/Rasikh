@@ -15,7 +15,11 @@ import '../../../User/profile/widgets/header_capsule_appbar_widget.dart';
 import 'add_bank_account_screen.dart';
 
 class WithdrawRequestScreen extends StatefulWidget {
-  const WithdrawRequestScreen({super.key});
+  /// Shared cubit (e.g. from WalletScreen) so success updates the same state
+  /// instance. When null, the screen creates its own.
+  final WalletCubit? walletCubit;
+
+  const WithdrawRequestScreen({super.key, this.walletCubit});
 
   @override
   State<WithdrawRequestScreen> createState() => _WithdrawRequestScreenState();
@@ -27,9 +31,21 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
   final double _minWithdrawalAmount = 50.0; // Minimum withdrawal amount
   bool _hasAutoSelected = false;
 
+  /// Ensures success pops exactly once with `true`.
+  bool _hasHandledWithdrawalResult = false;
+
   @override
   void initState() {
     super.initState();
+    // Shared cubit may already hold data; fetch only what's missing.
+    final shared = widget.walletCubit;
+    if (shared != null) {
+      if (shared.state.wallet == null) shared.getWallet();
+      if (shared.state.bankAccounts.isEmpty &&
+          shared.state.bankAccountsStatus != WalletStatus.loading) {
+        shared.getBankAccounts();
+      }
+    }
   }
 
   @override
@@ -89,13 +105,11 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
-    return BlocProvider(
-      create: (_) => getIt<WalletCubit>()
-        ..getWallet()
-        ..getBankAccounts(),
-      child: BlocListener<WalletCubit, WalletState>(
+    final body = BlocListener<WalletCubit, WalletState>(
         listener: (context, state) {
-          if (state.withdrawalRequestStatus == WalletStatus.success) {
+          if (state.withdrawalRequestStatus == WalletStatus.success &&
+              !_hasHandledWithdrawalResult) {
+            _hasHandledWithdrawalResult = true;
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('تم إرسال طلب السحب بنجاح')),
             );
@@ -433,7 +447,19 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
             );
           },
         ),
-      ),
+      );
+
+    // Shared cubit keeps both screens on the same state instance;
+    // otherwise the screen owns a fresh one.
+    final shared = widget.walletCubit;
+    if (shared != null) {
+      return BlocProvider.value(value: shared, child: body);
+    }
+    return BlocProvider(
+      create: (_) => getIt<WalletCubit>()
+        ..getWallet()
+        ..getBankAccounts(),
+      child: body,
     );
   }
 }

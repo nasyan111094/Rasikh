@@ -300,7 +300,8 @@ class WalletCubit extends Cubit<WalletState> {
     );
   }
 
-  Future<void> getTransactionById({required String id}) async {    emit(state.copyWith(
+  Future<void> getTransactionById({required String id}) async {
+    emit(state.copyWith(
       transactionDetailStatus: WalletStatus.loading,
       transactionDetailError: null,
     ));
@@ -355,20 +356,52 @@ class WalletCubit extends Cubit<WalletState> {
       bankAccountId: bankAccountId,
     );
 
+    String? errorMessage;
+    WithdrawalModel? created;
     result.fold(
-      (error) => emit(state.copyWith(
-        withdrawalRequestStatus: WalletStatus.failure,
-        withdrawalRequestError: error,
-      )),
-      (withdrawal) {
-        final updatedWithdrawals = [withdrawal, ...state.withdrawals];
-        emit(state.copyWith(
-          withdrawalRequestStatus: WalletStatus.success,
-          withdrawalRequest: withdrawal,
-          withdrawals: updatedWithdrawals,
-        ));
-      },
+      (error) => errorMessage = error,
+      (withdrawal) => created = withdrawal,
     );
+
+    if (errorMessage != null || created == null) {
+      emit(state.copyWith(
+        withdrawalRequestStatus: WalletStatus.failure,
+        withdrawalRequestError: errorMessage ?? 'فشل إرسال طلب السحب',
+      ));
+      return;
+    }
+
+    // Success: refresh every dependent section FIRST so the shared state
+    // already carries the new balances/transactions when success is emitted.
+    // Individual refreshes swallow their own errors — the withdrawal itself
+    // was created, so success must still be emitted.
+    await Future.wait([
+      getWallet(),
+      getTransactions(page: 1, limit: 5),
+      getWithdrawals(),
+    ]);
+
+    final createdId = created!.id;
+    final withdrawals = state.withdrawals.any((w) => w.id == createdId)
+        ? state.withdrawals
+        : [created!, ...state.withdrawals];
+
+    emit(state.copyWith(
+      withdrawalRequestStatus: WalletStatus.success,
+      withdrawalRequest: created,
+      withdrawals: withdrawals,
+    ));
+  }
+
+  /// Refreshes every wallet section at once (balances, accounts, recent
+  /// operations, withdrawals) — used when returning from withdrawal/top-up.
+  Future<void> refreshAll({int transactionsLimit = 10}) async {
+    await Future.wait([
+      getWallet(),
+      getBankAccounts(),
+      getTransactions(page: 1, limit: transactionsLimit),
+      getWithdrawals(),
+    ]);
   }
 
   // ── Reset ─────────────────────────────────────────────────────────────────

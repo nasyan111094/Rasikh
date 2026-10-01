@@ -40,10 +40,7 @@ class _WalletScreenState extends State<WalletScreen> {
     final textTheme = theme.textTheme;
 
     return BlocProvider(
-      create: (_) => getIt<WalletCubit>()
-        ..getWallet()
-        ..getBankAccounts()
-        ..getTransactions(limit: 5),
+      create: (_) => getIt<WalletCubit>()..refreshAll(transactionsLimit: 5),
       child: Scaffold(
         appBar:  GeneralAppBar(
           title: 'المحفظة الإلكترونيه',
@@ -101,11 +98,7 @@ class _WalletScreenState extends State<WalletScreen> {
               color: const Color(0xFFC7A47B),
               onRefresh: () async {
                 final cubit = context.read<WalletCubit>();
-                await Future.wait([
-                  cubit.getWallet(),
-                  cubit.getBankAccounts(),
-                  cubit.getTransactions(limit: 5),
-                ]);
+                await cubit.refreshAll(transactionsLimit: 5);
               },
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -233,7 +226,7 @@ class _WalletScreenState extends State<WalletScreen> {
       BuildContext context, WalletModel? wallet) {
     final isUser = getIt<CacheHelper>().cachedVendorType == VendorType.user;
     final totalBalance = wallet?.totalBalance ?? 0;
-    final availableBalance = wallet?.availableBalance ?? 10;
+    final availableBalance = wallet?.availableBalance ?? 0;
     final pendingBalance = wallet?.pendingBalance ?? 0;
     final clientTotalBalance = availableBalance + pendingBalance;
 
@@ -339,18 +332,14 @@ class _WalletScreenState extends State<WalletScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       final cubit = context.read<WalletCubit>();
-                      // true when a withdrawal was actually created.
-                      final created =
-                          await Nav.withdrawRequestScreen(context);
-                      if (context.mounted) {
-                        await Future.wait([
-                          cubit.getWallet(),
-                          cubit.getBankAccounts(),
-                          // Recent ops must include the new withdrawal
-                          // immediately on return.
-                          if (created == true)
-                            cubit.getTransactions(limit: 5),
-                        ]);
+                      // Shared cubit + true when a withdrawal was created.
+                      final created = await Nav.withdrawRequestScreen(
+                        context,
+                        walletCubit: cubit,
+                      );
+                      if (context.mounted && created == true) {
+                        await cubit.refreshAll(transactionsLimit: 5);
+                        cubit.resetWithdrawalRequest();
                       }
                     },
                     style: ElevatedButton.styleFrom(
