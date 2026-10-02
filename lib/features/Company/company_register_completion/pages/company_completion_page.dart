@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// company_completion/pages/company_completion_page.dart
-//
-// Entry page for the company (law firm) profile-completion flow.
-// Add more steps / pages as needed following the lawyer pattern.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -72,7 +67,7 @@ class _CompanyCompletionPageState extends State<CompanyCompletionPage> {
                         width: 120.w, height: 50.h),
                     Gap(20.h),
                     Text(
-                      "بيانات شركة المحاماة",
+                      Loc.lawFirmData(),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         fontSize:   18.sp,
@@ -81,7 +76,7 @@ class _CompanyCompletionPageState extends State<CompanyCompletionPage> {
                     ),
                     Gap(8.h),
                     Text(
-                      "نحتاج بيانات الشركة لتفعيل حسابك بالكامل.",
+                      Loc.lawFirmDataSubtitle(),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontSize: 14.sp,
                         color:    theme.hintColor,
@@ -97,8 +92,7 @@ class _CompanyCompletionPageState extends State<CompanyCompletionPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // ── Company name ───────────────────────
-                              Text("اسم الشركة",
+                              Text(Loc.companyName(),
                                   style: theme.textTheme.bodyMedium),
                               Gap(8.h),
                               NameField(
@@ -107,8 +101,7 @@ class _CompanyCompletionPageState extends State<CompanyCompletionPage> {
 
                               Gap(16.h),
 
-                              // ── Representative ─────────────────────
-                              Text("اسم المفوّض",
+                              Text(Loc.authorizedPersonName(),
                                   style: theme.textTheme.bodyMedium),
                               Gap(8.h),
                               NameField(
@@ -117,32 +110,29 @@ class _CompanyCompletionPageState extends State<CompanyCompletionPage> {
 
                               Gap(16.h),
 
-                              // ── Commercial reg ─────────────────────
-                              Text("رقم السجل التجاري",
+                              Text(Loc.commercialRegisterNumber(),
                                   style: theme.textTheme.bodyMedium),
                               Gap(8.h),
                               TextFormField(
                                 controller:   _cubit.commercialRegController,
                                 keyboardType: TextInputType.number,
                                 validator: (v) => v!.isEmpty
-                                    ? 'أدخل رقم السجل التجاري'
+                                    ? Loc.enterCommercialRegisterNumber()
                                     : null,
-                                decoration: const InputDecoration(
-                                  hintText: 'رقم السجل التجاري',
+                                decoration: InputDecoration(
+                                  hintText: Loc.commercialRegisterNumber(),
                                 ),
                               ),
 
                               Gap(16.h),
 
-                              // ── Email ──────────────────────────────
-                              Text("البريد الإلكتروني",
+                              Text(Loc.email(),
                                   style: theme.textTheme.bodyMedium),
                               Gap(8.h),
                               EmailField(
                                   controller:
                                   _cubit.emailController),
 
-                              // TODO: add more company-specific fields
                             ],
                           ),
                         ),
@@ -150,7 +140,7 @@ class _CompanyCompletionPageState extends State<CompanyCompletionPage> {
                     ),
                     GradiantButton(
                       processing: isLoading,
-                      text:       "إكمال التسجيل",
+                      text:       Loc.completeRegistration(),
                       onTap: () {
                         if (_formKey.currentState!.validate()) {
                           _cubit.completeProfile();

@@ -41,7 +41,6 @@ class CustomAppBar<C extends StateStreamable<S>, S>
         elevation: 0,
         toolbarHeight: 80.h,
 
-        /// Avatar
         leading: Padding(
           padding: EdgeInsets.symmetric(vertical: 4.h),
           child: Transform(
@@ -123,7 +122,6 @@ class CustomAppBar<C extends StateStreamable<S>, S>
           ),
         ),
 
-        /// Title
         title: Row(
           children: [
             BlocBuilder<C, S>(
@@ -132,7 +130,7 @@ class CustomAppBar<C extends StateStreamable<S>, S>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'هلا ومرحباً فيك! 👋',
+                      Loc.homeGreeting(),
                       style: textTheme.bodySmall?.copyWith(
                         color: colors.onSurface,
                         fontWeight: FontWeight.w600,
@@ -153,7 +151,6 @@ class CustomAppBar<C extends StateStreamable<S>, S>
 
             const Spacer(),
 
-            /// Search
             MyCustomIconsWidget(
               backGround: Colors.transparent,
               height: 40.h,
@@ -172,7 +169,6 @@ class CustomAppBar<C extends StateStreamable<S>, S>
                     ),
                   );
                 } else {
-                  // Nav.searchPage(context);
                 }
               },
               childWidget:SizedBox(),
@@ -180,11 +176,9 @@ class CustomAppBar<C extends StateStreamable<S>, S>
 
             Gap(10.w),
 
-            /// Notification (badge = GET /notifications/unread-count)
             BlocProvider(
               create: (_) {
                 final cubit = getIt<NotificationBadgeCubit>();
-                // Guest has no token → keep badge hidden, no API call.
                 if (getIt<CacheHelper>().currentToken != null) {
                   cubit.fetchUnreadCount();
                 }
@@ -216,7 +210,6 @@ class CustomAppBar<C extends StateStreamable<S>, S>
                             builder: (context) => const NotificationsScreen(),
                           ),
                         ).then((_) {
-                          // Refresh badge when returning from notifications.
                           if (badgeContext.mounted) {
                             badgeContext
                                 .read<NotificationBadgeCubit>()

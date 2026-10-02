@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:gap/gap.dart';
@@ -47,7 +48,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
       canPop: false,
       child: Scaffold(
         appBar: GeneralAppBar(
-          title: 'إنهاء الجلسة',
+          title: Loc.endSession(),
           isBack: false,
 
         ),
@@ -56,7 +57,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
           children: [
             Gap(12.h),
             GeneralOptionCard(
-              title: 'فتح منازعة',
+              title: Loc.openDispute(),
               icon: Picture(getAssetIcon("doc_add.svg"), width: 25.h, height: 25.h),
               onTap: () {
                 showDialog(
@@ -69,7 +70,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             ),
             GeneralDivider(),
             GeneralOptionCard(
-              title: 'تقييم الجلسة',
+              title: Loc.rateSession(),
               icon: Picture(getAssetIcon("Stars.svg"), width: 25.h, height: 25.h),
               onTap: () {
                 showRateExperienceBottomSheet(
@@ -99,7 +100,7 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
                       Nav.layout(context);
                     },
                     child: Text(
-                      'الرجوع للرئيسية',
+                      Loc.backToHome(),
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
@@ -116,9 +117,6 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Open-dispute dialog
-// ─────────────────────────────────────────────────────────────────────────────
 
 class OpenDisputeDialog extends StatefulWidget {
   const OpenDisputeDialog({
@@ -155,7 +153,6 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ✅ Green Check Icon
                 Container(
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
@@ -170,7 +167,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  "تم تأكيد طلبك",
+                  Loc.requestConfirmed(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFFAE895D),
@@ -180,7 +177,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "تم إرسال طلبك , سنراجع طلبك خلال 72 –48 ساعة.",
+                  Loc.requestSentReviewWithin72Hours(),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[700],
                     fontSize: 14,
@@ -211,12 +208,11 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// --- Header ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'فتح منازعة',
+                    Loc.openDispute(),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -233,9 +229,8 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
               ),
               Gap(16.h),
 
-              /// --- Reason TextField ---
               Text(
-                'سبب المنازعة *',
+                Loc.disputeReasonRequired(),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.hintColor,
                   fontWeight: FontWeight.w500,
@@ -261,7 +256,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                         controller: reasonController,
                         textAlign: TextAlign.right,
                         decoration: InputDecoration(
-                          hintText: 'اكتب سبب المنازعة',
+                          hintText: Loc.writeDisputeReason(),
                           hintStyle: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.hintColor,
                           ),
@@ -279,9 +274,8 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
 
               Gap(16.h),
 
-              /// --- Details TextField ---
               Text(
-                'تفاصيل المنازعة *',
+                Loc.disputeDetailsRequired(),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.hintColor,
                   fontWeight: FontWeight.w500,
@@ -300,7 +294,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                   maxLines: 5,
                   textAlign: TextAlign.right,
                   decoration: InputDecoration(
-                    hintText: 'اكتب هنا ...',
+                    hintText: Loc.writeHere(),
                     hintStyle: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.hintColor.withOpacity(0.6),
                     ),
@@ -317,7 +311,6 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
 
               Gap(20.h),
 
-              /// --- Submit Button ---
               SizedBox(
                 width: double.infinity,
                 height: 48.h,
@@ -335,9 +328,9 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                     if (reasonController.text.trim().isEmpty ||
                         detailsController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content:
-                          Text('الرجاء إدخال جميع الحقول المطلوبة'),
+                          Text(Loc.pleaseFillAllRequiredFields()),
                         ),
                       );
                       return;
@@ -355,7 +348,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                               content:
-                              Text('فشل إرسال المنازعة: $error')),
+                              Text(Loc.sendDisputeFailed(error))),
                         );
                       },
                           (_) {
@@ -374,7 +367,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                     ),
                   )
                       : Text(
-                    'إرسال الآن!',
+                    Loc.sendNowExclamation(),
                     style: theme.textTheme.labelLarge?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -390,9 +383,6 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rate-experience bottom sheet
-// ─────────────────────────────────────────────────────────────────────────────
 
 void showRateExperienceBottomSheet(
     BuildContext context, {
@@ -445,7 +435,7 @@ void showRateExperienceBottomSheet(
                   ),
                   const Gap(12),
                   Text(
-                    'قَيِّم تجربتك معنا',
+                    Loc.rateYourExperienceAlt(),
                     style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -453,7 +443,7 @@ void showRateExperienceBottomSheet(
                   ),
                   const Gap(6),
                   Text(
-                    'تقييمك يعكس مدى رضاك ويساعدنا على التحسين.',
+                    Loc.ratingReflectsSatisfaction(),
                     style: textTheme.bodySmall?.copyWith(
                       color: theme.hintColor,
                     ),
@@ -480,7 +470,7 @@ void showRateExperienceBottomSheet(
                   Align(
                     alignment: Alignment.centerRight,
                     child: Text(
-                      'كيف كانت تجربتك؟ أحكي لنا',
+                      Loc.howWasYourExperienceTellUsAlt(),
                       style: textTheme.bodyMedium,
                     ),
                   ),
@@ -490,7 +480,7 @@ void showRateExperienceBottomSheet(
                     maxLines: 3,
                     textAlign: TextAlign.right,
                     decoration: InputDecoration(
-                      hintText: 'اكتب هنا ...',
+                      hintText: Loc.writeHere(),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: greyFA),
@@ -525,9 +515,9 @@ void showRateExperienceBottomSheet(
                           : () async {
                         if (rating == 0) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                                 content:
-                                Text('الرجاء اختيار تقييم')),
+                                Text(Loc.pleaseChooseRating())),
                           );
                           return;
                         }
@@ -546,16 +536,16 @@ void showRateExperienceBottomSheet(
                                 .showSnackBar(
                               SnackBar(
                                   content: Text(
-                                      'فشل إرسال التقييم: $error')),
+                                      Loc.sendRatingFailed(error))),
                             );
                           },
                               (_) {
                             Navigator.pop(context);
                             ScaffoldMessenger.of(context)
                                 .showSnackBar(
-                              const SnackBar(
+                              SnackBar(
                                   content: Text(
-                                      'تم إرسال تقييمك بنجاح')),
+                                      Loc.ratingSentSuccessfully())),
                             );
                           },
                         );
@@ -570,7 +560,7 @@ void showRateExperienceBottomSheet(
                         ),
                       )
                           : Text(
-                        'إرسال الآن',
+                        Loc.sendNow(),
                         style: textTheme.titleMedium?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -588,9 +578,6 @@ void showRateExperienceBottomSheet(
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Time-up notice for clients
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _TimeUpDialog {
   static Future<void> show(BuildContext context) async {
@@ -625,7 +612,7 @@ class _TimeUpDialog {
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'انتهت مدة الجلسة',
+                  Loc.sessionTimeEnded(),
                   style: textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,
@@ -634,7 +621,7 @@ class _TimeUpDialog {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'لقد انتهت المدة المحددة للاستشارة.',
+                  Loc.consultationTimeEnded(),
                   style: textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurface.withOpacity(0.7),
                   ),

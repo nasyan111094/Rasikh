@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:app_settings/app_settings.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -76,7 +77,7 @@ class _NoConnectionScreenState extends State<NoConnectionScreen>
                 ),
                 const SizedBox(height: 30),
                 Text(
-                  "لا يوجد اتصال بالإنترنت",
+                  Loc.noInternetConnectionTitle(),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     color: colorScheme.onBackground,
@@ -92,7 +93,7 @@ class _NoConnectionScreenState extends State<NoConnectionScreen>
                 ),
                 Gap(h20),
                 Text(
-                  "شغّل بيانات الجوال من إعدادات الشبكة أو من شريط الإشعارات علشان تقدر تكمل الاتصال",
+                  Loc.enableMobileDataHint(),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: colorScheme.onBackground,
@@ -112,7 +113,7 @@ class _NoConnectionScreenState extends State<NoConnectionScreen>
                     onPressed: _openWifiSettings,
                     icon: Icon(Icons.wifi, color: colorScheme.onPrimary),
                     label: Text(
-                      "فتح إعدادات الواي فاي",
+                      Loc.openWifiSettings(),
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: colorScheme.onPrimary,
                         fontWeight: FontWeight.bold,
@@ -137,7 +138,7 @@ class _NoConnectionScreenState extends State<NoConnectionScreen>
                     onPressed: _openMobileDataSettings,
                     icon: Icon(Icons.data_usage, color: colorScheme.onPrimary),
                     label: Text(
-                      "فتح بيانات الهاتف",
+                      Loc.openMobileData(),
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: colorScheme.onPrimary,
                         fontWeight: FontWeight.bold,

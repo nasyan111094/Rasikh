@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 
 void showSuccessDialog(BuildContext context, {String? title, String? body}) {
@@ -28,7 +29,7 @@ void showSuccessDialog(BuildContext context, {String? title, String? body}) {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    title ?? "تهانينا",
+                    title ?? Loc.congratulations(),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -37,7 +38,7 @@ void showSuccessDialog(BuildContext context, {String? title, String? body}) {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    body ?? "تم حفظ البيانات الشخصية بنجاح",
+                    body ?? Loc.personalDataSavedSuccessfully(),
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 15),
                   ),

@@ -1,5 +1,5 @@
-// features/User/profile/screens/contact_us_screen.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,7 +29,6 @@ class ContactUsScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ContactUsView extends StatelessWidget {
   const _ContactUsView();
@@ -58,7 +57,7 @@ class _ContactUsView extends StatelessWidget {
 
     return Scaffold(
       appBar: GeneralAppBar(
-        title: 'تواصل معنا',
+        title: Loc.contactUs(),
 
       ),
       body: BlocConsumer<ContactCubit, ContactState>(
@@ -74,21 +73,18 @@ class _ContactUsView extends StatelessWidget {
           }
         },
         builder: (context, state) {
-          // ── Shimmer ───────────────────────────────────────────────────────
           if (state is ContactLoading) {
             return const _ContactShimmer();
           }
 
-          // ── Error (no data yet) ───────────────────────────────────────────
           if (state is ContactFailure) {
             return ErrorStateWidget(
               message: state.message,
               onAction: () =>
-                  context.read<ContactCubit>().fetchContact(), title: 'حدث خطأ أثناء تحميل بيانات التواصل معنا',
+                  context.read<ContactCubit>().fetchContact(), title: Loc.errorLoadingContactData(),
             );
           }
 
-          // ── Loaded ────────────────────────────────────────────────────────
           if (state is ContactLoaded) {
             final contact = state.contact;
 
@@ -106,7 +102,7 @@ class _ContactUsView extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'تواصل معنا',
+                    Loc.contactUs(),
                     style: textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: colorScheme.primary,
@@ -114,7 +110,7 @@ class _ContactUsView extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'نحن دائماً سعداء بخدمتك، ويمكنك التواصل معنا عبر الوسائل المتاحة أدناه',
+                    Loc.contactUsSubtitle(),
                     textAlign: TextAlign.center,
                     style: textTheme.bodyMedium?.copyWith(
                       color: textTheme.bodyMedium?.color
@@ -132,10 +128,9 @@ class _ContactUsView extends StatelessWidget {
                         children: [
 
 
-                          // ── Phone ────────────────────────────────────────────
                           if (contact.phone.isNotEmpty) ...[
                             ContactTileFigma(
-                              title: 'التواصل عبر رقم الدعم الفني',
+                              title: Loc.contactViaSupportNumber(),
                               subtitle: contact.phone,
                               iconAsset: 'assets/icons/call-calling.svg',
                               showChevron: true,
@@ -144,10 +139,9 @@ class _ContactUsView extends StatelessWidget {
                             const SizedBox(height: 20),
                           ],
 
-                          // ── Email ─────────────────────────────────────────────
                           if (contact.email.isNotEmpty) ...[
                             ContactTileFigma(
-                              title: 'التواصل عبر البريد الإلكتروني',
+                              title: Loc.contactViaEmail(),
                               subtitle: contact.email,
                               iconAsset: 'assets/icons/sms.svg',
                               showChevron: true,
@@ -156,10 +150,9 @@ class _ContactUsView extends StatelessWidget {
                             const SizedBox(height: 20),
                           ],
 
-                          // ── WhatsApp ──────────────────────────────────────────
                           if (contact.whatsapp.isNotEmpty) ...[
                             ContactTileFigma(
-                              title: 'التواصل عبر واتساب',
+                              title: Loc.contactViaWhatsapp(),
                               subtitle: contact.whatsapp,
                               iconAsset: 'assets/icons/whatsapp.svg',
                               showChevron: true,
@@ -168,12 +161,11 @@ class _ContactUsView extends StatelessWidget {
                             const SizedBox(height: 20),
                           ],
 
-                          // ── Social Links ──────────────────────────────────────
                           ...contact.socialLinks.map(
                                 (link) => Padding(
                               padding: EdgeInsets.only(bottom: 20.h),
                               child: ContactTileFigma(
-                                title: 'تابعنا على ${link.platform}',
+                                title: Loc.followUsOn(link.platform),
                                 subtitle: link.url,
                                 iconAsset: 'assets/icons/link.svg',
                                 showChevron: true,
@@ -199,9 +191,6 @@ class _ContactUsView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ContactShimmer extends StatelessWidget {
   const _ContactShimmer();
@@ -217,7 +206,6 @@ class _ContactShimmer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 8),
-            // Image placeholder
             Container(
               height: MediaQuery.of(context).size.height * 0.28,
               width: double.infinity,
@@ -227,7 +215,6 @@ class _ContactShimmer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            // Title placeholder
             Container(
               height: 22,
               width: 140,
@@ -237,7 +224,6 @@ class _ContactShimmer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            // Subtitle placeholder
             Container(
               height: 14,
               width: 260,
@@ -247,7 +233,6 @@ class _ContactShimmer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28),
-            // Tile placeholders
             ..._buildTilePlaceholders(3),
           ],
         ),
@@ -271,9 +256,6 @@ class _ContactShimmer extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Error body
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ErrorBody extends StatelessWidget {
   const _ErrorBody({required this.message, required this.onRetry});
@@ -301,7 +283,7 @@ class _ErrorBody extends StatelessWidget {
             SizedBox(height: 20.w),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('إعادة المحاولة'),
+              child: Text(Loc.retryAgain()),
             ),
           ],
         ),

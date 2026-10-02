@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/core/widgets/fields/prefix_text_filed_icon.dart';
@@ -40,7 +41,6 @@ class _EmailFieldState extends State<EmailField> {
       });
     });
 
-    // Listen to text changes for real-time validation
     widget.controller.addListener(() {
       widget.onValidated?.call(validate(widget.controller.text) == null);
     });
@@ -74,7 +74,7 @@ class _EmailFieldState extends State<EmailField> {
       validator: validate,
       style: theme.textTheme.bodyMedium,
       decoration: InputDecoration(
-        hintText: 'البريد الإلكتروني',
+        hintText: Loc.email(),
         hintStyle: getRegularGray16Style().copyWith(color: greyIconColors) ??
             theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurfaceVariant,
@@ -83,13 +83,11 @@ class _EmailFieldState extends State<EmailField> {
         errorStyle: theme.inputDecorationTheme.errorStyle ??
             theme.textTheme.bodySmall?.copyWith(color: colorScheme.error),
 
-        // ✅ Focused Border
         focusedBorder: OutlineInputBorder(
           borderSide: BorderSide(color: colorScheme.primary, width: 1.5),
           borderRadius: BorderRadius.all(Radius.circular(12.w)),
         ),
 
-        // ✅ Enabled Border
         enabledBorder: OutlineInputBorder(
           borderSide: BorderSide(
             color: colorScheme.outline.withOpacity(0.5),
@@ -98,19 +96,16 @@ class _EmailFieldState extends State<EmailField> {
           borderRadius: BorderRadius.all(Radius.circular(12.w)),
         ),
 
-        // ✅ Error Border
         errorBorder: OutlineInputBorder(
           borderSide: BorderSide(color: colorScheme.error, width: 1.5),
           borderRadius: BorderRadius.all(Radius.circular(12.w)),
         ),
 
-        // ✅ Focused Error Border
         focusedErrorBorder: OutlineInputBorder(
           borderSide: BorderSide(color: colorScheme.error, width: 2),
           borderRadius: BorderRadius.all(Radius.circular(12.w)),
         ),
 
-        // ✅ Prefix Icon
         prefixIcon: widget.showPreFixIcon == false
             ? null
             : PrefixTextFiledIcon(
@@ -121,7 +116,6 @@ class _EmailFieldState extends State<EmailField> {
                     : greyIconColors,
               ),
 
-        // ✅ Transparent background
         fillColor: Colors.transparent,
         filled: true,
       ),
@@ -130,16 +124,15 @@ class _EmailFieldState extends State<EmailField> {
 
   String? validate(String? value) {
     if (!validString(value)) {
-      return 'الرجاء إدخال البريد الإلكتروني';
+      return Loc.pleaseEnterEmailAddress();
     }
     if (value != null && !isValidEmail(value)) {
-      return 'الرجاء إدخال بريد إلكتروني صالح';
+      return Loc.pleaseEnterValidEmailAddress();
     }
     return null;
   }
 
   bool isValidEmail(String value) {
-    // Email validation: username@domain.tld
     const emailPattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
     return RegExp(emailPattern).hasMatch(value);
   }

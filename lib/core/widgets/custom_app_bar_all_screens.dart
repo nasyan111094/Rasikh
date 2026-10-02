@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
@@ -36,7 +37,6 @@ class CustomAppBarAllScreens extends StatelessWidget
           children: [
             Row(
               children: [
-                // زر الرجوع
                 Container(
                   width: 40.w,
                   height: 40.h,
@@ -78,7 +78,7 @@ class CustomAppBarAllScreens extends StatelessWidget
                           ),
                           Gap(4.w),
                           Text(
-                            'تصفية',
+                            Loc.filterLabel(),
                             style: getPrimaryRegular16Style()
                                 .copyWith(color: colorTextFilter),
                           ),

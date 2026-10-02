@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// video_call_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -33,9 +31,6 @@ class VideoCallScreen extends StatefulWidget {
 
   final String consultationId;
 
-  /// The IDs of the lawyer and client for this consultation.
-  /// Must be passed from the caller (consultation list / detail screen)
-  /// because the instant-session endpoint does not return them.
   final String lawyerId;
   final String clientId;
 
@@ -77,9 +72,6 @@ class _VideoCallScreenState extends State<VideoCallScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal view — consumes VideoCallCubit
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _VideoCallView extends StatefulWidget {
   const _VideoCallView({
@@ -97,7 +89,6 @@ class _VideoCallView extends StatefulWidget {
 }
 
 class _VideoCallViewState extends State<_VideoCallView> {
-  /// Guard: prevents the timer-expiry dialog from being shown more than once.
   bool _timerExpiredDialogShown = false;
 
   @override
@@ -107,7 +98,6 @@ class _VideoCallViewState extends State<_VideoCallView> {
 
     return BlocConsumer<VideoCallCubit, VideoCallState>(
       listener: (context, state) async {
-        // ── Timer expired: show summary (lawyer) or navigate to end (client)
         if (state.phase == VideoCallPhase.timerExpired &&
             !_timerExpiredDialogShown) {
           _timerExpiredDialogShown = true;
@@ -115,14 +105,12 @@ class _VideoCallViewState extends State<_VideoCallView> {
           return;
         }
 
-        // ── Server confirmed session ended ────────────────────────────────
         if (state.phase == VideoCallPhase.ended) {
           final cubit = context.read<VideoCallCubit>();
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
               builder: (_) => cubit.isLawyer ? LayoutPage() : EndSessionScreen(
                 consultationId: widget.consultationId,
-                // Use widget fields — guaranteed non-empty from the caller
                 lawyerId: widget.lawyerId,
                 clientId: widget.clientId,
               ),
@@ -132,7 +120,6 @@ class _VideoCallViewState extends State<_VideoCallView> {
         }
       },
       builder: (context, state) {
-        // ── Permission gate ───────────────────────────────────────────────
         if (state.phase == VideoCallPhase.permissionDenied ||
             state.phase == VideoCallPhase.permissionPermanentlyDenied) {
           return _PermissionDeniedOverlay(
@@ -149,10 +136,8 @@ class _VideoCallViewState extends State<_VideoCallView> {
             body: Stack(
               fit: StackFit.expand,
               children: [
-                // ── Remote video (full-screen background) ─────────────────
                 _RemoteVideoView(state: state),
 
-                // ── Top gradient ──────────────────────────────────────────
                 Positioned(
                   top: 0,
                   left: 0,
@@ -172,7 +157,6 @@ class _VideoCallViewState extends State<_VideoCallView> {
                   ),
                 ),
 
-                // ── Top bar ───────────────────────────────────────────────
                 Positioned(
                   top: 10.h,
                   left: 0,
@@ -185,7 +169,7 @@ class _VideoCallViewState extends State<_VideoCallView> {
                         children: [
                           SizedBox(width: 12.w),
                           Text(
-                            'استشارة فورية',
+                            Loc.instantConsultationPlain(),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontSize: 20.sp,
                               fontWeight: FontWeight.w900,
@@ -198,7 +182,6 @@ class _VideoCallViewState extends State<_VideoCallView> {
                   ),
                 ),
 
-                // ── Two-minute warning banner ─────────────────────────────
                 if (state.twoMinuteWarningActive)
                   Positioned(
                     top: 70,
@@ -207,30 +190,25 @@ class _VideoCallViewState extends State<_VideoCallView> {
                     child: _TwoMinuteWarningBanner(colorScheme: colorScheme),
                   ),
 
-                // ── Local preview (floating) ──────────────────────────────
                 Positioned(
                   top: 100,
                   right: 16,
                   child: _LocalPreviewView(state: state),
                 ),
 
-                // ── Waiting overlay ───────────────────────────────────────
                 if (state.phase == VideoCallPhase.waitingForLawyer ||
                     state.phase == VideoCallPhase.initializing ||
                     state.phase == VideoCallPhase.agoraReady ||
                     state.phase == VideoCallPhase.joiningCall)
                   _WaitingOverlay(state: state),
 
-                // ── Reconnecting overlay ──────────────────────────────────
                 if (state.phase == VideoCallPhase.reconnecting)
                   _ReconnectingOverlay(
                       attempts: state.reconnectAttempts, max: 3),
 
-                // ── Error overlay ─────────────────────────────────────────
                 if (state.phase == VideoCallPhase.error)
                   _ErrorOverlay(message: state.errorMessage),
 
-                // ── Bottom controls ───────────────────────────────────────
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -248,7 +226,6 @@ class _VideoCallViewState extends State<_VideoCallView> {
     );
   }
 
-  // ── Handles timer reaching 00:00 ─────────────────────────────────────────
   Future<void> _handleTimerExpired(BuildContext context) async {
     final cubit = context.read<VideoCallCubit>();
 
@@ -293,9 +270,6 @@ class _VideoCallViewState extends State<_VideoCallView> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Permission Denied Overlay
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PermissionDeniedOverlay extends StatelessWidget {
   const _PermissionDeniedOverlay({
@@ -310,13 +284,13 @@ class _PermissionDeniedOverlay extends StatelessWidget {
     return missingPermissions.map((p) {
       switch (p) {
         case Permission.camera:
-          return 'الكاميرا';
+          return Loc.camera();
         case Permission.microphone:
-          return 'الميكروفون';
+          return Loc.microphone();
         default:
           return p.toString();
       }
-    }).join(' و ');
+    }).join(Loc.andSeparator());
   }
 
   @override
@@ -343,8 +317,8 @@ class _PermissionDeniedOverlay extends StatelessWidget {
                 const SizedBox(height: 24),
                 Text(
                   permanentlyDenied
-                      ? 'الإذن مطلوب'
-                      : 'يحتاج التطبيق إلى صلاحيات',
+                      ? Loc.permissionRequired()
+                      : Loc.appNeedsPermissions(),
                   style: textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onBackground,
@@ -354,8 +328,8 @@ class _PermissionDeniedOverlay extends StatelessWidget {
                 const SizedBox(height: 12),
                 Text(
                   permanentlyDenied
-                      ? 'تم رفض الإذن بشكل دائم. يجب تمكين $_permissionNames من إعدادات التطبيق لبدء المكالمة.'
-                      : 'لإجراء مكالمة الفيديو، يجب السماح بالوصول إلى $_permissionNames.',
+                      ? Loc.permissionPermanentlyDenied(_permissionNames)
+                      : Loc.videoCallPermissionRequired(_permissionNames),
                   style: textTheme.bodyLarge?.copyWith(
                     color: colorScheme.onBackground.withOpacity(0.7),
                   ),
@@ -366,7 +340,7 @@ class _PermissionDeniedOverlay extends StatelessWidget {
                   ElevatedButton.icon(
                     onPressed: () => openAppSettings(),
                     icon: const Icon(Icons.open_in_new),
-                    label: const Text('فتح الإعدادات'),
+                    label: Text(Loc.openSettings()),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.primary,
                       foregroundColor: colorScheme.onPrimary,
@@ -383,7 +357,7 @@ class _PermissionDeniedOverlay extends StatelessWidget {
                         .read<VideoCallCubit>()
                         .requestPermissionsAndInitialize(),
                     icon: const Icon(Icons.check_circle_outline),
-                    label: const Text('السماح بالصلاحيات'),
+                    label: Text(Loc.allowPermissions()),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: colorScheme.primary,
                       foregroundColor: colorScheme.onPrimary,
@@ -398,7 +372,7 @@ class _PermissionDeniedOverlay extends StatelessWidget {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: Text(
-                    'إلغاء',
+                    Loc.cancel(),
                     style: textTheme.labelLarge?.copyWith(
                       color: colorScheme.onBackground.withOpacity(0.6),
                     ),
@@ -413,9 +387,6 @@ class _PermissionDeniedOverlay extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// End-session confirmation dialog
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _EndSessionDialog {
   static Future<bool?> show(
@@ -452,7 +423,6 @@ class _EndSessionDialog {
           },
         );
       } else {
-        // Always read IDs from cubit state — they come from the server
         final cubit = context.read<VideoCallCubit>();
         final vsState = cubit.state;
         Navigator.of(context).pushAndRemoveUntil(
@@ -487,7 +457,7 @@ class _EndSessionDialog {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'تأكيد إنهاء',
+                    Loc.confirmEnd(),
                     style: textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: colorScheme.onSurface,
@@ -495,7 +465,7 @@ class _EndSessionDialog {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'هل تريد إنهاء الجلسة الآن؟',
+                    Loc.endSessionNowQuestion(),
                     style: textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurface.withOpacity(0.7),
                     ),
@@ -514,7 +484,7 @@ class _EndSessionDialog {
                             const EdgeInsets.symmetric(vertical: 12),
                           ),
                           child: Text(
-                            'لا',
+                            Loc.no(),
                             style: textTheme.labelLarge?.copyWith(
                               color: colorScheme.onSurface,
                               fontWeight: FontWeight.bold,
@@ -534,7 +504,7 @@ class _EndSessionDialog {
                             const EdgeInsets.symmetric(vertical: 12),
                           ),
                           child: Text(
-                            'نعم',
+                            Loc.yes(),
                             style: textTheme.labelLarge?.copyWith(
                               color: colorScheme.onError,
                               fontWeight: FontWeight.bold,
@@ -573,9 +543,6 @@ class _EndSessionDialog {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Remote video
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _RemoteVideoView extends StatelessWidget {
   const _RemoteVideoView({required this.state});
@@ -621,7 +588,7 @@ class _RemoteVideoView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              state.lawyerName ?? 'المحامي',
+              state.lawyerName ?? Loc.theLawyer(),
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -634,9 +601,6 @@ class _RemoteVideoView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Local camera preview
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _LocalPreviewView extends StatelessWidget {
   const _LocalPreviewView({required this.state});
@@ -673,9 +637,6 @@ class _LocalPreviewView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Waiting / initialising overlay
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _WaitingOverlay extends StatelessWidget {
   const _WaitingOverlay({required this.state});
@@ -686,11 +647,11 @@ class _WaitingOverlay extends StatelessWidget {
       case VideoCallPhase.initializing:
       case VideoCallPhase.agoraReady:
       case VideoCallPhase.joiningCall:
-        return 'جاري الاتصال…';
+        return Loc.connecting();
       case VideoCallPhase.waitingForLawyer:
-        return 'في انتظار انضمام المحامي…';
+        return Loc.waitingForLawyerToJoin();
       default:
-        return 'جاري التحميل…';
+        return Loc.loadingEllipsis();
     }
   }
 
@@ -718,9 +679,6 @@ class _WaitingOverlay extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reconnecting overlay
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ReconnectingOverlay extends StatelessWidget {
   const _ReconnectingOverlay({required this.attempts, required this.max});
@@ -738,7 +696,7 @@ class _ReconnectingOverlay extends StatelessWidget {
             const CircularProgressIndicator(color: Colors.orange),
             const SizedBox(height: 20),
             Text(
-              'إعادة الاتصال… ($attempts/$max)',
+              Loc.reconnectingAttempts(attempts, max),
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
@@ -751,9 +709,6 @@ class _ReconnectingOverlay extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Error overlay
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ErrorOverlay extends StatelessWidget {
   const _ErrorOverlay({this.message});
@@ -773,14 +728,14 @@ class _ErrorOverlay extends StatelessWidget {
               Icon(Icons.error_outline, color: colorScheme.error, size: 56),
               const SizedBox(height: 16),
               Text(
-                message ?? 'حدث خطأ في الاتصال',
+                message ?? Loc.connectionError(),
                 style: const TextStyle(color: Colors.white, fontSize: 15),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('العودة'),
+                child: Text(Loc.goBack()),
               ),
             ],
           ),
@@ -790,9 +745,6 @@ class _ErrorOverlay extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Two-minute warning banner
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _TwoMinuteWarningBanner extends StatelessWidget {
   const _TwoMinuteWarningBanner({required this.colorScheme});
@@ -812,7 +764,7 @@ class _TwoMinuteWarningBanner extends StatelessWidget {
           Icon(Icons.timer, color: colorScheme.onError, size: 20),
           const SizedBox(width: 8),
           Text(
-            'تبقّت دقيقتان على انتهاء الجلسة',
+            Loc.twoMinutesLeftInSession(),
             style: TextStyle(
                 color: colorScheme.onError, fontWeight: FontWeight.w600),
           ),
@@ -822,9 +774,6 @@ class _TwoMinuteWarningBanner extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Bottom control strip
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _BottomControls extends StatelessWidget {
   const _BottomControls({
@@ -840,7 +789,6 @@ class _BottomControls extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final cubit = context.read<VideoCallCubit>();
 
-    // Timer turns red when ≤ 2 minutes remain
     final timerCritical = state.twoMinuteWarningActive ||
         (state.remainingSeconds != null && state.remainingSeconds! <= 120);
 
@@ -859,9 +807,8 @@ class _BottomControls extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Lawyer name
           Text(
-            state.lawyerName ?? 'المحامي',
+            state.lawyerName ?? Loc.theLawyer(),
             style: theme.textTheme.titleMedium?.copyWith(
               color: colorScheme.onBackground,
               fontSize: 18,
@@ -870,7 +817,6 @@ class _BottomControls extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // Timer chip
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             padding:
@@ -928,7 +874,6 @@ class _BottomControls extends StatelessWidget {
 
           const SizedBox(height: 45),
 
-          // Control buttons
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Container(
@@ -1026,9 +971,6 @@ class _BottomControls extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reusable circular control button
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ControlButton extends StatelessWidget {
   const _ControlButton({

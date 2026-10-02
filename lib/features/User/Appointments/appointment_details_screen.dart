@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
@@ -20,12 +21,11 @@ class AppointmentDetailsScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              /// -------- Header ----------
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'تفاصيل الموعد',
+                    Loc.appointmentDetails(),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -53,9 +53,8 @@ class AppointmentDetailsScreen extends StatelessWidget {
               ),
               Gap(20.h),
 
-              /// -------- Lawyer Info ----------
               Text(
-                'المحامي',
+                Loc.theLawyer(),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.hintColor,
                 ),
@@ -73,13 +72,13 @@ class AppointmentDetailsScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'عبدالله بن فهد الشمري',
+                        Loc.sampleLawyerName(),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       Text(
-                        'التخصص : بيع وشراء',
+                        Loc.sampleSpecializationLabel(),
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: theme.hintColor,
                         ),
@@ -91,18 +90,15 @@ class AppointmentDetailsScreen extends StatelessWidget {
 
               Gap(24.h),
 
-              /// -------- Description ----------
               Text(
-                'وصف للاستشارة',
+                Loc.consultationDescriptionLabel(),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Gap(8.h),
               Text(
-                'محامي متخصص يقدم استشارات قانونية شاملة للأفراد والشركات. '
-                    'يمتاز بخبرة واسعة في حل القضايا المختلفة وإعداد العقود، مع '
-                    'التركيز على حماية حقوق موكليه وتقديم حلول قانونية سريعة وفعالة.',
+                Loc.sampleLawyerBio(),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.hintColor,
                   height: 1.6,
@@ -111,9 +107,8 @@ class AppointmentDetailsScreen extends StatelessWidget {
 
               Gap(24.h),
 
-              /// -------- Date & Duration ----------
               Text(
-                'التاريخ والوقت والمدة',
+                Loc.dateTimeAndDuration(),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -122,13 +117,12 @@ class AppointmentDetailsScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  /// ----- Column 1 -----
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'تاريخ الجلسة',
+                          Loc.sessionDate(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.hintColor,
                           ),
@@ -144,27 +138,25 @@ class AppointmentDetailsScreen extends StatelessWidget {
                     ),
                   ),
 
-                  /// Vertical Divider
                   Container(
                     width: 1.w,
                     height: 35.h,
                     color: Colors.grey.shade300,
                   ),
 
-                  /// ----- Column 2 -----
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
-                          'وقت البدء',
+                          Loc.startTime(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.hintColor,
                           ),
                         ),
                         Gap(4.h),
                         Text(
-                          '10:30 صباحاً',
+                          Loc.sampleStartTime(),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -173,27 +165,25 @@ class AppointmentDetailsScreen extends StatelessWidget {
                     ),
                   ),
 
-                  /// Vertical Divider
                   Container(
                     width: 1.w,
                     height: 35.h,
                     color: Colors.grey.shade300,
                   ),
 
-                  /// ----- Column 3 -----
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          'مدة الجلسة',
+                          Loc.sessionDuration(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.hintColor,
                           ),
                         ),
                         Gap(4.h),
                         Text(
-                          '30 دقيقة',
+                          Loc.sampleDuration(),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -208,9 +198,8 @@ class AppointmentDetailsScreen extends StatelessWidget {
 
               Gap(24.h),
 
-              /// -------- Voice Note ----------
               Text(
-                'مذكرة صوتية',
+                Loc.voiceNote(),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -251,9 +240,8 @@ class AppointmentDetailsScreen extends StatelessWidget {
 
               Gap(24.h),
 
-              /// -------- Attachments ----------
               Text(
-                'المرفقات',
+                Loc.attachments(),
                 style: theme.textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -286,7 +274,6 @@ class AppointmentDetailsScreen extends StatelessWidget {
 
               Gap(40.h),
 
-              /// -------- Button ----------
               SizedBox(
                 width: double.infinity,
                 height: 48.h,
@@ -299,7 +286,7 @@ class AppointmentDetailsScreen extends StatelessWidget {
                   ),
                   onPressed: () {},
                   child: Text(
-                    'العودة',
+                    Loc.goBack(),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,

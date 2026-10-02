@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/common/app_version/widgets/app_update_dialog.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:size_config/size_config.dart';
@@ -17,13 +15,12 @@ Future<void> _openStore(AppVersionCheck info, BuildContext context) async {
   } else {
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تعذر فتح المتجر')),
+        SnackBar(content: Text(Loc.unableToOpenStore())),
       );
     }
   }
 }
 
-/// Blocking dialog for FORCE updates — cannot be dismissed.
 Future<void> showForceUpdateDialog(
   BuildContext context,
   AppVersionCheck info,
@@ -43,8 +40,6 @@ Future<void> showForceUpdateDialog(
   );
 }
 
-/// Dismissible dialog for OPTIONAL updates — returns true when the user
-/// taps update, false/null when they postpone.
 Future<bool?> showOptionalUpdateDialog(
   BuildContext context,
   AppVersionCheck info,
@@ -109,7 +104,7 @@ class _UpdateDialogBody extends StatelessWidget {
             Text(
               (info.title?.trim().isNotEmpty == true)
                   ? info.title!
-                  : (isForce ? 'تحديث التطبيق مطلوب' : 'يتوفر تحديث جديد'),
+                  : (isForce ? Loc.appUpdateRequired() : Loc.newUpdateAvailable()),
               textAlign: TextAlign.center,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.w700,
@@ -121,8 +116,8 @@ class _UpdateDialogBody extends StatelessWidget {
               (info.message?.trim().isNotEmpty == true)
                   ? info.message!
                   : (isForce
-                      ? 'يرجى تحديث التطبيق للاستمرار.'
-                      : 'يتوفر إصدار جديد من التطبيق، التحديث اختياري.'),
+                      ? Loc.pleaseUpdateToContinue()
+                      : Loc.optionalUpdateAvailable()),
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: 13.sp,
@@ -133,7 +128,7 @@ class _UpdateDialogBody extends StatelessWidget {
             if (info.latestVersion != null) ...[
               Gap(8.h),
               Text(
-                'الإصدار الجديد: ${info.latestVersion}',
+                Loc.newVersionLabel(info.latestVersion),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.hintColor,
                   fontSize: 12.sp,
@@ -155,7 +150,7 @@ class _UpdateDialogBody extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'تحديث الآن',
+                  Loc.updateNow(),
                   style: TextStyle(
                     fontFamily: 'cairo',
                     fontSize: 14.sp,
@@ -180,7 +175,7 @@ class _UpdateDialogBody extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'لاحقاً',
+                    Loc.later(),
                     style: TextStyle(
                       fontFamily: 'cairo',
                       fontSize: 14.sp,

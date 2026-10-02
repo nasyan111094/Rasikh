@@ -1,15 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// consultation_repo.dart
-// Single repository that handles all API calls for the consultation feature.
-// Updated endpoints:
-//   • GET  /api/v1/specializations/active          (was /api/v1/specializations)
-//   • GET  /api/v1/enums/{type}                    (NEW – consultation-types & cities)
-//   • GET  /api/v1/clients/lawyers
-//   • GET  /api/v1/clients/lawyers/{id}
-//   • GET  /api/v1/clients/lawyers/recommended
-//   • GET  /api/v1/client/pricing
-//   • POST /api/v1/client/consultations
-// ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
@@ -31,11 +19,14 @@ class ConsultationRepo {
 
   final DioAdapterBase _dio = getIt.get<ApiHandler>().dioAdapterBase;
 
-  // ── 1. GET /api/v1/specializations/active ────────────────────────────────
-  // Public endpoint – returns only active specializations with active subs.
-  // Sorted by name; supports optional search.
 
-  Future<Either<String, List<SpecializationModel>>> fetchSpecializations({
+  Future<
+      Either<
+          String,
+          ({
+            List<SpecializationModel> specializations,
+            Map<String, List<SubSpecializationModel>> lawsuitTypes,
+          })>> fetchSpecializations({
     int page = 1,
     int limit = 50,
     String? search,
@@ -56,16 +47,32 @@ class ConsultationRepo {
       final specializations = rawList
           .map((e) => SpecializationModel.fromJson(e as Map<String, dynamic>))
           .toList();
-      return Right(specializations);
+      final lawsuitTypes = <String, List<SubSpecializationModel>>{};
+      for (final spec in rawList) {
+        final subs = (spec as Map<String, dynamic>)['subSpecializations']
+                as List<dynamic>? ??
+            [];
+        for (final sub in subs) {
+          final subJson = sub as Map<String, dynamic>;
+          final types = subJson['lawsuitTypes'] as List<dynamic>? ?? [];
+          lawsuitTypes[subJson['id'] as String? ?? ''] = types
+              .map((t) => t as Map<String, dynamic>)
+              .where((t) => t['isActive'] as bool? ?? true)
+              .map((t) => SubSpecializationModel(
+                    id: (t['_id'] ?? t['id']) as String? ?? '',
+                    name: t['name'] as String? ?? '',
+                    isActive: true,
+                  ))
+              .toList();
+        }
+      }
+      return Right(
+          (specializations: specializations, lawsuitTypes: lawsuitTypes));
     }
     return Left(result.left);
   }
 
 
-  // ── 8. GET /api/v1/lawyers/{lawyerId}/availability/slots ──────────────────
-  // Returns discrete bookable slots filtered by duration
-  // from and to are ISO datetime strings in Asia/Riyadh timezone
-  // durationMin filters for slots that have ceil(durationMin/15) consecutive periods
 
   Future<Either<String, BookableSlotsResponse>> fetchBookableSlots({
     required String lawyerId,
@@ -90,9 +97,6 @@ class ConsultationRepo {
     }
     return Left(result.left.toString());
   }
-  // ── 2. GET /api/v1/enums/{type} ──────────────────────────────────────────
-  // Fetches key-value enum pairs for a given type.
-  // Used for: 'consultation-types', 'cities', and any future enum.
 
   Future<Either<String, List<EnumValueModel>>> fetchEnum(String type) async {
     final result = await _dio.get('enums/$type');
@@ -107,11 +111,10 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 3. GET /api/v1/clients/lawyers ────────────────────────────────────────
 
   Future<Either<String, List<LawyerDetailModel>>> fetchLawyers({
     String? specializationId,
-    String? subSpecializationIds, // comma-separated
+    String? subSpecializationIds,
     String? city,
     int? minExperience,
     double? maxPrice,
@@ -154,7 +157,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 4. GET /api/v1/clients/lawyers/{id} ───────────────────────────────────
 
   Future<Either<String, LawyerDetailModel>> fetchLawyerDetails(
       String lawyerId) async {
@@ -167,9 +169,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 5. GET /api/v1/clients/lawyers/recommended ────────────────────────────
-  // subSpecializationIds: backend accepts repeated params, comma-separated,
-  // or JSON array string. We send as repeated query params (most compatible).
 
   Future<Either<String, LawyerDetailModel>> fetchRecommendedLawyer({
     required String specializationId,
@@ -193,9 +192,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 6. GET /api/v1/client/pricing ─────────────────────────────────────────
-  // Only active pricing plans are returned.
-  // consultation_type filter: 'instant' | 'written' | 'scheduled'
 
   Future<Either<String, List<PricingModel>>> fetchPricing({
     int page = 1,
@@ -223,13 +219,11 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 7. POST /api/v1/client/consultations ──────────────────────────────────
-  // multipart/form-data. lawyerId is always required.
 
-// ── 7. POST /api/v1/client/consultations ──────────────────────────────────
 
   Future<Either<String, CreatedConsultationModel>> createConsultation(
-      CreateConsultationParams params) async {
+      CreateConsultationParams params,
+      {String? lawsuitTypeId}) async {
 
     final fields = <String, dynamic>{
       'pricingId': params.pricingId,
@@ -241,12 +235,15 @@ class ConsultationRepo {
       'hideClientFromLawyer': params.hideClientFromLawyer.toString(),
     };
 
+    if (lawsuitTypeId != null && lawsuitTypeId.isNotEmpty) {
+      fields['lawsuitTypeId'] = lawsuitTypeId;
+    }
+
     if (params.subSpecializationIds.isNotEmpty) {
       fields['subSpecializationIds'] =
       '[${params.subSpecializationIds.map((id) => '"$id"').join(',')}]';
     }
 
-    // ✅ Unified DateTime format (LOCAL ISO 8601)
     String formatDate(DateTime? dt) =>
         dt == null ? '' : dt.toLocal().toUtc().toIso8601String();
 
@@ -312,9 +309,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 9. POST /api/v1/client/consultations/{id}/pay-with-wallet ───────────────
-  // Pay consultation from wallet balance
-  // Requires Idempotency-Key header (UUID v4)
 
   Future<Either<String, Map<String, dynamic>>> payWithWallet({
     required String consultationId,
@@ -335,9 +329,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 10. POST /api/v1/client/consultations/{id}/payment/initiate ────────────
-  // Initiate payment via MyFatoorah
-  // Requires Idempotency-Key header (UUID v4)
 
   Future<Either<String, Map<String, dynamic>>> initiatePayment({
     required String consultationId,
@@ -358,9 +349,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 11. GET /api/v1/client/consultations/{id} ───────────────────────────────
-  // Check consultation status after payment
-  // Returns the consultation details including payment status
 
   Future<Either<String, Map<String, dynamic>>> checkConsultationStatus({
     required String consultationId,
@@ -374,10 +362,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 12. GET /api/v1/client/consultations/{id}/payment/status ───────────────
-  // Get the latest MyFatoorah payment status for this consultation
-  // Poll after redirect from checkout
-  // Returns payment details including invoiceStatus
 
   Future<Either<String, Map<String, dynamic>>> checkPaymentStatus({
     required String consultationId,

@@ -1,11 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/common/app_version/repo/app_version_repo.dart
-//
-// Public endpoint (no auth required):
-//   GET /api/app-version/check?appType=android|ios&version=X.Y.Z
-// NOTE: lives under /api/ (not /api/v1/), so an absolute URL is used.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:dartz/dartz.dart';
@@ -24,20 +18,17 @@ class AppVersionRepo {
 
   static String get _checkUrl => '${AppConfig.baseApiUrl}app-version/check';
 
-  /// Current platform key expected by the API.
   String get currentAppType {
     if (Platform.isAndroid) return 'android';
     if (Platform.isIOS) return 'ios';
     return 'android';
   }
 
-  /// Installed semantic version (e.g. 1.0.0).
   Future<String> getInstalledVersion() async {
     final info = await PackageInfo.fromPlatform();
     return info.version;
   }
 
-  /// Calls the check endpoint for the currently installed app version.
   Future<Either<String, AppVersionCheck>> checkCurrentVersion() async {
     try {
       final version = await getInstalledVersion();
@@ -63,7 +54,7 @@ class AppVersionRepo {
       try {
         return Right(AppVersionCheck.fromJson(result.right.data));
       } catch (_) {
-        return const Left('تعذر قراءة نتيجة فحص الإصدار');
+        return Left(Loc.versionCheckReadFailed());
       }
     }
     return Left(_extractError(result.left));
@@ -76,12 +67,12 @@ class AppVersionRepo {
         if (data is Map) {
           return data['message']?.toString() ??
               data['error']?['details']?.toString() ??
-              'حدث خطأ غير متوقع';
+              Loc.unexpectedError();
         }
       }
       return left.toString();
     } catch (_) {
-      return 'حدث خطأ غير متوقع';
+      return Loc.unexpectedError();
     }
   }
 }

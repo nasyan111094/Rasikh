@@ -1,16 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// lawyer_completion/pages/lawyer_specialization_page.dart
-//
-// Step 4 (final) – Specializations (التخصصات)
-//
-// Behaviour:
-//  • Tap a card header → expands/collapses the sub-chip section.
-//  • A card is "selected" (filled radio, coloured border) only when ≥1 sub
-//    chip has been chosen from it.
-//  • Multiple cards can be expanded and/or selected simultaneously.
-//  • "إرسال للمراجعة" is enabled once at least one main has ≥1 sub chosen.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -75,7 +64,6 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Fixed header ─────────────────────────────────────
                   Padding(
                     padding: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 0),
                     child: Column(
@@ -93,7 +81,7 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                         ),
                         Gap(10.h),
                         Text(
-                          "التخصصات",
+                          Loc.specializations(),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color:      colorScheme.primary,
@@ -102,7 +90,7 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                         ),
                         Gap(4.h),
                         Text(
-                          "نحتاج التخصصات لتفعيل حسابك بالكامل.",
+                          Loc.specializationsSubtitle(),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.hintColor,
                           ),
@@ -113,7 +101,6 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                     ),
                   ),
 
-                  // ── Scrollable list ──────────────────────────────────
                   Expanded(
                     child: BlocBuilder<LawyerCompletionCubit,
                         LawyerCompletionState>(
@@ -134,7 +121,7 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                           if (state.specializations.isEmpty) {
                             return Center(
                               child: Text(
-                                'لم يتم العثور على تخصصات متاحة',
+                                Loc.noSpecializationsAvailable(),
                                 style: theme.textTheme.bodyMedium
                                     ?.copyWith(color: theme.hintColor),
                               ),
@@ -158,7 +145,6 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                     ),
                   ),
 
-                  // ── Fixed footer ─────────────────────────────────────
                   Padding(
                     padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 0),
                     child: Column(
@@ -167,7 +153,7 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                         Gap(14.h),
                         Text.rich(
                           TextSpan(
-                            text: "من خلال التسجيل، فإنك ",
+                            text: Loc.byRegisteringYou(),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: colorScheme.onSurfaceVariant,
                             ),
@@ -183,15 +169,15 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                                     builder: (_) => const TermsBottomSheet(),
                                   );
                                 },
-                                text: "توافق على شروط الخدمة ",
+                                text: Loc.agreeToTermsOfServiceTrailing(),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color:      colorScheme.primary,
                                   decoration: TextDecoration.underline,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
-                              const TextSpan(
-                                  text: "واتفاقية معالجة البيانات."),
+                              TextSpan(
+                                  text: Loc.andDataProcessingAgreement()),
                             ],
                           ),
                           textAlign: TextAlign.center,
@@ -217,10 +203,9 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
       builder: (ctx) => _CongratulationDialog(
         onDone: () {
           Navigator.of(ctx, rootNavigator: true).pop();
-          // Show a snackbar that we're retrying
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("شكرا للك : حسابك قيد المراجعه حاليا"),
+              content: Text(Loc.thanksAccountUnderReview()),
 
               backgroundColor: Theme.of(context).colorScheme.primary,
               behavior: SnackBarBehavior.floating,
@@ -240,24 +225,11 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _SpecializationCard
-//
-// RTL layout (what you SEE left→right on screen):
-//   [Radio/Check circle]  [Title + Description]  [Square icon]
-//
-// Tapping the header expands/collapses the sub-spec section independently
-// from other cards.  The card is highlighted (selected style) only when ≥1
-// sub has been chosen from it.
-// ─────────────────────────────────────────────────────────────────────────────
 
 
 
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _SubmitButton — "إرسال للمراجعة"
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SubmitButton extends StatelessWidget {
   final LawyerCompletionCubit cubit;
@@ -302,7 +274,7 @@ class _SubmitButton extends StatelessWidget {
               }
                   : null,
 
-              title : "إرسال للمراجعه" ,
+              title : Loc.sendForReview() ,
               isLoading: isSubmitting,
 
             ),
@@ -313,9 +285,6 @@ class _SubmitButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _CongratulationDialog — matches Congratulation_TO_USER.png exactly
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CongratulationDialog extends StatefulWidget {
   final VoidCallback onDone;
@@ -349,7 +318,6 @@ class _CongratulationDialogState extends State<_CongratulationDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Avatar with light blue gradient background + gold border
             Container(
               width:      116.w,
               height:     116.w,
@@ -381,7 +349,7 @@ class _CongratulationDialogState extends State<_CongratulationDialog> {
             Gap(24.h),
 
             Text(
-              "عزيزي المحامي، تهانينا 🎉",
+              Loc.dearLawyerCongratulations(),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color:      cs.primary,
@@ -392,7 +360,7 @@ class _CongratulationDialogState extends State<_CongratulationDialog> {
             Gap(14.h),
 
             Text(
-              "شكراً لك، لقد استلمنا طلبك وسنقوم بمراجعته في أقرب وقت ممكن.",
+              Loc.requestReceivedWillReview(),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color:  cs.onSurfaceVariant,
                 height: 1.65,
@@ -419,9 +387,6 @@ class _CongratulationDialogState extends State<_CongratulationDialog> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _ErrorView
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ErrorView extends StatelessWidget {
   final String       message;
@@ -450,7 +415,7 @@ class _ErrorView extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon:      const Icon(Icons.refresh_rounded),
-              label:     const Text('إعادة المحاولة'),
+              label:     Text(Loc.retryAgain()),
               style: ElevatedButton.styleFrom(
                 backgroundColor: cs.primary,
                 foregroundColor: cs.onPrimary,

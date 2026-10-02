@@ -1,16 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/profile/data/repos/lawyer_profile_repo.dart
-//
-// Handles all lawyer profile endpoints:
-//   GET  /api/v1/lawyers/me                          → fetch profile
-//   PUT  /api/v1/lawyers/update/form                 → update profile (multipart)
-//   PUT  /api/v1/lawyers/update/form                 → update specializations
-//   POST /api/v1/lawyers/change-phone/request        → request phone change OTP
-//   POST /api/v1/lawyers/change-phone/verify         → verify phone change OTP
-//   POST /api/v1/lawyers/account/deletion/otp        → send deletion OTP
-//   POST /api/v1/lawyers/account/deletion/request    → confirm account deletion
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -25,7 +14,6 @@ import '../../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../../core/utils/api/api_handler.dart';
 import '../models/lawyer_profile_model.dart';
 
-// ── Endpoint constants ────────────────────────────────────────────────────────
 
 class _ProfileEndpoints {
   static const String me = 'lawyers/me';
@@ -40,13 +28,11 @@ class _ProfileEndpoints {
   static const String clientdeletionRequest = 'clients/account/deletion/request';
 }
 
-// ── Repository ────────────────────────────────────────────────────────────────
 
 class LawyerProfileRepo {
   final DioAdapterBase _adapter = getIt<ApiHandler>().dioAdapterBase;
   CacheHelper get _cache => getIt<CacheHelper>();
 
-  // ── GET profile ────────────────────────────────────────────────────────────
 
   Future<Either<String, LawyerProfileModel>> getProfile() async {
     final result = await _adapter.get(_ProfileEndpoints.me);
@@ -57,7 +43,6 @@ class LawyerProfileRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── UPDATE profile (multipart/form-data) ───────────────────────────────────
 
   Future<Either<String, LawyerProfileModel>> updateProfile({
     required UpdateProfileRequest request,
@@ -83,13 +68,6 @@ class LawyerProfileRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── UPDATE specializations (multipart/form-data) ───────────────────────────
-  //
-  // Sends only the specialization fields:
-  //   mainSpecializations  → JSON-encoded array of main spec IDs
-  //   subSpecializations   → JSON-encoded array of sub  spec IDs
-  //
-  // Returns the refreshed profile so the cubit can cache it.
 
   Future<Either<String, LawyerProfileModel>> updateSpecializations({
     required List<String> mainSpecializationIds,
@@ -97,21 +75,18 @@ class LawyerProfileRepo {
   }) async {
     final formData = FormData();
 
-    // Main Specializations
     for (final id in mainSpecializationIds) {
       formData.fields.add(
         MapEntry('mainSpecializations[]', id),
       );
     }
 
-    // Sub Specializations
     for (final id in subSpecializationIds) {
       formData.fields.add(
         MapEntry('subSpecializations[]', id),
       );
     }
 
-    // Debug
     debugPrint('========== FormData ==========');
     for (final field in formData.fields) {
       debugPrint('${field.key}: ${field.value}');
@@ -136,7 +111,6 @@ class LawyerProfileRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── UPDATE licence (multipart/form-data) ───────────────────────────────────
 
   Future<Either<String, LawyerProfileModel>> updateLicence({
     required UpdateLicenceRequest request,
@@ -181,7 +155,6 @@ class LawyerProfileRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── REQUEST phone change OTP ───────────────────────────────────────────────
 
   Future<Either<String, String>> requestPhoneChange({
     required String phone,
@@ -194,13 +167,12 @@ class LawyerProfileRepo {
     if (result.isRight) {
       final data = result.right.data;
       final message = data['message']?.toString() ??
-          'تم إرسال كود التحقق إلى رقم الهاتف';
+          Loc.verificationCodeSentToPhone();
       return Right(message);
     }
     return Left(_extractError(result.left));
   }
 
-  // ── VERIFY phone change OTP ────────────────────────────────────────────────
 
   Future<Either<String, ChangePhoneResponseModel>> verifyPhoneChange({
     required String phone,
@@ -217,7 +189,6 @@ class LawyerProfileRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── SEND account deletion OTP ──────────────────────────────────────────────
 
   Future<Either<String, String>> sendDeletionOtp() async {
     final result = await _adapter.post( _cache.cachedVendorType == VendorType.lawyer ?_ProfileEndpoints.lawyerdeletionOtp:_ProfileEndpoints.clientdeletionOtp);
@@ -230,7 +201,6 @@ class LawyerProfileRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── CONFIRM account deletion ───────────────────────────────────────────────
 
   Future<Either<String, DeleteAccountResponseModel>> requestAccountDeletion({
     required String otp,
@@ -248,7 +218,6 @@ class LawyerProfileRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Error helper ──────────────────────────────────────────────────────────
 
   String _extractError(dynamic left) {
     try {
@@ -257,12 +226,12 @@ class LawyerProfileRepo {
         if (data is Map) {
           return data['message']?.toString() ??
               data['error']?['details']?.toString() ??
-              'حدث خطأ غير متوقع';
+              Loc.unexpectedError();
         }
       }
       return left.toString();
     } catch (_) {
-      return 'حدث خطأ غير متوقع';
+      return Loc.unexpectedError();
     }
   }
 }

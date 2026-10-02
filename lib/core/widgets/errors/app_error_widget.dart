@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
@@ -32,7 +33,7 @@ class AppErrorWidget extends StatelessWidget {
             const SizedBox(height: 16),
 
             Text(
-              message ?? 'حدث خطأ غير متوقع',
+              message ?? Loc.unexpectedError(),
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
@@ -42,7 +43,7 @@ class AppErrorWidget extends StatelessWidget {
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('إعادة المحاولة'),
+              label: Text(Loc.retryAgain()),
             ),
           ],
         ),

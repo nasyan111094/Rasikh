@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/config/theme/styles_manager.dart';
@@ -70,7 +71,7 @@ class _NationalIdFieldState extends State<NationalIdField> {
         autovalidateMode: AutovalidateMode.onUserInteraction,
         textDirection: TextDirection.ltr,
         textAlign: TextAlign.start,
-        keyboardType: TextInputType.number, // Use number keyboard for digits
+        keyboardType: TextInputType.number,
         textInputAction: widget.confirm == null
             ? TextInputAction.next
             : TextInputAction.done,
@@ -78,7 +79,7 @@ class _NationalIdFieldState extends State<NationalIdField> {
         decoration: InputDecoration(
           hintStyle:  const TextStyle(color: Color(0xFF808080)),
           counterText: '',
-          hintText: "رقم الهوية الوطنية/الإقامة",
+          hintText: Loc.nationalIdOrIqamaNumber(),
           focusedBorder: OutlineInputBorder(
             borderSide: BorderSide(color: borderColor),
             borderRadius: BorderRadius.all(Radius.circular(12.w)),
@@ -112,17 +113,16 @@ class _NationalIdFieldState extends State<NationalIdField> {
 
   String? validate(String? value) {
     if (value == null || value.isEmpty) {
-      return 'الرجاء إدخال رقم الهوية الوطنية أو الإقامة';
+      return Loc.pleaseEnterNationalIdOrIqama();
     }
 
-    // Saudi National ID/Iqama: 10 digits, starting with 1 (citizen) or 2 (resident)
     final idRegex = RegExp(r'^[1-2]\d{9}$');
 
     if (!idRegex.hasMatch(value)) {
-      return 'رقم الهوية/الإقامة يجب أن يكون 10 أرقام ويبدأ بـ 1 أو 2';
+      return Loc.nationalIdIqamaLengthRule();
     }
 
-    widget.onValidated?.call(true); // Notify validation success
+    widget.onValidated?.call(true);
     return null;
   }
 }

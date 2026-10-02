@@ -1,16 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// consulation_application_cubit.dart
-//
-// Flow summary:
-//  • instant / written  → createConsultation() called from ChooseLawyerScreen
-//                         after selectLawyer(). Payment screen navigated to on
-//                         success via BlocListener in ChooseLawyerScreen.
-//  • scheduled          → selectLawyer() only from ChooseLawyerScreen.
-//                         AppointmentBookingScreen lets user pick time.
-//                         createConsultation() called from AppointmentBookingScreen
-//                         after confirming. Payment screen navigated to on
-//                         success via BlocListener in AppointmentBookingScreen.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:io';
 
@@ -28,7 +15,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
 
   final ConsultationRepo _repo = getIt.get<ConsultationRepo>();
 
-  // ── Step-1: Specializations ───────────────────────────────────────────────
 
   Future<void> loadSpecializations({String? search}) async {
     emit(state.copyWith(
@@ -45,7 +31,8 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       )),
           (data) => emit(state.copyWith(
         specializationsStatus: ConsultationStatus.success,
-        specializations: data,
+        specializations: data.specializations,
+        lawsuitTypesBySubSpecialization: data.lawsuitTypes,
       )),
     );
   }
@@ -54,7 +41,19 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(
       selectedSpecialization: specialization,
       selectedSubSpecializations: [],
+      clearSelectedLawsuitType: true,
     ));
+  }
+
+  void selectSubSpecialization(SubSpecializationModel sub) {
+    emit(state.copyWith(
+      selectedSubSpecializations: [sub],
+      clearSelectedLawsuitType: true,
+    ));
+  }
+
+  void selectLawsuitType(SubSpecializationModel lawsuitType) {
+    emit(state.copyWith(selectedLawsuitType: lawsuitType));
   }
 
   void toggleSubSpecialization(SubSpecializationModel sub) {
@@ -68,7 +67,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(selectedSubSpecializations: current));
   }
 
-  // ── Enums ─────────────────────────────────────────────────────────────────
 
   Future<void> loadConsultationTypes() async {
     emit(state.copyWith(
@@ -109,10 +107,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  // ── Step-2: Consultation type ─────────────────────────────────────────────
 
-  // Also stored outside state so ConnectingToLawyerScreen can read it
-  // synchronously without needing a BlocBuilder.
   ConsultationType? selectedConsultationType = ConsultationType.instant;
 
   void selectConsultationType(ConsultationType type) {
@@ -120,7 +115,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(selectedConsultationType: type));
   }
 
-  // ── Step-3: Pricing + Details ─────────────────────────────────────────────
 
   Future<void> loadPricingPlans() async {
     emit(state.copyWith(
@@ -178,6 +172,8 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       specializationsError: s.specializationsError,
       selectedSpecialization: s.selectedSpecialization,
       selectedSubSpecializations: s.selectedSubSpecializations,
+      lawsuitTypesBySubSpecialization: s.lawsuitTypesBySubSpecialization,
+      selectedLawsuitType: s.selectedLawsuitType,
       consultationTypesStatus: s.consultationTypesStatus,
       consultationTypes: s.consultationTypes,
       consultationTypesError: s.consultationTypesError,
@@ -226,7 +222,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(attachments: updated));
   }
 
-  // ── Step-4: Lawyer selection ──────────────────────────────────────────────
 
   Future<void> loadLawyers({
     String? search,
@@ -247,7 +242,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       city: city,
       sortBy: sortBy,
       sortOrder: sortOrder,
-      availability: getIt<ConsultationApplicationCubit>().selectedConsultationType ==ConsultationType.scheduled ? false : true ,
+      availability: state.selectedConsultationType != ConsultationType.scheduled,
     );
     result.fold(
           (error) => emit(state.copyWith(
@@ -313,7 +308,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     }
   }
 
-  // ── Step-5: Appointment scheduling (scheduled only) ───────────────────────
 
   void selectDay(int index) {
     emit(state.copyWith(selectedDayIndex: index));
@@ -345,9 +339,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(startTime: start, endTime: end));
   }
 
-  // ── Bookable slots fetching ───────────────────────────────────────────────
-  // Fetch available slots for a lawyer within a date range
-  // typically from today to today+7 days
 
   Future<void> fetchBookableSlots({
     required String lawyerId,
@@ -363,7 +354,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     final fromDate = from ?? DateTime.now();
     final toDate = to ?? DateTime.now().add(const Duration(days: 7));
 
-    // Round to start of day (use logical time, not UTC)
     final fromRounded = DateTime(fromDate.year, fromDate.month, fromDate.day);
     final toRounded = DateTime(toDate.year, toDate.month, toDate.day, 23, 59, 59);
 
@@ -388,7 +378,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  // Select a bookable slot and derive startTime/endTime
   void selectBookableSlot(BookableSlotModel slot) {
     emit(state.copyWith(
       selectedBookableSlot: slot,
@@ -397,15 +386,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     ));
   }
 
-  // ── Step-6: Create consultation ───────────────────────────────────────────
-  //
-  // Called from:
-  //  • ChooseLawyerScreen (_onConsult) for instant / written
-  //  • AppointmentBookingScreen (Next button) for scheduled
-  //
-  // On success the calling screen's BlocListener handles navigation:
-  //  • instant / written  → paymentScreen
-  //  • scheduled          → paymentScreen (same listener pattern)
 
   Future<void> createConsultation() async {
     final lawyer =
@@ -415,7 +395,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
         state.selectedSpecialization == null ||
         state.selectedPricing == null) return;
 
-    // Reset previous result so listeners fire even on retry
     emit(state.copyWith(
       createStatus: ConsultationStatus.loading,
       createError: null,
@@ -438,7 +417,10 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       voiceNoteDurationSeconds: state.voiceNoteDurationSeconds,
     );
 
-    final result = await _repo.createConsultation(params);
+    final result = await _repo.createConsultation(
+      params,
+      lawsuitTypeId: state.selectedLawsuitType?.id,
+    );
 
     result.fold(
           (error) => emit(state.copyWith(
@@ -468,14 +450,12 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  // ── Reset ─────────────────────────────────────────────────────────────────
 
   void resetFlow() {
     selectedConsultationType = null;
     emit(const ConsultationState());
   }
 
-  // ── Load existing consultation for payment ───────────────────────────────
 
   Future<void> loadExistingConsultationForPayment(
       CreatedConsultationModel consultation) async {
@@ -485,7 +465,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     ));
   }
 
-  // ── Step-7: Payment ───────────────────────────────────────────────────────
 
   Future<void> payWithWallet() async {
     final consultationId = state.createdConsultation?.id;
@@ -533,15 +512,11 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  // ── Check payment status with polling ───────────────────────────────────────
-  // Polls the payment status endpoint to determine if payment was successful
-  // Returns: 'paid', 'failed', 'pending', or 'error'
 
   Future<String> checkPaymentStatus() async {
     final consultationId = state.createdConsultation?.id;
     if (consultationId == null) return 'error';
 
-    // Poll for up to 30 seconds (15 attempts * 2 seconds each)
     for (int i = 0; i < 15; i++) {
       final result = await _repo.checkPaymentStatus(
         consultationId: consultationId,
@@ -549,7 +524,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
 
       final resultStatus = await result.fold(
         (error) async {
-          // If we get an error, wait and retry
           await Future.delayed(const Duration(seconds: 2));
           return null;
         },
@@ -565,12 +539,10 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
           }
 
           if (invoiceStatus == 'Pending' || invoiceStatus == 'Processing') {
-            // Still pending, wait and retry
             await Future.delayed(const Duration(seconds: 2));
             return null;
           }
 
-          // Unknown status, wait and retry
           await Future.delayed(const Duration(seconds: 2));
           return null;
         },
@@ -581,7 +553,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       }
     }
 
-    // After all polling attempts, return pending (webhook might not have arrived yet)
     return 'pending';
   }
 }

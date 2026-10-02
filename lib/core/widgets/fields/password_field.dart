@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/config/theme/styles_manager.dart';
@@ -52,7 +53,6 @@ class _PasswordFieldState extends State<PasswordField> {
         }
       });
     });
-    // Listen to text changes for real-time validation
     widget.controller.addListener(() {
       setState(() {
         widget.onValidated?.call(validate(widget.controller.text) == null);
@@ -93,7 +93,7 @@ class _PasswordFieldState extends State<PasswordField> {
         onChanged: widget.onChange,
         validator: validate,
         decoration: InputDecoration(
-          hintText: widget.label ?? 'كلمة المرور',
+          hintText: widget.label ?? Loc.password(),
           errorMaxLines: 3,
           hintStyle:  TextStyle(color: Color(0xFF808080)),
           errorStyle: const TextStyle(color: Colors.red),
@@ -131,23 +131,22 @@ class _PasswordFieldState extends State<PasswordField> {
 
   String? validate(String? value) {
     if (!validString(value)) {
-      return 'كلمة المرور غير صالحة أو فارغة';
+      return Loc.passwordInvalidOrEmpty();
     }
     if (validString(widget.confirmedPassword)) {
       if (value != widget.confirmedPassword) {
-        return 'كلمة المرور غير متطابقة';
+        return Loc.passwordsDoNotMatch();
       }
     } else {
       if (value != null && !isStrongPassword(value)) 
       {
-        return 'كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل، حرف كبير، حرف صغير، رقم، وحرف خاص';
+        return Loc.passwordRequirements();
       }
     }
     return null;
   }
 
   bool isStrongPassword(String value) {
-    // Strong password: at least 8 characters, 1 uppercase, 1 lowercase, 1 digit, 1 special character
     const minLength = 8;
     const uppercasePattern = r'(?=.*[A-Z])';
     const lowercasePattern = r'(?=.*[a-z])';

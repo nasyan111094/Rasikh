@@ -1,5 +1,5 @@
-// features/Lawyer/lawyer-appointments/presentation/widgets/day_appointments_widget.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:size_config/size_config.dart';
@@ -19,15 +19,14 @@ class DayAppointments extends StatelessWidget {
   final ThemeData theme;
   final AvailabilityDay day;
 
-  // ── Arabic day names (API uses Sat=0 … Fri=6, same as weekStart Sat) ──────
-  static const _dayNames = [
-    'السبت',
-    'الأحد',
-    'الاثنين',
-    'الثلاثاء',
-    'الأربعاء',
-    'الخميس',
-    'الجمعة',
+  static List<String> get _dayNames => [
+    Loc.saturday(),
+    Loc.sunday(),
+    Loc.mondayAlt(),
+    Loc.tuesdayAlt(),
+    Loc.wednesday(),
+    Loc.thursday(),
+    Loc.friday(),
   ];
 
   String get _dayName {
@@ -49,7 +48,6 @@ class DayAppointments extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Day header ────────────────────────────────────────────────
           Padding(
             padding: EdgeInsets.all(12.w),
             child: Row(
@@ -69,7 +67,7 @@ class DayAppointments extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8.h),
                   ),
                   child: Text(
-                    '${day.slots.length} موعد',
+                    Loc.appointmentsCount(day.slots.length),
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: theme.colorScheme.primary,
                       fontWeight: FontWeight.bold,
@@ -83,13 +81,9 @@ class DayAppointments extends StatelessWidget {
           GeneralDivider(),
           Gap(12.w),
 
-          // ── Slot list ─────────────────────────────────────────────────
           ...day.slots.map(
                 (slot) => Padding(
               padding: EdgeInsets.only(bottom: 8.h),
-              // dayIndex is passed through so the edit screen can pre-select
-              // the right day instantly, without depending on the cubit's
-              // cache still being warm when it opens.
               child: AppointmentItem(slot: slot, dayIndex: day.dayIndex),
             ),
           ),

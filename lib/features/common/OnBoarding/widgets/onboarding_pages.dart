@@ -4,7 +4,6 @@ import 'package:size_config/size_config.dart';
 import '../../../../config/localization/loc_keys.dart';
 import 'onboarding_single_page.dart';
 
-/// Widget to display OnBoarding Pages with parallax effects
 class OnBoardingPages extends StatelessWidget {
   final PageController pageController;
   final ValueChanged<int> onPageChanged;
@@ -30,7 +29,6 @@ class OnBoardingPages extends StatelessWidget {
         onPageChanged: onPageChanged,
         itemCount: 3,
         itemBuilder: (context, index) {
-          // Calculate parallax offset for current page
           final double pageOffset = pageValue - index;
           final double parallaxOffset = pageOffset * 50;
           final double opacity = (1 - pageOffset.abs()).clamp(0.0, 1.0);
@@ -55,18 +53,18 @@ class OnBoardingPages extends StatelessWidget {
     final List<Map<String, String>> pages = [
       {
         'image': 'assets/images/onboarding1.png',
-        'title': "حماية خصوصيتك أولويتنا",
-        'description': "استمتع بخدمة قانونية عالية الجودة، مع التزام تام بالحفاظ على سرية معلوماتك وحماية حقوقك.",
+        'title': Loc.onboardingPrivacyTitle(),
+        'description': Loc.onboardingPrivacyDescription(),
       },
       {
         'image': 'assets/images/onboarding2.png',
-        'title': "استشارات قانونية في أي وقت",
-        'description': "تواصل مع محامٍ محترف بسهولة واطمئنان، مع ضمان سرية جميع بياناتك ومحادثاتك القانونية.",
+        'title': Loc.onboardingConsultationsTitle(),
+        'description': Loc.onboardingConsultationsDescription(),
       },
       {
         'image': 'assets/images/onboarding3.png',
-        'title': "دفع آمن، راحة بال كاملة",
-        'description': "أجرِ معاملاتك المالية بكل أمان وراحة بال، مع حماية كاملة لبياناتك وخصوصيتك.",
+        'title': Loc.onboardingPaymentTitle(),
+        'description': Loc.onboardingPaymentDescription(),
       },
     ];
 

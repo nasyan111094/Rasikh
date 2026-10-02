@@ -1,14 +1,9 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// consultation_model.dart
-// All models for the Create-Consultation feature.
-// Added: EnumValueModel for /api/v1/enums/{type} responses.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:rasikh/config/app_config.dart';
 
-// ── 0. Enum value (from GET /api/v1/enums/{type}) ────────────────────────────
 
 class EnumValueModel {
   final String key;
@@ -22,7 +17,6 @@ class EnumValueModel {
   );
 }
 
-// ── 1. Specialization ────────────────────────────────────────────────────────
 
 class SubSpecializationModel {
   final String id;
@@ -112,7 +106,6 @@ class SpecializationModel {
       );
 }
 
-// ── 2. Lawyer (list item) ────────────────────────────────────────────────────
 
 class LawyerSpecializationRef {
   final String id;
@@ -169,7 +162,6 @@ class LawyerModel {
   );
 }
 
-// ── 3a. License ──────────────────────────────────────────────────────────────
 
 class LicenseModel {
   final String? number;
@@ -185,7 +177,6 @@ class LicenseModel {
   );
 }
 
-// ── 3. Lawyer Detail ─────────────────────────────────────────────────────────
 
 class LawyerRatingModel {
   final int stars;
@@ -300,12 +291,11 @@ class LawyerDetailModel extends LawyerModel {
       );
 }
 
-// ── 4. Pricing ───────────────────────────────────────────────────────────────
 
 class PricingModel {
   final String id;
-  final String consultationType; // instant | written | scheduled
-  final int? duration;           // minutes; null for written
+  final String consultationType;
+  final int? duration;
   final double basePrice;
   final String currency;
 
@@ -325,15 +315,12 @@ class PricingModel {
     currency: json['currency'] as String? ?? 'SAR',
   );
 
-  /// Human-readable label e.g. "15 دقيقة"
-  String get durationLabel => duration != null ? '$duration دقيقة' : '—';
+  String get durationLabel => duration != null ? Loc.durationMinutes(duration) : '—';
 
-  /// Human-readable price e.g. "150 ريال"
-  String get priceLabel => '${basePrice.toStringAsFixed(0)} ريال';
+  String get priceLabel => Loc.amountRiyal(basePrice.toStringAsFixed(0));
 }
 
 
-// ── 5. Consultation type enum ────────────────────────────────────────────────
 
 enum ConsultationType { instant, written, scheduled }
 
@@ -352,15 +339,14 @@ extension ConsultationTypeX on ConsultationType {
   String get arabicLabel {
     switch (this) {
       case ConsultationType.instant:
-        return 'استشارة فورية';
+        return Loc.instantConsultationPlain();
       case ConsultationType.written:
-        return 'استشارة كتابية';
+        return Loc.writtenConsultationPlain();
       case ConsultationType.scheduled:
-        return 'استشارة مجدولة';
+        return Loc.scheduledConsultationPlain();
     }
   }
 
-  /// Parse from API enum value string (e.g. 'instant' or 'INSTANT')
   static ConsultationType fromValue(String value) {
     switch (value.toLowerCase()) {
       case 'written':
@@ -373,7 +359,6 @@ extension ConsultationTypeX on ConsultationType {
   }
 }
 
-// ── 6. Create-Consultation params ────────────────────────────────────────────
 
 class CreateConsultationParams {
   final String pricingId;
@@ -385,11 +370,9 @@ class CreateConsultationParams {
   final ConsultationType type;
   final bool hideClientFromLawyer;
 
-  // Scheduled only
   final DateTime? startTime;
   final DateTime? endTime;
 
-  // Optional media
   final List<File> attachments;
   final File? voiceNote;
   final int? voiceNoteDurationSeconds;
@@ -443,7 +426,6 @@ class CreateConsultationParams {
       );
 }
 
-// ── 7. Created Consultation response ─────────────────────────────────────────
 
 class CreatedConsultationModel {
   final String id;
@@ -504,6 +486,5 @@ class CreatedConsultationModel {
         createdAt: json['createdAt'] as String? ?? '',
       );
 
-  /// Price in SAR (halala ÷ 100)
   double get priceInSAR => (priceAmountHalala ?? 0) / 100.0;
 }

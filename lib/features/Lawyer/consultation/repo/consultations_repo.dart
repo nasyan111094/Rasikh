@@ -1,16 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/consultations/data/repos/consultations_repo.dart
-//
-// Endpoints:
-//   GET   /api/v1/lawyer/consultations          → paginated list (lawyer)
-//   GET   /api/v1/client/consultations          → paginated list (client)
-//   GET   /api/v1/lawyer/consultations/{id}     → details (lawyer)
-//   GET   /api/v1/client/consultations/{id}     → details (client)
-//   POST  /api/v1/client/consultations/{id}/reschedule → reschedule (client)
-//   PATCH /api/v1/client/consultations/{id}/cancel     → cancel (client)
-//   POST  /api/v1/client/ratings                       → rate (client)
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
@@ -22,7 +11,6 @@ import '../../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../../core/utils/api/api_handler.dart';
 import '../models/consultation_model.dart';
 
-// ── Endpoint Resolver ─────────────────────────────────────────────────────────
 
 class _Endpoints {
   _Endpoints._();
@@ -36,27 +24,21 @@ class _Endpoints {
   static String details(String id) =>
       _isLawyer ? 'lawyer/consultations/$id' : 'client/consultations/$id';
 
-  /// Reschedule is a client-only action.
   static String reschedule(String id) =>
       'client/consultations/$id/reschedule';
 
-  /// Cancel is a client-only action.
   static String cancel(String id) =>
       'client/consultations/$id/cancel';
 
-  /// Ratings are a client-only action, and unlike the other endpoints this
-  /// one is NOT nested under /consultations/{id} — it's its own resource.
   static String rate = 'client/ratings';
 }
 
-// ── Repository ────────────────────────────────────────────────────────────────
 
 class ConsultationsRepo {
   ConsultationsRepo() : _adapter = getIt<ApiHandler>().dioAdapterBase;
 
   final DioAdapterBase _adapter;
 
-  // ── Fetch paginated consultations ─────────────────────────────────────────
 
   Future<Either<String, ConsultationsModel>> getConsultations({
     int page = 1,
@@ -86,7 +68,6 @@ class ConsultationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Fetch consultation details ─────────────────────────────────────────────
 
   Future<Either<String, ConsultationModel>> getConsultationDetails({
     required String id,
@@ -97,10 +78,8 @@ class ConsultationsRepo {
       Logger().i(result.right.data);
       final data = result.right.data;
       
-      // Handle both Map and List responses
       Map<String, dynamic> json;
       if (data is Map<String, dynamic>) {
-        // If data has a 'data' field that is a list, extract the first item
         final dataField = data['data'];
         if (dataField is List && dataField.isNotEmpty) {
           json = dataField[0] as Map<String, dynamic>;
@@ -120,11 +99,6 @@ class ConsultationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Reschedule consultation ───────────────────────────────────────────────
-  //
-  // Only valid for scheduled + upcoming consultations owned by the client.
-  // [newStartTime] must be a future UTC datetime that fits the lawyer's
-  // availability grid; the server releases the old slot automatically.
 
   Future<Either<String, ConsultationModel>> rescheduleConsultation({
     required String id,
@@ -147,10 +121,6 @@ class ConsultationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Cancel consultation ───────────────────────────────────────────────────
-  //
-  // Sends PATCH /api/v1/client/consultations/{id}/cancel.
-  // No request body is required. Returns a success boolean or an error string.
 
   Future<Either<String, bool>> cancelConsultation({
     required String id,
@@ -165,13 +135,6 @@ class ConsultationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Rate consultation ─────────────────────────────────────────────────────
-  //
-  // Sends POST /api/v1/client/ratings.
-  // One rating per consultation; the consultation must be completed and
-  // owned by the client. [lawyerId] and [clientId] are required by the API
-  // alongside the consultation id — pull them straight off the
-  // [ConsultationModel] the card already has in memory (no extra fetch).
 
   Future<Either<String, bool>> rateConsultation({
     required String consultationId,
@@ -197,7 +160,6 @@ class ConsultationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Error helper ──────────────────────────────────────────────────────────
 
   String _extractError(dynamic error) {
     try {
@@ -206,12 +168,12 @@ class ConsultationsRepo {
         if (data is Map) {
           return data['message']?.toString() ??
               data['error']?['details']?.toString() ??
-              'حدث خطأ غير متوقع';
+              Loc.unexpectedError();
         }
       }
       return error.toString();
     } catch (_) {
-      return 'حدث خطأ غير متوقع';
+      return Loc.unexpectedError();
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/features/Lawyer/lawyer-appointments/widgets/weekly_repeat_switch.dart';
@@ -29,14 +30,12 @@ class SessionSettingsWidget extends StatefulWidget {
 }
 
 class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
-  // ── State owned here — initialised once in initState ─────────────────────
   DateTime? _startDate;
   DateTime? _endDate;
   late int _sessionDuration;
   late int _sessionGap;
   late bool _isWeeklyRepeat;
 
-  // ── Time validation ───────────────────────────────────────────────────────
   String? _timeError;
 
   @override
@@ -49,8 +48,6 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
     _isWeeklyRepeat = widget.initialRepeatsWeekly ?? false;
   }
 
-  /// If the parent re-renders with new initial values (async prefill from
-  /// cached slot data), absorb those values.
   @override
   void didUpdateWidget(SessionSettingsWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -86,12 +83,11 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
     if (changed) setState(() {});
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   String? _validateTimes(DateTime? start, DateTime? end) {
     if (start == null || end == null) return null;
     if (!end.isAfter(start)) {
-      return 'يجب أن يكون وقت النهاية بعد وقت البداية';
+      return Loc.endTimeMustBeAfterStart();
     }
     return null;
   }
@@ -106,7 +102,6 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
     ));
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -116,12 +111,11 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Start / End time row ────────────────────────────────────────
           Row(
             children: [
               Expanded(
                 child: DatePickerField(
-                  label: 'إختر وقت البداية *',
+                  label: Loc.chooseStartTimeRequired(),
                   value: _startDate,
                   onSelect: (d) {
                     setState(() {
@@ -135,7 +129,7 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
               Gap(12.w),
               Expanded(
                 child: DatePickerField(
-                  label: 'إختر وقت النهاية *',
+                  label: Loc.chooseEndTimeRequired(),
                   value: _endDate,
                   onSelect: (d) {
                     setState(() {
@@ -149,7 +143,6 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
             ],
           ),
 
-          // ── Inline time error ───────────────────────────────────────────
           if (_timeError != null) ...[
             Gap(6.h),
             Row(
@@ -170,40 +163,9 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
 
 
 
-/*          // ── Session duration / gap row ──────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: DropdownField<int>(
-                  label: 'مدة الجلسة *',
-                  value: _sessionDuration,
-                  items: const [15, 30, 45, 60],
-                  unit: 'دقيقة',
-                  onChanged: (v) {
-                    setState(() => _sessionDuration = v!);
-                    _notify();
-                  },
-                ),
-              ),
-              Gap(12.w),
-              Expanded(
-                child: DropdownField<int>(
-                  label: 'الفاصل بين الجلسات *',
-                  value: _sessionGap,
-                  items: const [5, 10, 15, 20],
-                  unit: 'دقائق',
-                  onChanged: (v) {
-                    setState(() => _sessionGap = v!);
-                    _notify();
-                  },
-                ),
-              ),
-            ],
-          ),*/
 
           Gap(40.h),
 
-          // ── Weekly repeat ───────────────────────────────────────────────
           WeeklyRepeatSwitch(
             value: _isWeeklyRepeat,
             onChanged: (v) {
@@ -217,7 +179,6 @@ class _SessionSettingsWidgetState extends State<SessionSettingsWidget> {
   }
 }
 
-// ── Value object ──────────────────────────────────────────────────────────────
 
 class SessionSettings {
   final DateTime? startDate;

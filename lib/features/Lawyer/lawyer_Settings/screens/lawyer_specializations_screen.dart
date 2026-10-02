@@ -1,8 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/specializations/presentation/screens/
-//   lawyer_specializations_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -34,7 +31,6 @@ class _LawyerSpecializationsScreenState
   final Set<String> _expandedIds = {};
   final TextEditingController _searchController = TextEditingController();
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -43,9 +39,6 @@ class _LawyerSpecializationsScreenState
   }
 
   Future<void> _initialize() async {
-    // Wait for the active catalog to actually arrive before comparing
-    // the lawyer's saved specialization IDs against it — otherwise
-    // `_cubit.catalog` is still empty and nothing gets pre-selected.
     await _cubit.loadSpecializations();
     if (!mounted) return;
     _prefillFromProfile();
@@ -56,18 +49,14 @@ class _LawyerSpecializationsScreenState
     final cached = context.read<LawyerProfileCubit>().cachedProfile;
     if (cached == null) return;
 
-    // Get all active main specialization IDs
     final activeMainIds = _cubit.catalog.map((cat) => cat.id).toSet();
 
     if (cached.specializationsByMain.isNotEmpty) {
       for (final main in cached.specializationsByMain) {
-        // Only pre-fill if this main specialization is still active
         if (activeMainIds.contains(main.id)) {
-          // Get active sub-specializations for this main
           final activeMain = _cubit.catalog.firstWhere((cat) => cat.id == main.id);
           final activeSubIds = activeMain.subSpecializations.map((sub) => sub.id).toSet();
 
-          // Only add sub-specializations that are still active
           _selections[main.id] = {
             for (final sub in main.selectedSubSpecializations)
               if (activeSubIds.contains(sub.id)) sub.id,
@@ -78,12 +67,10 @@ class _LawyerSpecializationsScreenState
     } else {
       if (cached.mainSpecializations.isNotEmpty) {
         final mainId = cached.mainSpecializations.first.id;
-        // Only pre-fill if this main specialization is still active
         if (activeMainIds.contains(mainId)) {
           final activeMain = _cubit.catalog.firstWhere((cat) => cat.id == mainId);
           final activeSubIds = activeMain.subSpecializations.map((sub) => sub.id).toSet();
 
-          // Only add sub-specializations that are still active
           _selections[mainId] = {
             for (final sub in cached.subSpecializations)
               if (activeSubIds.contains(sub.id)) sub.id,
@@ -101,7 +88,6 @@ class _LawyerSpecializationsScreenState
     super.dispose();
   }
 
-  // ── Computed ───────────────────────────────────────────────────────────────
 
   bool get _canProceed =>
       _selections.isNotEmpty &&
@@ -118,7 +104,6 @@ class _LawyerSpecializationsScreenState
         .toList();
   }
 
-  // ── Selection helpers ──────────────────────────────────────────────────────
 
   bool _isMainSelected(String mainId) => _selections.containsKey(mainId);
 
@@ -148,14 +133,12 @@ class _LawyerSpecializationsScreenState
     });
   }
 
-  // ── Actions ────────────────────────────────────────────────────────────────
 
   void _onSearchChanged(String _) {
     _cubit.loadSpecializations(search: _searchController.text.trim());
     setState(() {});
   }
 
-  /// Pull-to-refresh: clears search and reloads from scratch.
   Future<void> _onRefresh() async {
     _searchController.clear();
     await _cubit.loadSpecializations();
@@ -169,7 +152,6 @@ class _LawyerSpecializationsScreenState
     );
   }
 
-  // ── Build ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -182,7 +164,7 @@ class _LawyerSpecializationsScreenState
           if (state is SaveSpecializationsSuccess) {
             context.read<LawyerProfileCubit>().getProfile();
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تم حفظ التخصصات بنجاح')),
+              SnackBar(content: Text(Loc.specializationsSavedSuccessfully())),
             );
             Navigator.of(context).pop();
           } else if (state is SaveSpecializationsError) {
@@ -197,7 +179,7 @@ class _LawyerSpecializationsScreenState
         child: Directionality(
           textDirection: TextDirection.rtl,
           child: Scaffold(
-            appBar: GeneralAppBar(title: 'إختر التخصص'),
+            appBar: GeneralAppBar(title: Loc.chooseSpecialization()),
             body: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -220,7 +202,6 @@ class _LawyerSpecializationsScreenState
     );
   }
 
-  // ── Widgets ────────────────────────────────────────────────────────────────
 
   Widget _buildSelectionSummary(ThemeData theme) {
     final mainCount = _selections.length;
@@ -241,8 +222,8 @@ class _LawyerSpecializationsScreenState
               size: 16, color: theme.colorScheme.primary),
           const Gap(6),
           Text(
-            '$mainCount ${mainCount == 1 ? 'تخصص رئيسي' : 'تخصصات رئيسية'}'
-                ' · $subCount فرعي',
+            '$mainCount ${mainCount == 1 ? Loc.mainSpecialization() : Loc.mainSpecializations()}'
+                '${Loc.subCountSuffix(subCount)}',
             style: theme.textTheme.labelMedium?.copyWith(
               color: theme.colorScheme.primary,
               fontWeight: FontWeight.w600,
@@ -251,7 +232,7 @@ class _LawyerSpecializationsScreenState
           const Spacer(),
           if (_selections.values.any((s) => s.isEmpty))
             Tooltip(
-              message: 'اختر تخصصًا فرعيًا لكل تخصص رئيسي محدد',
+              message: Loc.chooseSubSpecializationForEachMain(),
               child: Icon(Icons.warning_amber_rounded,
                   size: 16, color: theme.colorScheme.error),
             ),
@@ -263,12 +244,10 @@ class _LawyerSpecializationsScreenState
   Widget _buildBody(ThemeData theme) {
     return BlocBuilder<SpecializationsCubit, SpecializationsState>(
       builder: (context, state) {
-        // ── Shimmer skeleton on first load ───────────────────────────────────
         if (state is SpecializationsLoading) {
           return _SpecializationsShimmer(theme: theme);
         }
 
-        // ── Error ────────────────────────────────────────────────────────────
         if (state is SpecializationsError) {
           return RefreshIndicator(
             onRefresh: _onRefresh,
@@ -292,7 +271,7 @@ class _LawyerSpecializationsScreenState
                         onPressed: () =>
                             _cubit.loadSpecializations(),
                         icon: const Icon(Icons.refresh),
-                        label: const Text('إعادة المحاولة'),
+                        label: Text(Loc.retryAgain()),
                       ),
                     ],
                   ),
@@ -304,7 +283,6 @@ class _LawyerSpecializationsScreenState
 
         final filtered = _filtered(_cubit.catalog);
 
-        // ── Empty ────────────────────────────────────────────────────────────
         if (filtered.isEmpty) {
           return RefreshIndicator(
             onRefresh: _onRefresh,
@@ -314,7 +292,7 @@ class _LawyerSpecializationsScreenState
                 SizedBox(height: 120.h),
                 Center(
                   child: Text(
-                    'لم يتم العثور على نتائج',
+                    Loc.noResultsFound(),
                     style: theme.textTheme.bodyMedium,
                   ),
                 ),
@@ -323,7 +301,6 @@ class _LawyerSpecializationsScreenState
           );
         }
 
-        // ── Data list with pull-to-refresh ───────────────────────────────────
         return RefreshIndicator(
           onRefresh: _onRefresh,
           color: theme.colorScheme.primary,
@@ -342,7 +319,7 @@ class _LawyerSpecializationsScreenState
       controller: _searchController,
       onChanged: _onSearchChanged,
       decoration: InputDecoration(
-        hintText: 'ادخل كلمة مفتاحية مثل تنفيذ أو أموال ...',
+        hintText: Loc.searchSpecializationHint(),
         prefixIcon: const Icon(Icons.search_rounded),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         contentPadding:
@@ -434,13 +411,13 @@ class _LawyerSpecializationsScreenState
             padding: const EdgeInsets.only(top: 4),
             child: isSelected && subSelectedCount > 0
                 ? Text(
-              'تم اختيار $subSelectedCount تخصص فرعي',
+              Loc.subSpecializationsSelected(subSelectedCount),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.primary,
               ),
             )
                 : Text(
-              '${category.subSpecializationsCount} تخصص فرعي',
+              Loc.subSpecializationsCount(category.subSpecializationsCount),
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.hintColor),
             ),
@@ -454,12 +431,12 @@ class _LawyerSpecializationsScreenState
                   children: [
                     const Gap(8),
                     Text(
-                      'اختر التخصص الفرعي',
+                      Loc.chooseSubSpecialization(),
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     Text(
-                      'يمكنك اختيار أكثر من تخصص إذا لزم الأمر.',
+                      Loc.canChooseMoreThanOneSpecialization(),
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: theme.hintColor),
                     ),
@@ -551,7 +528,7 @@ class _LawyerSpecializationsScreenState
               ),
             )
                 : Text(
-              'حفظ',
+              Loc.save(),
               style: theme.textTheme.labelLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: theme.colorScheme.onPrimary,
@@ -564,9 +541,6 @@ class _LawyerSpecializationsScreenState
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer skeleton — mirrors the real tile layout exactly
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SpecializationsShimmer extends StatelessWidget {
   const _SpecializationsShimmer({required this.theme});
@@ -608,7 +582,6 @@ class _ShimmerTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ── Circle icon placeholder ──────────────────────────────────────
           Container(
             width: 50.h,
             height: 50.h,
@@ -618,7 +591,6 @@ class _ShimmerTile extends StatelessWidget {
             ),
           ),
           const Gap(12),
-          // ── Title + subtitle placeholders ────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -644,7 +616,6 @@ class _ShimmerTile extends StatelessWidget {
             ),
           ),
           const Gap(12),
-          // ── Checkbox placeholder ─────────────────────────────────────────
           Container(
             width: 20,
             height: 20,

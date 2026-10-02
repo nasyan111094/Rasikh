@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -66,7 +67,7 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
           return Scaffold(
             backgroundColor: theme.scaffoldBackgroundColor,
             appBar: GeneralAppBar(
-              title: 'المعاملات المالية',
+              title: Loc.financialTransactions(),
             ),
             body: BlocBuilder<WalletCubit, WalletState>(
               builder: (context, state) {
@@ -99,7 +100,7 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
                                     EdgeInsets.symmetric(horizontal: 32.w),
                                 child: Text(
                                   state.transactionsError ??
-                                      'تعذر تحميل المعاملات',
+                                      Loc.unableToLoadTransactions(),
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.bodyMedium
                                       ?.copyWith(color: Colors.red),
@@ -108,7 +109,7 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
                               Gap(12.h),
                               TextButton(
                                 onPressed: _onRefresh,
-                                child: const Text('إعادة المحاولة'),
+                                child: Text(Loc.retryAgain()),
                               ),
                             ],
                           ),
@@ -123,11 +124,11 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
                     onRefresh: _onRefresh,
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
-                      children: const [
+                      children: [
                         SizedBox(height: 120),
                         Center(
                             child: NoDataWidget(
-                                title: 'لا توجد معاملات')),
+                                title: Loc.noTransactionsAlt())),
                       ],
                     ),
                   );
@@ -193,10 +194,8 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // الصف الأول: حالة العملية + رقم العملية
           Row(
             children: [
-              // شارة الحالة (خضراء)
               Text(
                 '${tx.referenceNumber}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -227,7 +226,6 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
                   ],
                 ),
               ),
-              // رقم العملية
 
             ],
           ),
@@ -242,9 +240,8 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
               Expanded(
                 child: Column(children:
                 [
-                  // الصف الثاني: وصف العملية
                   Text(
-                    tx.description, // "فتح نزاع على استشاره فوريه"
+                    tx.description,
                     textAlign: TextAlign.right,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -252,12 +249,11 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
                     ),
                   ),
 
-                  // الصف الثالث: المبلغ + التاريخ
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        '${tx.amount.toStringAsFixed(0)} ريال',
+                        Loc.amountRiyal(tx.amount.toStringAsFixed(0)),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: primary ,
                           fontWeight: FontWeight.w700,
@@ -345,46 +341,45 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
   String _getStatusText(String type) {
     switch (type) {
       case 'topup':
-        return 'تم الدفع';
+        return Loc.paid();
       case 'consultation_payment':
-        return 'تم الدفع';
+        return Loc.paid();
       case 'consultation_refund':
-        return 'تم الاسترداد';
+        return Loc.refunded();
       case 'withdrawal_request':
-        return 'قيد المعالجة';
+        return Loc.processing();
       case 'withdrawal_rejected':
-        return 'فشل الدفع';
+        return Loc.paymentFailed();
       case 'withdrawal_transferred':
-        return 'تم التحويل';
+        return Loc.transferred();
       case 'admin_adjustment':
-        return 'تم التعديل';
+        return Loc.adjusted();
       case 'consultation_earning':
-        return 'ربح استشارة';
+        return Loc.consultationEarning();
       case 'dispute_deposit':
-        return 'إيداع نزاع';
+        return Loc.disputeDeposit();
       case 'dispute_hold':
-        return 'تعليق نزاع';
+        return Loc.disputeHold();
       case 'dispute_release':
-        return 'إطلاق نزاع';
+        return Loc.disputeRelease();
       case 'dispute_forfeit':
-        return 'خسارة نزاع';
+        return Loc.disputeLoss();
       case 'consultation_earnings_accrual':
-        return 'تراكم أرباح';
+        return Loc.earningsAccrual();
       case 'consultation_earnings_release':
-        return 'إطلاق أرباح';
+        return Loc.earningsRelease();
       case 'consultation_earnings_reversal':
-        return 'عكس أرباح';
+        return Loc.earningsReversal();
       case 'commission_penalty':
-        return 'غرامة عمولة';
+        return Loc.commissionPenalty();
       default:
-        return 'غير معروف';
+        return Loc.unknown();
     }
   }
 }
 
 
 
-/// Shows the transaction-details dialog for [tx].
 Future<void> showTransactionDetailsDialog(
     BuildContext context,
     TransactionModel tx,
@@ -401,8 +396,6 @@ class TransactionDetailsDialog extends StatelessWidget {
 
   const TransactionDetailsDialog({super.key, required this.transaction});
 
-  // Same type -> (color, icon, label) mapping used for the badge on the
-  // list card, kept here so the dialog's status badge matches it exactly.
   MaterialColor _statusColor(String type) {
     switch (type) {
       case 'topup':
@@ -464,39 +457,39 @@ class TransactionDetailsDialog extends StatelessWidget {
   String _statusText(String type) {
     switch (type) {
       case 'topup':
-        return 'تم الدفع';
+        return Loc.paid();
       case 'consultation_payment':
-        return 'تم الدفع';
+        return Loc.paid();
       case 'consultation_refund':
-        return 'تم الاسترداد';
+        return Loc.refunded();
       case 'withdrawal_request':
-        return 'قيد المعالجة';
+        return Loc.processing();
       case 'withdrawal_rejected':
-        return 'فشل الدفع';
+        return Loc.paymentFailed();
       case 'withdrawal_transferred':
-        return 'تم التحويل';
+        return Loc.transferred();
       case 'admin_adjustment':
-        return 'تم التعديل';
+        return Loc.adjusted();
       case 'consultation_earning':
-        return 'ربح استشارة';
+        return Loc.consultationEarning();
       case 'dispute_deposit':
-        return 'إيداع نزاع';
+        return Loc.disputeDeposit();
       case 'dispute_hold':
-        return 'تعليق نزاع';
+        return Loc.disputeHold();
       case 'dispute_release':
-        return 'إطلاق نزاع';
+        return Loc.disputeRelease();
       case 'dispute_forfeit':
-        return 'خسارة نزاع';
+        return Loc.disputeLoss();
       case 'consultation_earnings_accrual':
-        return 'تراكم أرباح';
+        return Loc.earningsAccrual();
       case 'consultation_earnings_release':
-        return 'إطلاق أرباح';
+        return Loc.earningsRelease();
       case 'consultation_earnings_reversal':
-        return 'عكس أرباح';
+        return Loc.earningsReversal();
       case 'commission_penalty':
-        return 'غرامة عمولة';
+        return Loc.commissionPenalty();
       default:
-        return 'غير معروف';
+        return Loc.unknown();
     }
   }
 
@@ -511,7 +504,7 @@ class TransactionDetailsDialog extends StatelessWidget {
     final color = _statusColor(transaction.type);
 
     final notes = transaction.description.trim().isEmpty
-        ? 'لا توجد ملاحظات'
+        ? Loc.noNotes()
         : transaction.description;
 
     return Dialog(
@@ -525,12 +518,11 @@ class TransactionDetailsDialog extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'تفاصيل العملية :',
+                  Loc.transactionDetailsWithColon(),
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -543,38 +535,37 @@ class TransactionDetailsDialog extends StatelessWidget {
             ),
             Gap(8.h),
 
-            // Details table
             ClipRRect(
               borderRadius: BorderRadius.circular(10.h),
               child: Column(
                 children: [
                   _detailRow(
                     context,
-                    label: 'نوع العملية',
+                    label: Loc.transactionType(),
                     value: transaction.typeLabel,
                     index: 0,
                   ),
                   _detailRow(
                     context,
-                    label: 'الرقم المرجعي',
+                    label: Loc.referenceNumber(),
                     value: '#${transaction.referenceNumber}',
                     index: 1,
                   ),
                   _detailRow(
                     context,
-                    label: 'التاريخ/الوقت',
+                    label: Loc.dateTime(),
                     value: _formatDate(transaction.createdAt),
                     index: 2,
                   ),
                   _detailRow(
                     context,
-                    label: 'المبلغ',
-                    value: '${transaction.amount.toStringAsFixed(0)} ريال',
+                    label: Loc.amount(),
+                    value: Loc.amountRiyal(transaction.amount.toStringAsFixed(0)),
                     index: 3,
                   ),
                   _detailRow(
                     context,
-                    label: 'الحالة',
+                    label: Loc.status(),
                     index: 4,
                     valueWidget: Container(
                       padding: EdgeInsets.symmetric(
@@ -603,19 +594,19 @@ class TransactionDetailsDialog extends StatelessWidget {
                   ),
                   _detailRow(
                     context,
-                    label: 'الرصيد قبل العملية',
-                    value: '${transaction.balanceBefore.toStringAsFixed(0)} ريال',
+                    label: Loc.balanceBeforeTransaction(),
+                    value: Loc.amountRiyal(transaction.balanceBefore.toStringAsFixed(0)),
                     index: 5,
                   ),
                   _detailRow(
                     context,
-                    label: 'الرصيد بعد العملية',
-                    value: '${transaction.balanceAfter.toStringAsFixed(0)} ريال',
+                    label: Loc.balanceAfterTransaction(),
+                    value: Loc.amountRiyal(transaction.balanceAfter.toStringAsFixed(0)),
                     index: 6,
                   ),
                   _detailRow(
                     context,
-                    label: 'ملاحظات إضافية',
+                    label: Loc.additionalNotes(),
                     value: notes,
                     index: 7,
                     isLast: true,
@@ -625,7 +616,6 @@ class TransactionDetailsDialog extends StatelessWidget {
             ),
             Gap(20.h),
 
-            // Close button
             SizedBox(
               width: double.infinity,
               height: 48.h,
@@ -638,7 +628,7 @@ class TransactionDetailsDialog extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  'إغلاق',
+                  Loc.close(),
                   style: textTheme.bodyMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

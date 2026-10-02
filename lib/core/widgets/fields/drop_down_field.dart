@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/config/theme/colors.dart';
@@ -145,7 +146,7 @@ class _SearchDialogState extends State<_SearchDialog> {
   @override
   void initState() {
     super.initState();
-    _filteredItems = List.from(widget.items); // Create a copy of items
+    _filteredItems = List.from(widget.items);
     _searchController.addListener(_filterItems);
   }
 
@@ -167,7 +168,7 @@ class _SearchDialogState extends State<_SearchDialog> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity, // Ensure dialog takes full width within margin
+      width: double.infinity,
       margin: EdgeInsets.symmetric(horizontal: 24.w),
       padding: EdgeInsets.all(16.h),
       decoration: BoxDecoration(
@@ -183,12 +184,12 @@ class _SearchDialogState extends State<_SearchDialog> {
       ),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          minHeight: 100.h, // Minimum height for small content
-          maxHeight: MediaQuery.of(context).size.height * 0.6, // Max height: 60% of screen
+          minHeight: 100.h,
+          maxHeight: MediaQuery.of(context).size.height * 0.6,
         ),
         child: IntrinsicHeight(
           child: Column(
-            mainAxisSize: MainAxisSize.min, // Adjust height to content
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
@@ -201,7 +202,7 @@ class _SearchDialogState extends State<_SearchDialog> {
                 TextFormField(
                   controller: _searchController,
                   decoration: InputDecoration(
-                    labelText: "بحث...",
+                    labelText: Loc.searchHint(),
                     prefixIcon: const Icon(Icons.search),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -229,9 +230,9 @@ class _SearchDialogState extends State<_SearchDialog> {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 300),
       child: _filteredItems.isEmpty
-          ? const Center(
+          ? Center(
         key: ValueKey('empty'),
-        child: Text("لم يتم العثور على نتائج"),
+        child: Text(Loc.noResultsFound()),
       )
           : SingleChildScrollView(
         key: const ValueKey('list'),

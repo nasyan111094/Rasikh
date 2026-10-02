@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/profile/presentation/screens/lawyer_edit_profile_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -42,7 +40,6 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
   String? _selectedCity;
   File? _pickedPhoto;
 
-  // Regex for Arabic & English names
   static final RegExp _nameRegex = RegExp(
     r"[A-Za-z"
     r"\u0600-\u06FF"
@@ -64,7 +61,6 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
     _prefillFromCache();
   }
 
-  /// Pre-fill form fields from the cached profile
   void _prefillFromCache() {
     final profile = context.read<LawyerProfileCubit>().cachedProfile;
     if (profile == null) return;
@@ -141,7 +137,6 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
 
     return BlocListener<LawyerProfileCubit, LawyerProfileState>(
       listener: (context, state) {
-        // Use WidgetsBinding.instance to schedule the snackbar after the frame is built
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!context.mounted) return;
           
@@ -149,7 +144,7 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'تم تحديث البيانات بنجاح',
+                  Loc.dataUpdatedSuccessfully(),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onPrimary,
                   ),
@@ -184,7 +179,7 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          appBar: GeneralAppBar(title: 'تعديل الملف الشخصي'),
+          appBar: GeneralAppBar(title: Loc.editProfile()),
           body: SafeArea(
             child: Form(
               key: _formKey,
@@ -192,7 +187,6 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                 children: [
                   Gap(16.h),
 
-                  // ── Avatar ───────────────────────────────────────────────
                   Center(
                     child: BlocBuilder<LawyerProfileCubit, LawyerProfileState>(
                       buildWhen: (p, c) =>
@@ -223,9 +217,8 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                           children: [
                             SizedBox(height: 12.h),
 
-                            // ── Name ───────────────────────────────────────
                             _FieldLabel(
-                              'الاسم كامل',
+                              Loc.fullNameShort(),
                               labelStyle: _labelStyle(context),
                               starStyle: _labelStarStyle,
                               requiredMark: true,
@@ -234,9 +227,8 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                             NameField(controller: _nameCtrl),
                             SizedBox(height: 18.h),
 
-                            // ── Email ──────────────────────────────────────
                             _FieldLabel(
-                              'البريد الإلكتروني',
+                              Loc.email(),
                               labelStyle: _labelStyle(context),
                               starStyle: _labelStarStyle,
                             ),
@@ -244,9 +236,8 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                             EmailField(controller: _emailCtrl),
                             SizedBox(height: 18.h),
 
-                            // ── City ───────────────────────────────────────
                             _FieldLabel(
-                              'اختر المدينة',
+                              Loc.chooseCityLabel(),
                               labelStyle: _labelStyle(context),
                               starStyle: _labelStarStyle,
                               requiredMark: true,
@@ -259,9 +250,8 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                             ),
                             SizedBox(height: 18.h),
 
-                            // ── Experience ─────────────────────────────────
                             _FieldLabel(
-                              'سنوات الخبرة',
+                              Loc.yearsOfExperience(),
                               labelStyle: _labelStyle(context),
                               starStyle: _labelStarStyle,
                               requiredMark: true,
@@ -270,7 +260,7 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                             TextFormField(
                               controller: _experienceCtrl,
                               decoration: InputDecoration(
-                                hintText: '10 سنوات',
+                                hintText: Loc.tenYearsHint(),
                                 hintStyle: _hintStyle,
                                 prefixIcon: PrefixTextFiledIcon(
                                   icon: 'assets/icons/experience_years.svg',
@@ -307,14 +297,13 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                               ],
                               validator: (value) =>
                               (value == null || value.isEmpty)
-                                  ? 'من فضلك أدخل سنوات الخبرة'
+                                  ? Loc.pleaseEnterYearsOfExperience()
                                   : null,
                             ),
                             SizedBox(height: 18.h),
 
-                            // ── Bio ────────────────────────────────────────
                             _FieldLabel(
-                              'نبذة عنك',
+                              Loc.aboutYou(),
                               labelStyle: _labelStyle(context),
                               starStyle: _labelStarStyle,
                             ),
@@ -322,7 +311,7 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                             TextFormField(
                               controller: _bioCtrl,
                               decoration: InputDecoration(
-                                hintText: 'اكتب هنا ...',
+                                hintText: Loc.writeHere(),
                                 hintStyle: _hintStyle,
                                 enabledBorder: OutlineInputBorder(
                                   borderSide: BorderSide(
@@ -355,7 +344,6 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
             ),
           ),
 
-          // ── Save Button ────────────────────────────────────────────────────
           bottomNavigationBar:
           BlocBuilder<LawyerProfileCubit, LawyerProfileState>(
             buildWhen: (p, c) =>
@@ -367,7 +355,7 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
               return Padding(
                 padding:  EdgeInsets.symmetric(horizontal:16.w),
                 child: AppButton(
-                  title: isLoading ? '' : 'حفظ',
+                  title: isLoading ? '' : Loc.save(),
                   isLoading: isLoading,
                   onPressed: isLoading ? null : _submit,
                 ),
@@ -380,7 +368,6 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
   }
 }
 
-// ── Avatar with overlay for picked file ──────────────────────────────────────
 
 class _AvatarWithOverlay extends StatelessWidget {
   final String? photoUrl;
@@ -401,11 +388,9 @@ class _AvatarWithOverlay extends StatelessWidget {
     if (pickedFile != null) {
       image = FileImage(pickedFile!);
     } else if (photoUrl != null && photoUrl!.isNotEmpty) {
-      // Check if URL is complete (starts with http/https)
       if (photoUrl!.startsWith('http://') || photoUrl!.startsWith('https://')) {
         image = NetworkImage(photoUrl!);
       } else {
-        // Relative path - prepend baseImgUrl
         image = NetworkImage(AppConfig.baseImgUrl + photoUrl!);
       }
     } else {
@@ -450,7 +435,6 @@ class _AvatarWithOverlay extends StatelessWidget {
   }
 }
 
-// ── Field Label ───────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String text;
@@ -486,7 +470,6 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-// ── City Dropdown ─────────────────────────────────────────────────────────────
 
 class CityDropdownField extends StatefulWidget {
   final String? value;
@@ -508,7 +491,6 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
   bool _isFocused = false;
   late final FocusNode _focusNode;
 
-  // Mapping between English and Arabic city names
   static const Map<String, String> cityMapping = {
     'RIYADH': 'الرياض',
     'JEDDAH': 'جدة',
@@ -516,16 +498,13 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
     'MECCA': 'مكة',
   };
 
-  /// Normalize the value to match dropdown items (Arabic names)
   String? _normalizeValue(String? value) {
     if (value == null) return null;
     
-    // If it's already an Arabic city name, return it
     if (cityMapping.values.contains(value)) {
       return value;
     }
     
-    // If it's an English city name, convert to Arabic
     return cityMapping[value];
   }
 
@@ -547,7 +526,6 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     
-    // Normalize the value for dropdown matching
     final normalizedValue = _normalizeValue(widget.value);
 
     return Focus(
@@ -563,7 +541,7 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
         ),
         style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14.sp),
         decoration: InputDecoration(
-          hintText: 'اختر المدينة',
+          hintText: Loc.chooseCityLabel(),
           hintStyle: theme.textTheme.bodyMedium?.copyWith(
             color: cs.onSurfaceVariant,
             fontSize: 14.sp,
@@ -595,15 +573,15 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
           contentPadding:
           EdgeInsets.symmetric(horizontal: 12.w, vertical: 18.h),
         ),
-        items: const [
-          DropdownMenuItem(value: 'الرياض', child: Text('الرياض')),
-          DropdownMenuItem(value: 'جدة', child: Text('جدة')),
-          DropdownMenuItem(value: 'الدمام', child: Text('الدمام')),
-          DropdownMenuItem(value: 'مكة', child: Text('مكة')),
+        items: [
+          DropdownMenuItem(value: 'الرياض', child: Text(Loc.riyadh())),
+          DropdownMenuItem(value: 'جدة', child: Text(Loc.jeddah())),
+          DropdownMenuItem(value: 'الدمام', child: Text(Loc.dammam())),
+          DropdownMenuItem(value: 'مكة', child: Text(Loc.mecca())),
         ],
         onChanged: widget.onChanged,
         validator:
-        widget.validator ?? (v) => (v == null) ? 'من فضلك اختر المدينة' : null,
+        widget.validator ?? (v) => (v == null) ? Loc.pleaseSelectCity() : null,
       ),
     );
   }

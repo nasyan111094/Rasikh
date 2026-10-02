@@ -1,9 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// wallet_repo.dart
-// Repository for wallet operations (client and lawyer)
-// Uses CacheHelper.cachedVendorType to determine API endpoints
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio_adapter/dio_adapter.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
@@ -19,14 +15,12 @@ class WalletRepo {
 
   final DioAdapterBase _dio = getIt.get<ApiHandler>().dioAdapterBase;
 
-  // ── Helper to get vendor type ───────────────────────────────────────────────
   
   String? _getVendorType() {
     final vendorType = getIt<CacheHelper>().cachedVendorType;
-    return vendorType?.name; // 'client' or 'lawyer'
+    return vendorType?.name;
   }
 
-  // ── 1. GET wallet ─────────────────────────────────────────────────────────
 
   Future<Either<String, WalletModel>> getWallet() async {
     final vendorType = _getVendorType();
@@ -40,7 +34,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 2. GET bank accounts ───────────────────────────────────────────────────
 
   Future<Either<String, List<BankAccountModel>>> getBankAccounts() async {
     final vendorType = _getVendorType();
@@ -57,7 +50,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 3. POST add bank account ───────────────────────────────────────────────
 
   Future<Either<String, BankAccountModel>> addBankAccount({
     required String bankName,
@@ -82,8 +74,6 @@ class WalletRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Error helper: surfaces the specific server message (e.g. IBAN
-  // validation details) instead of a vague generic error ────────────────────
 
   String _extractError(dynamic left) {
     try {
@@ -109,17 +99,15 @@ class WalletRepo {
           final message = data['message']?.toString() ??
               data['error']?['details']?.toString();
           if (message != null && message.isNotEmpty) return message;
-          return 'حدث خطأ غير متوقع';
+          return Loc.unexpectedError();
         }
       }
       return left.toString();
     } catch (_) {
-      return 'حدث خطأ غير متوقع';
+      return Loc.unexpectedError();
     }
   }
 
-  // ── 4. POST initiate top-up ─────────────────────────────────────────────────
-  // Requires Idempotency-Key header (UUID v4)
 
   Future<Either<String, TopupResponseModel>> initiateTopup({
     required double amount,
@@ -144,7 +132,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 5. GET top-up limits ───────────────────────────────────────────────────
 
   Future<Either<String, TopupLimitsModel>> getTopupLimits() async {
     final vendorType = _getVendorType();
@@ -158,7 +145,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 6. GET transactions ────────────────────────────────────────────────────
 
   Future<Either<String, TransactionListResponse>> getTransactions({
     String? type,
@@ -189,7 +175,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 7. GET transaction by id ───────────────────────────────────────────────
 
   Future<Either<String, TransactionModel>> getTransactionById({
     required String id,
@@ -207,7 +192,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 8. GET withdrawals ─────────────────────────────────────────────────────
 
   Future<Either<String, List<WithdrawalModel>>> getWithdrawals() async {
     final vendorType = _getVendorType();
@@ -224,7 +208,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 9. POST create withdrawal request ───────────────────────────────────────
 
   Future<Either<String, WithdrawalModel>> createWithdrawal({
     required double amount,
@@ -247,7 +230,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 10. DELETE bank account ─────────────────────────────────────────────────
 
   Future<Either<String, String>> deleteBankAccount({
     required String id,
@@ -259,12 +241,11 @@ class WalletRepo {
     );
 
     if (result.isRight) {
-      return Right(result.right.data['message'] as String? ?? 'تم حذف الحساب البنكي بنجاح');
+      return Right(result.right.data['message'] as String? ?? Loc.bankAccountDeletedSuccessfully());
     }
     return Left(result.left.toString());
   }
 
-  // ── 11. PUT set default bank account ────────────────────────────────────────
 
   Future<Either<String, BankAccountModel>> setDefaultBankAccount({
     required String id,
@@ -282,7 +263,6 @@ class WalletRepo {
     return Left(result.left.toString());
   }
 
-  // ── 12. PUT update bank account ───────────────────────────────────────────────
 
   Future<Either<String, BankAccountModel>> updateBankAccount({
     required String id,

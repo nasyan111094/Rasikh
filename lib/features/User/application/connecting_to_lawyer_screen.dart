@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -39,7 +40,6 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
       duration: const Duration(seconds: 1),
     )..repeat();
 
-    // Start polling for lawyer join
     _startPolling();
   }
 
@@ -57,14 +57,12 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
       bool lawyerJoined = false;
 
       if (consultationType == ConsultationType.written) {
-        // Poll written session for chat
         final result = await _chatRepo.fetchSession(consultationId);
         if (result.isRight()) {
           final session = result.fold((l) => null, (r) => r)!;
           lawyerJoined = session.isWaiting || session.isInProgress;
         }
       } else {
-        // Poll instant session for video call
         final result = await _videoRepo.fetchSession(consultationId  , null);
         if (result.isRight()) {
           final session = result.fold((l) => null, (r) => r)!;
@@ -128,7 +126,6 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Animated Dots Indicator
                 AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
@@ -156,9 +153,8 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
 
                 Gap(30.h),
 
-                // Title
                 Text(
-                  "جاري ربطك بالمحامي",
+                  Loc.connectingYouToLawyer(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: theme.colorScheme.primary,
@@ -168,9 +164,8 @@ class _ConnectingToLawyerScreenState extends State<ConnectingToLawyerScreen>
 
                 Gap(10.h),
 
-                // Subtitle
                 Text(
-                  "يرجى الانتظار لحظات حتى نكمل عملية الربط مع المحامي المناسب.",
+                  Loc.pleaseWaitWhileConnecting(),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: theme.colorScheme.onSurface.withOpacity(0.7),
                     height: 1.6,

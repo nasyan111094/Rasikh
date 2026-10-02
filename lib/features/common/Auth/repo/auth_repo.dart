@@ -1,14 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// shared/auth/repo/auth_repo.dart
-//
-// Handles every phone-OTP endpoint that is shared between the Login and
-// Register features. The repo is vendor-agnostic at the HTTP level because
-// the backend uses the same endpoint paths for all vendor types; only the
-// route prefix differs (lawyers/ vs users/ vs companies/).
-//
-// VendorType is passed in per-call so one repo covers all three vendors.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
@@ -20,7 +11,6 @@ import '../../../../features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cu
 import '../../../../features/User/profile/cubit/profile_cubit.dart';
 import '../models/auth_model.dart';
 
-// ── Endpoint builder ──────────────────────────────────────────────────────────
 
 class _AuthEndpoints {
   static String register(VendorType v)   => '${_prefix(v)}/register';
@@ -42,7 +32,6 @@ class GeneralAuthRepo {
   final DioAdapterBase _adapter = getIt<ApiHandler>().dioAdapterBase;
   CacheHelper get _cache => getIt<CacheHelper>();
 
-  // ── Register – send OTP ───────────────────────────────────────────────────
 
   Future<Either<String, SharedOtpSentModel>> register({
     required String phone,
@@ -58,7 +47,6 @@ class GeneralAuthRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Login – send OTP ──────────────────────────────────────────────────────
 
   Future<Either<String, SharedOtpSentModel>> login({
     required String phone,
@@ -78,7 +66,6 @@ class GeneralAuthRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Verify OTP ────────────────────────────────────────────────────────────
 
   Future<Either<String, SharedVerifyOtpModel>> verifyOtp({
     required String phone,
@@ -95,37 +82,29 @@ class GeneralAuthRepo {
     if (result.isRight) {
       final model = SharedVerifyOtpModel.fromJson(result.right.data);
 
-      // Clear cached profile data before saving new token
       _cache.currentUser = null;
       
-      // Clear lawyer profile cache if exists
       if (getIt.isRegistered<LawyerProfileCubit>()) {
         try {
           getIt<LawyerProfileCubit>().cachedProfile = null;
         } catch (e) {
-          // Ignore if cubit not yet initialized
         }
       }
       
-      // Clear user profile cache if exists
       if (getIt.isRegistered<ProfileCubit>()) {
         try {
           getIt<ProfileCubit>().emit(const ProfileState());
         } catch (e) {
-          // Ignore if cubit not yet initialized
         }
       }
       
-      // Persist token so completion features can read it without re-auth.
       _cache.registerToken = model.accessToken;
       await _cache.setUserToken(model.accessToken);
       
-      // Save refresh token
       if (model.refreshToken.isNotEmpty) {
         await _cache.setRefreshToken(model.refreshToken);
       }
       
-      // Save vendor type for token refresh
       await _cache.setCurrentVendorType(vendor);
       
       return Right(model);
@@ -133,7 +112,6 @@ class GeneralAuthRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Resend OTP (re-fires register or login depending on flow) ─────────────
 
   Future<Either<String, SharedOtpSentModel>> resendOtp({
     required String phone,
@@ -157,7 +135,6 @@ class GeneralAuthRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── Error helper ──────────────────────────────────────────────────────────
 
   String _extractError(dynamic left) {
     try {
@@ -166,16 +143,15 @@ class GeneralAuthRepo {
         if (data is Map) {
           return data['message']?.toString() ??
               data['error']?['details']?.toString() ??
-              'حدث خطأ غير متوقع';
+              Loc.unexpectedError();
         }
       }
       return left.toString();
     } catch (_) {
-      return 'حدث خطأ غير متوقع';
+      return Loc.unexpectedError();
     }
   }
 
-  // ── Refresh Token ───────────────────────────────────────────────────────────
 
   Future<Either<String, SharedRefreshTokenModel>> refreshToken({
     required String refreshToken,

@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -36,22 +37,22 @@ class _LayoutPageState extends State<LayoutPage> {
     return [
       NavItem(
         svgIcon: "assets/icons/home.svg",
-        label: 'الرئيسيه',
+        label: Loc.navHome(),
         color: theme.colorScheme.primary,
       ),
       NavItem(
         svgIcon: "assets/icons/consultation.svg",
-        label: "إستشاراتي",
+        label: Loc.myConsultations(),
         color: theme.colorScheme.primary,
       ),
       NavItem(
         svgIcon: "assets/icons/Calendar.svg",
-        label: "مواعيدي",
+        label: Loc.myAppointments(),
         color: theme.colorScheme.primary,
       ),
       NavItem(
         svgIcon: "assets/icons/settings.svg",
-        label: "حسابي",
+        label: Loc.myAccount(),
         color: theme.colorScheme.primary,
       ),
     ];
@@ -76,7 +77,7 @@ class _LayoutPageState extends State<LayoutPage> {
                     ? (getIt<CacheHelper>().cachedVendorType  == VendorType.user ?  MyAppointmentsScreen() :LawyerAppointmentsScreen())
                     : getIt<CacheHelper>().cachedVendorType == VendorType.user ? ProfileScreen()  : LawyerSettingsScreen (),
         bottomNavigationBar: Container(
-          height: 100.h, // 👈 ارتفاع ثابت للبار
+          height: 100.h,
 
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal:0.w, vertical: 0.h),
@@ -147,7 +148,7 @@ class NavBarItem extends StatelessWidget {
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, // يوسّط الأيقونة والليبل
+        mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
           AnimatedContainer(

@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/profile/presentation/screens/lawyer_update_licence_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -39,18 +37,14 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
   final _commercialController = TextEditingController();
   DateTime? _expiryDate;
 
-  // ── Locally picked files (override the API url when set) ─────────────────
   File? _licenseImageFile;
   File? _nationalIdDocFile;
   File? _commercialRegDocFile;
 
-  // ── Existing network URLs from API ────────────────────────────────────────
-  // These are shown until the user picks a new file OR explicitly removes them.
   String? _existingLicenseUrl;
   String? _existingNationalIdUrl;
   String? _existingCommercialUrl;
 
-  // ── Track which existing URLs the user explicitly cleared ─────────────────
   bool _licenseUrlCleared = false;
   bool _nationalIdUrlCleared = false;
   bool _commercialUrlCleared = false;
@@ -71,17 +65,14 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
     _licenseController.text = profile.license?.number ?? '';
     _commercialController.text = profile.commercialRegistrationNumber ?? '';
 
-    // Load existing document URLs from API
     _existingLicenseUrl = profile.license?.imageUrl;
     _existingNationalIdUrl = profile.nationalIdDocumentUrl;
     _existingCommercialUrl = profile.commercialRegistrationDocumentUrl;
 
-    // Load expiry date if available
     if (profile.license?.expiryDate != null) {
       try {
         _expiryDate = DateTime.parse(profile.license!.expiryDate!);
       } catch (e) {
-        // If parsing fails, leave as null
       }
     }
   }
@@ -94,7 +85,6 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
     super.dispose();
   }
 
-  // ── Pick image ────────────────────────────────────────────────────────────
 
   Future<void> _pickImage({required _DocType type}) async {
     final picker = ImagePicker();
@@ -108,7 +98,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
       switch (type) {
         case _DocType.license:
           _licenseImageFile = file;
-          _licenseUrlCleared = false; // new file replaces cleared state
+          _licenseUrlCleared = false;
         case _DocType.nationalId:
           _nationalIdDocFile = file;
           _nationalIdUrlCleared = false;
@@ -119,7 +109,6 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
     });
   }
 
-  // ── Remove (clears both local file AND hides network image) ───────────────
 
   void _removeFile(_DocType type) {
     setState(() {
@@ -137,9 +126,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
     });
   }
 
-  // ── Resolve what each card should display ─────────────────────────────────
 
-  /// Returns the local [File] if the user just picked one, otherwise null.
   File? _fileFor(_DocType type) {
     switch (type) {
       case _DocType.license:
@@ -151,7 +138,6 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
     }
   }
 
-  /// Returns the API network URL if it exists AND has not been cleared/replaced.
   String? _networkUrlFor(_DocType type) {
     switch (type) {
       case _DocType.license:
@@ -169,12 +155,10 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
     }
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
 
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    // Format expiry date to ISO string if selected
     String? expiryDateString;
     if (_expiryDate != null) {
       expiryDateString = _expiryDate!.toIso8601String();
@@ -195,7 +179,6 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
         );
   }
 
-  // ── Styles ────────────────────────────────────────────────────────────────
 
   TextStyle _labelStyle(BuildContext context) =>
       Theme.of(context).textTheme.titleMedium!.copyWith(
@@ -225,19 +208,17 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
         if (state is UpdateLicenceSuccess) {
           if (!context.mounted) return;
 
-          /// Clear cached data
           context.read<LawyerProfileCubit>().cachedProfile = null;
 
           getIt<CacheHelper>().currentToken = "";
           getIt<CacheHelper>().setUserToken("");
 
-          /// Show success toast/snackbar
           ScaffoldMessenger.of(context)
             ..hideCurrentSnackBar()
             ..showSnackBar(
               SnackBar(
                 content: Text(
-                  "أصبح حسابك الأن قيد المراجعه",
+                  Loc.accountNowUnderReview(),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: cs.onPrimary,
                   ),
@@ -251,7 +232,6 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
               ),
             );
 
-          /// Wait 1 second then navigate
           Future.delayed(const Duration(seconds: 1));
 
           if (!context.mounted) return;
@@ -289,7 +269,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          appBar: const GeneralAppBar(title: 'تعديل رخصة مزاولة المهنه'),
+          appBar: GeneralAppBar(title: Loc.editPracticeLicense()),
           body: SafeArea(
             child: Form(
               key: _formKey,
@@ -313,7 +293,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                             Gap(5.w) ,
                             Expanded(
                               child: Text(
-                                "تعديل الرخصة يعيدها للمراجعة، وعند انتهائها يُخفى المحامي حتى التحديث.",
+                                Loc.editLicenseReviewNotice(),
                                 textAlign: TextAlign.center,
                                 style: getMediumBlack16Style().copyWith(color: Colors.orange),
                               ),
@@ -329,9 +309,8 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // ── National ID ─────────────────────────────────────────
                           _FieldLabel(
-                            'رقم الهوية',
+                            Loc.idNumber(),
                             requiredMark: true,
                             labelStyle: _labelStyle(context),
                             starStyle: _labelStarStyle,
@@ -339,18 +318,17 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                           Gap(8.h),
                           _buildTextField(
                             controller: _idController,
-                            hint: 'أدخل رقم الهوية',
+                            hint: Loc.enterIdNumber(),
                             icon: 'assets/icons/user_id.svg',
                             validator: (v) => (v == null || v.isEmpty)
-                                ? 'من فضلك أدخل رقم الهوية'
+                                ? Loc.emptyIdNumber()
                                 : null,
                             inputType: TextInputType.number,
                           ),
                           Gap(20.h),
 
-                          // ── License number ──────────────────────────────────────
                           _FieldLabel(
-                            'رقم الترخيص',
+                            Loc.licenseNumber(),
                             requiredMark: true,
                             labelStyle: _labelStyle(context),
                             starStyle: _labelStarStyle,
@@ -358,18 +336,17 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                           Gap(8.h),
                           _buildTextField(
                             controller: _licenseController,
-                            hint: 'أدخل رقم الترخيص',
+                            hint: Loc.enterLicenseNumber(),
                             icon: 'assets/icons/user_id.svg',
                             validator: (v) => (v == null || v.isEmpty)
-                                ? 'من فضلك أدخل رقم الترخيص'
+                                ? Loc.pleaseEnterLicenseNumber()
                                 : null,
                             inputType: TextInputType.number,
                           ),
                           Gap(20.h),
 
-                          // ── License expiry date ────────────────────────────────
                           _FieldLabel(
-                            'تاريخ انتهاء الرخصة',
+                            Loc.licenseExpiryDate(),
                             requiredMark: true,
                             labelStyle: _labelStyle(context),
                             starStyle: _labelStarStyle,
@@ -378,9 +355,8 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                           _buildDatePickerField(),
                           Gap(20.h),
 
-                          // ── Commercial reg number ───────────────────────────────
                           _FieldLabel(
-                            'رقم السجل التجاري',
+                            Loc.commercialRegisterNumber(),
                             requiredMark: true,
                             labelStyle: _labelStyle(context),
                             starStyle: _labelStarStyle,
@@ -388,18 +364,17 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                           Gap(8.h),
                           _buildTextField(
                             controller: _commercialController,
-                            hint: 'أدخل رقم السجل التجاري',
+                            hint: Loc.enterCommercialRegisterNumber(),
                             icon: 'assets/icons/City.svg',
                             validator: (v) => (v == null || v.isEmpty)
-                                ? 'من فضلك أدخل رقم السجل التجاري'
+                                ? Loc.pleaseEnterCommercialRegisterNumber()
                                 : null,
                             inputType: TextInputType.number,
                           ),
                           Gap(28.h),
 
-                          // ── Upload section label ────────────────────────────────
                           _FieldLabel(
-                            'يرجى إرفاق الصور المطلوبة',
+                            Loc.pleaseAttachRequiredImages(),
                             requiredMark: true,
                             labelStyle: _labelStyle(context),
                             starStyle: _labelStarStyle,
@@ -410,18 +385,17 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('• صورة الهوية',
+                                Text(Loc.bulletIdImage(),
                                     style: theme.textTheme.bodyMedium),
-                                Text('• صورة الترخيص',
+                                Text(Loc.bulletLicenseImage(),
                                     style: theme.textTheme.bodyMedium),
-                                Text('• صورة السجل التجاري',
+                                Text(Loc.bulletCommercialRegisterImage(),
                                     style: theme.textTheme.bodyMedium),
                               ],
                             ),
                           ),
                           Gap(16.h),
 
-                          // ── Upload cards ────────────────────────────────────────
                           AppDottedBorder(
                             child: Padding(
                               padding:  EdgeInsets.all(10.0.w),
@@ -429,7 +403,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                                 children: [
                                   Expanded(
                                     child: _UploadCard(
-                                      label: 'الهوية',
+                                      label: Loc.idShort(),
                                       localFile: _fileFor(_DocType.nationalId),
                                       networkUrl:
                                           _networkUrlFor(_DocType.nationalId),
@@ -442,7 +416,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                                   Gap(20.w),
                                   Expanded(
                                     child: _UploadCard(
-                                      label: 'الترخيص',
+                                      label: Loc.licenseShort(),
                                       localFile: _fileFor(_DocType.license),
                                       networkUrl: _networkUrlFor(_DocType.license),
                                       onPick: () =>
@@ -453,7 +427,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
                                   Gap(20.w),
                                   Expanded(
                                     child: _UploadCard(
-                                      label: 'السجل',
+                                      label: Loc.registerShort(),
                                       localFile: _fileFor(_DocType.commercial),
                                       networkUrl:
                                           _networkUrlFor(_DocType.commercial),
@@ -477,7 +451,6 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
             ),
           ),
 
-          // ── Save Button ───────────────────────────────────────────────────
           bottomNavigationBar:
               BlocBuilder<LawyerProfileCubit, LawyerProfileState>(
             buildWhen: (p, c) =>
@@ -489,7 +462,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
               return Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 6.h),
                 child: AppButton(
-                  title: isLoading ? '' : 'حفظ',
+                  title: isLoading ? '' : Loc.save(),
                   isLoading: isLoading,
                   onPressed: isLoading ? null : _submit,
                 ),
@@ -544,7 +517,6 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
     );
   }
 
-  /// Expiry-date field — opens a calendar date picker (not a time picker).
   Future<void> _pickExpiryDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
@@ -601,7 +573,7 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
             Gap(10.w),
             Expanded(
               child: Text(
-                displayDate.isEmpty ? 'يوم / شهر / سنة' : displayDate,
+                displayDate.isEmpty ? Loc.dayMonthYearPlaceholder() : displayDate,
                 style: displayDate.isEmpty
                     ? _hintStyle
                     : TextStyle(
@@ -624,23 +596,12 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _UploadCard
-//
-// Priority:  localFile  >  networkUrl  >  empty placeholder
-//
-// Tapping the placeholder OR the "replace" icon → triggers onPick.
-// The ✕ button removes whatever is shown and calls onRemove.
-// A small "replace" badge appears on existing images so the intent is clear.
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _UploadCard extends StatelessWidget {
   final String label;
 
-  /// File the user just picked from gallery — takes priority over [networkUrl].
   final File? localFile;
 
-  /// Existing image URL from the API — shown when [localFile] is null.
   final String? networkUrl;
 
   final VoidCallback onPick;
@@ -666,10 +627,7 @@ class _UploadCard extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // ── Card body ─────────────────────────────────────────────────────
           GestureDetector(
-            // Tapping an existing image does nothing; use the replace badge.
-            // Tapping an empty card opens the picker.
             onTap: _hasImage ? null : onPick,
             child: Container(
               height: 110.h,
@@ -687,7 +645,6 @@ class _UploadCard extends StatelessWidget {
             ),
           ),
 
-// ── Smart Single Action Button (Add / Update) ──────────────────────────────
 
           Positioned(
             top: -6.h,
@@ -730,7 +687,6 @@ class _UploadCard extends StatelessWidget {
   }
 }
 
-// ── Image content (local file OR network) ─────────────────────────────────────
 
 class _ImageContent extends StatelessWidget {
   final File? localFile;
@@ -754,19 +710,16 @@ class _ImageContent extends StatelessWidget {
       );
     }
 
-    // Validate and construct complete URL if needed
     String? validUrl;
     if (networkUrl != null && networkUrl!.isNotEmpty) {
       if (networkUrl!.startsWith('http://') ||
           networkUrl!.startsWith('https://')) {
         validUrl = networkUrl;
       } else {
-        // Relative path - prepend baseImgUrl
         validUrl = AppConfig.baseImgUrl + networkUrl!;
       }
     }
 
-    // If no valid URL, show error
     if (validUrl == null || validUrl.isEmpty) {
       final cs = Theme.of(context).colorScheme;
       return Container(
@@ -778,7 +731,7 @@ class _ImageContent extends StatelessWidget {
                 size: 28.sp, color: cs.error.withOpacity(0.6)),
             Gap(4.h),
             Text(
-              'لا توجد صورة',
+              Loc.noImage(),
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: cs.error.withOpacity(0.7),
                   ),
@@ -789,7 +742,6 @@ class _ImageContent extends StatelessWidget {
       );
     }
 
-    // Network image with loading + error states
     return ClipRRect(
       borderRadius: borderRadius,
       child: Image.network(
@@ -797,7 +749,6 @@ class _ImageContent extends StatelessWidget {
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        // ── Loading placeholder ──────────────────────────────────────────
         loadingBuilder: (context, child, loadingProgress) {
           if (loadingProgress == null) return child;
           final cs = Theme.of(context).colorScheme;
@@ -819,7 +770,6 @@ class _ImageContent extends StatelessWidget {
             ),
           );
         },
-        // ── Error fallback ───────────────────────────────────────────────
         errorBuilder: (context, error, stackTrace) {
           final cs = Theme.of(context).colorScheme;
           return Container(
@@ -831,7 +781,7 @@ class _ImageContent extends StatelessWidget {
                     size: 28.sp, color: cs.error.withOpacity(0.6)),
                 Gap(4.h),
                 Text(
-                  'تعذّر التحميل',
+                  Loc.loadFailed(),
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: cs.error.withOpacity(0.7),
                       ),
@@ -846,7 +796,6 @@ class _ImageContent extends StatelessWidget {
   }
 }
 
-// ── Empty placeholder ─────────────────────────────────────────────────────────
 
 class _EmptyContent extends StatelessWidget {
   final String label;
@@ -884,11 +833,9 @@ class _EmptyContent extends StatelessWidget {
   }
 }
 
-// ── Doc type enum ─────────────────────────────────────────────────────────────
 
 enum _DocType { license, nationalId, commercial }
 
-// ── Field Label ───────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String text;

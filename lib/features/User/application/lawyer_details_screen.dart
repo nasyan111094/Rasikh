@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// lawyer_details_screen.dart
-// UI is 100% identical to the original.
-// Changes: accepts lawyerId param → fetches real data via ConsultationCubit.
-//          "احجز الآن" selects the lawyer and navigates to the next step.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -22,9 +17,6 @@ import 'models/consultation_model.dart';
 
 
 class LawyerDetailsScreen extends StatefulWidget {
-  /// The id of the lawyer to display.
-  /// Pass it when pushing this route:
-  ///   Nav.lawyerDetailsScreen(context, lawyerId: lawyer.id);
   final String lawyerId;
 
   const LawyerDetailsScreen({Key? key, required this.lawyerId})
@@ -42,7 +34,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    // Fetch real data
     context.read<ConsultationApplicationCubit>().loadLawyerDetail(widget.lawyerId);
   }
 
@@ -52,28 +43,20 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     super.dispose();
   }
 
-  // ── Book button handler ───────────────────────────────────────────────────
 
   void _onBook(BuildContext context, ConsultationState state) {
     final detail = state.selectedLawyerDetail;
     if (detail == null) return;
 
-    // Store as selected lawyer (LawyerModel base fields are identical)
     context.read<ConsultationApplicationCubit>().selectLawyer(detail);
 
     if (state.selectedConsultationType == ConsultationType.scheduled) {
-      // Scheduled: skip createConsultation, go straight to booking screen.
       Nav.appointmentBookingScreen(context);
     } else {
-      // Instant / Written: create the consultation now.
-      // The BlocListener will navigate to paymentScreen on success.
       context.read<ConsultationApplicationCubit>().createConsultation();
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // BUILD
-  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -81,13 +64,11 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: GeneralAppBar(title: "تفاصيل المحامي"),
+      appBar: GeneralAppBar(title: Loc.lawyerDetails()),
       body: BlocListener<ConsultationApplicationCubit, ConsultationState>(
-        // Only react when createStatus actually changes
         listenWhen: (prev, curr) =>
         prev.createStatus != curr.createStatus,
         listener: (context, state) {
-          // ── Loading: show a non-dismissible progress dialog ──────────
           if (state.createStatus == ConsultationStatus.loading) {
             showDialog(
               context: context,
@@ -100,12 +81,10 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             return;
           }
 
-          // Dismiss the loading dialog for both success and failure
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
 
-          // ── Success: show snackbar then navigate to payment screen ──────
           if (state.createStatus == ConsultationStatus.success) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -147,7 +126,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'تم إنشاء الاستشارة بنجاح',
+                              Loc.consultationCreatedSuccessfully(),
                               textDirection: TextDirection.rtl,
                               style: TextStyle(
                                 color: Colors.white,
@@ -157,7 +136,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                             ),
                             Gap(2.h),
                             Text(
-                              'سيتم تحويلك إلى صفحة الدفع',
+                              Loc.redirectingToPaymentPage(),
                               textDirection: TextDirection.rtl,
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.85),
@@ -173,13 +152,11 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
               ),
             );
 
-            // Navigate after snackbar has time to show
             Future.delayed(const Duration(milliseconds: 500), () {
               if (context.mounted) Nav.paymentScreen(context);
             });
           }
 
-          // ── Failure: show error snackbar ────────────────────────────────
           if (state.createStatus == ConsultationStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -221,7 +198,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'فشل إنشاء الاستشارة',
+                              Loc.createConsultationFailed(),
                               textDirection: TextDirection.rtl,
                               style: TextStyle(
                                 color: Colors.white,
@@ -231,7 +208,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                             ),
                             Gap(2.h),
                             Text(
-                              state.createError ?? 'حدث خطأ ما',
+                              state.createError ?? Loc.somethingWentWrong(),
                               textDirection: TextDirection.rtl,
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.85),
@@ -252,46 +229,41 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
         },
         child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
-          // ── Loading ──────────────────────────────────────────────────────
           if (state.lawyerDetailStatus == ConsultationStatus.loading) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // ── Error ────────────────────────────────────────────────────────
           if (state.lawyerDetailStatus == ConsultationStatus.failure) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(state.lawyerDetailError ?? 'حدث خطأ ما'),
+                  Text(state.lawyerDetailError ?? Loc.somethingWentWrong()),
                   const Gap(12),
                   ElevatedButton(
                     onPressed: () => context
                         .read<ConsultationApplicationCubit>()
                         .loadLawyerDetail(widget.lawyerId),
-                    child: const Text('إعادة المحاولة'),
+                    child: Text(Loc.retryAgain()),
                   ),
                 ],
               ),
             );
           }
 
-          // ── Success — render exactly the original UI with real data ──────
           final lawyer = state.selectedLawyerDetail;
           if (lawyer == null) return const SizedBox.shrink();
 
-          // Build review list from API ratings
           final reviews = lawyer.ratings
               .map((r) => {
             'id': r.createdAt,
             'rating': r.stars.toDouble(),
-            'author': r.client?.fullName ?? 'مستخدم',
+            'author': r.client?.fullName ?? Loc.userLabel(),
             'text': r.comment ?? '',
             'avatar': r.client?.avatar ?? '',
           })
               .toList();
 
-          // Specialization chip labels from both main + sub
           final specializationLabels = [
             ...lawyer.mainSpecializations
                 .where((s) => s.name != null)
@@ -332,9 +304,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     ) );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Profile card — UI unchanged, data from LawyerDetailModel
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildProfileCard(
       ThemeData theme,
@@ -355,7 +324,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             width: double.infinity,
             child: Row(
               children: [
-                // ── Avatar ─────────────────────────────────────────────────
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
@@ -387,7 +355,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                       ),
                     ),
 
-                    // Online dot
                     if (isOnline)
                       Positioned(
                         top: 2,
@@ -406,7 +373,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                         ),
                       ),
 
-                    // Rating badge
                     Positioned(
                       bottom: -10.h,
                       left: 3.w,
@@ -443,7 +409,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
 
                 Gap(12.w),
 
-                // ── Name + city ────────────────────────────────────────────
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -482,7 +447,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
               Expanded(
                 child: _buildInfoItem(
                   theme,
-                  'سنوات الخبرة',
+                  Loc.yearsOfExperience(),
                   lawyer.experienceYears != null
                       ? '${lawyer.experienceYears}'
                       : '—',
@@ -496,9 +461,9 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
               Expanded(
                 child: _buildInfoItem(
                   theme,
-                  'يبدأ بـ',
+                  Loc.startsFrom(),
                   lawyer.consultationFee != null
-                      ? '${lawyer.consultationFee!.toStringAsFixed(0)} ريال'
+                      ? Loc.amountRiyal(lawyer.consultationFee!.toStringAsFixed(0))
                       : '—',
                 ),
               ),
@@ -510,9 +475,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Tabs — UI unchanged
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildTabsAndContent(
       ThemeData theme,
@@ -552,11 +514,11 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                   .textTheme
                   .labelSmall!
                   .copyWith(color: Colors.grey),
-              tabs: const [
-                Tab(text: 'الملف الشخصي'),
-                Tab(text: 'الخبرات والمؤهلات'),
+              tabs: [
+                Tab(text: Loc.profile()),
+                Tab(text: Loc.experienceAndQualifications()),
 
-                Tab(text: 'التقييمات'),
+                Tab(text: Loc.ratings()),
               ],
             ),
           ),
@@ -579,9 +541,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Tab content — UI unchanged, data injected
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildReviewsContent(
       ThemeData theme,
@@ -598,7 +557,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
           _buildRatingSummary(theme, colorScheme, avgRating, totalCount),
           Gap(20.h),
           Text(
-            'التقييمات ($totalCount)',
+            Loc.ratingsWithCount(totalCount),
             style: theme.textTheme.titleMedium?.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -609,7 +568,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 24.h),
-                child: Text('لا توجد تقييمات بعد',
+                child: Text(Loc.noRatingsYet(),
                     style: theme.textTheme.bodyMedium
                         ?.copyWith(color: theme.hintColor)),
               ),
@@ -664,7 +623,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             ),
             Gap(6.h),
             Text(
-              'بناءً على $totalCount تقييماً',
+              Loc.basedOnManyRatings(totalCount),
               style: theme.textTheme.bodySmall?.copyWith(
                 fontSize: 12,
                 color: theme.hintColor,
@@ -809,7 +768,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'الخبرات السابقة',
+            Loc.previousExperience(),
             style: theme.textTheme.titleMedium?.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -826,7 +785,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             child: Text(
               qualifications?.isNotEmpty == true
                   ? qualifications!
-                  : 'لا توجد معلومات عن الخبرات.',
+                  : Loc.noExperienceInfo(),
               textAlign: TextAlign.right,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontSize: 12,
@@ -855,7 +814,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'نبذة عن المحامي',
+            Loc.aboutTheLawyer(),
             style: theme.textTheme.titleMedium?.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -864,7 +823,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
           ),
           Gap(16.h),
           Text(
-            bio?.isNotEmpty == true ? bio! : 'لا توجد نبذة.',
+            bio?.isNotEmpty == true ? bio! : Loc.noBio(),
             textAlign: TextAlign.right,
             style: theme.textTheme.bodyMedium?.copyWith(
               fontSize: 12,
@@ -875,7 +834,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
           ),
           Gap(28.h),
           Text(
-            'التخصصات',
+            Loc.specializations(),
             style: theme.textTheme.titleMedium?.copyWith(
               fontSize: 15,
               fontWeight: FontWeight.w600,
@@ -884,7 +843,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
           ),
           Gap(16.h),
           if (specializationLabels.isEmpty)
-            Text('لا توجد تخصصات مسجلة.',
+            Text(Loc.noRegisteredSpecializations(),
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.hintColor))
           else
@@ -898,7 +857,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             ),
           Gap(28.h),
           Text(
-            'رخصة مزاولة المهنة',
+            Loc.practiceLicense(),
             style: theme.textTheme.titleMedium?.copyWith(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -954,7 +913,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                       borderRadius: BorderRadius.circular(8.h),
                     ),
                     child: Text(
-                      'لا توجد صورة رخصة',
+                      Loc.noLicenseImage(),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: theme.hintColor,
                       ),
@@ -969,9 +928,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Spec chip — UI unchanged
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildSpecChip(
       ThemeData theme, ColorScheme colorScheme, String label) {
@@ -998,9 +954,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Info item — UI unchanged
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildInfoItem(ThemeData theme, String label, String value) {
     return Column(
@@ -1026,9 +979,6 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Book button — UI unchanged, now navigates via cubit
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildBookButton(
       ThemeData theme,
@@ -1066,8 +1016,8 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                 borderRadius: BorderRadius.circular(14.h),
               ),
             ),
-            child: const Text(
-              'احجز الآن',
+            child: Text(
+              Loc.bookNowAction(),
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -1081,4 +1031,3 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
   }
 }
 
-// LicenseModel lives in consultation_models.dart — no duplicate needed here.

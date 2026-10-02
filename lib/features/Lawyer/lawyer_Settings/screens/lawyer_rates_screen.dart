@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/lawyer_Settings/presentation/screens/lawyer_rates_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -22,9 +20,6 @@ import '../bloc/Ratings_cubit/lawyer_ratings_cubit.dart';
 import '../models/lawyer_ratings_model.dart';
 import 'rating_detail_screen.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Entry-point
-// ─────────────────────────────────────────────────────────────────────────────
 
 class LawyerRatesScreen extends StatelessWidget {
   const LawyerRatesScreen({Key? key}) : super(key: key);
@@ -38,9 +33,6 @@ class LawyerRatesScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal stateful view
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _LawyerRatesView extends StatefulWidget {
   const _LawyerRatesView({Key? key}) : super(key: key);
@@ -68,7 +60,6 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
     super.dispose();
   }
 
-  // ── Infinite scroll ───────────────────────────────────────────────────────
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
@@ -81,12 +72,10 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
     }
   }
 
-  // ── Pull-to-refresh ───────────────────────────────────────────────────────
 
   Future<void> _onRefresh() =>
       context.read<LawyerRatingsCubit>().fetchRatings();
 
-  // ── BlocListener side-effects ─────────────────────────────────────────────
 
   void _handleStateChange(BuildContext context, LawyerRatingsState state) {
     if (state is LawyerRatingReportSuccess) {
@@ -100,7 +89,6 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -110,16 +98,14 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
     return BlocListener<LawyerRatingsCubit, LawyerRatingsState>(
       listener: _handleStateChange,
       child: Scaffold(
-        appBar: const GeneralAppBar(title: "تقييماتي"),
+        appBar: GeneralAppBar(title: Loc.myRatings()),
         body: BlocBuilder<LawyerRatingsCubit, LawyerRatingsState>(
           builder: (context, state) {
-            // ── Shimmer skeleton on first load ───────────────────────────
             if (state is LawyerRatingsLoading) {
               return _RatingsShimmer(
                   theme: theme, colorScheme: colorScheme);
             }
 
-            // ── Error ────────────────────────────────────────────────────
             if (state is LawyerRatingsError) {
               return RefreshIndicator(
                 onRefresh: _onRefresh,
@@ -145,7 +131,7 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
                             onPressed: () => context
                                 .read<LawyerRatingsCubit>()
                                 .fetchRatings(),
-                            child: const Text('إعادة المحاولة'),
+                            child: Text(Loc.retryAgain()),
                           ),
                         ],
                       ),
@@ -155,7 +141,6 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
               );
             }
 
-            // ── Resolve model from any "has data" state ──────────────────
             final LawyerRatingsModel? ratingsModel;
             final Set<String> reportedIds;
             final bool isPaginationLoading;
@@ -204,7 +189,6 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
                   theme: theme, colorScheme: colorScheme);
             }
 
-            // ── Main content ─────────────────────────────────────────────
             return Column(
               children: [
                 Expanded(
@@ -223,7 +207,7 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
                         Gap(30.h),
 
                         Text(
-                          'التقييمات الأخيره',
+                          Loc.latestRatings(),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -260,7 +244,6 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
     );
   }
 
-  // ── Reviews list with pull-to-refresh ─────────────────────────────────────
 
   Widget _buildReviewsContent(
       ThemeData theme,
@@ -280,7 +263,7 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            if(ratings.isEmpty) NoDataWidget(title: " لا توجد تقييمات بعد", message: "سيظهر تقييم العملاء هنا بمجرد تلقيك لتقييمات"),
+            if(ratings.isEmpty) NoDataWidget(title: Loc.noRatingsYetLeading(), message: Loc.clientRatingsWillAppearHere()),
             ...ratings.asMap().entries.map((entry) {
               final i = entry.key;
               final rating = entry.value;
@@ -316,10 +299,7 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
     );
   }
 
-  // ── Rating summary ────────────────────────────────────────────────────────
-  // Extracted into `_RatingSummary` at the bottom of this file.
 
-  // ── Single review card ────────────────────────────────────────────────────
 
   Widget _buildReviewItem(
       ThemeData theme,
@@ -362,7 +342,6 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        // Author
                         Row(
                           children: [
                             CircleAvatar(
@@ -430,7 +409,6 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
                           ],
                         ),
 
-                        // Stars + report
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -498,9 +476,6 @@ class _LawyerRatesViewState extends State<_LawyerRatesView>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer skeleton — mirrors summary header + review card layout exactly
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _RatingsShimmer extends StatelessWidget {
   const _RatingsShimmer({required this.theme, required this.colorScheme});
@@ -528,24 +503,19 @@ class _RatingsShimmer extends StatelessWidget {
           children: [
             Gap(40.h),
 
-            // ── Summary header skeleton ────────────────────────────────────
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Column(
                   children: [
-                    // Big number
                     _shimmerBox(width: 72, height: 56, radius: 10),
                     Gap(8.h),
-                    // Stars row
                     _shimmerBox(width: 110, height: 14, radius: 6),
                     Gap(6.h),
-                    // "Based on N" label
                     _shimmerBox(width: 90, height: 11, radius: 6),
                   ],
                 ),
                 Gap(24.w),
-                // Bar chart
                 Expanded(
                   child: Column(
                     children: List.generate(
@@ -563,11 +533,9 @@ class _RatingsShimmer extends StatelessWidget {
 
             Gap(30.h),
 
-            // Section label
             _shimmerBox(width: 130, height: 14, radius: 6),
             Gap(14.h),
 
-            // Review card skeletons
             ...List.generate(5, (_) => const _ShimmerReviewCard()),
           ],
         ),
@@ -611,7 +579,6 @@ class _ShimmerReviewCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Avatar + name/date
                     Row(
                       children: [
                         CircleAvatar(
@@ -641,7 +608,6 @@ class _ShimmerReviewCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    // Stars + warning icon
                     Row(
                       children: [
                         Container(
@@ -666,7 +632,6 @@ class _ShimmerReviewCard extends StatelessWidget {
                   ],
                 ),
                 Gap(10.h),
-                // Comment line 1
                 Container(
                   width: double.infinity,
                   height: 12.h,
@@ -676,7 +641,6 @@ class _ShimmerReviewCard extends StatelessWidget {
                   ),
                 ),
                 Gap(6.h),
-                // Comment line 2 (shorter)
                 Container(
                   width: 200.w,
                   height: 12.h,
@@ -694,25 +658,20 @@ class _ShimmerReviewCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rating summary (average + stars distribution bars)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _RatingSummary extends StatelessWidget {
   const _RatingSummary({required this.model});
 
   final LawyerRatingsModel model;
 
-  /// Arabic-correct label for the ratings count.
   static String _countLabel(int n) {
-    if (n == 0) return 'لا توجد تقييمات بعد';
-    if (n == 1) return 'بناءً على تقييم واحد';
-    if (n == 2) return 'بناءً على تقييمين';
-    if (n <= 10) return 'بناءً على $n تقييمات';
-    return 'بناءً على $n تقييماً';
+    if (n == 0) return Loc.noRatingsYet();
+    if (n == 1) return Loc.basedOnOneRating();
+    if (n == 2) return Loc.basedOnTwoRatings();
+    if (n <= 10) return Loc.basedOnFewRatings(n);
+    return Loc.basedOnManyRatings(n);
   }
 
-  /// Full / half / empty star for position [index] (0-based) given [avg].
   static IconData _starIcon(int index, double avg) {
     final diff = avg - index;
     if (diff >= 0.75) return Icons.star_rounded;
@@ -740,7 +699,6 @@ class _RatingSummary extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ── Average block ──────────────────────────────────────────────
           SizedBox(
             width: 108.w,
             child: Column(
@@ -786,7 +744,6 @@ class _RatingSummary extends StatelessWidget {
           Container(width: 1, height: 84.h, color: theme.dividerColor.withOpacity(0.25)),
           Gap(12.w),
 
-          // ── Distribution bars (5 → 1) ──────────────────────────────────
           Expanded(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -794,7 +751,6 @@ class _RatingSummary extends StatelessWidget {
                 for (final item in distribution)
                   _DistributionBar(
                     item: item,
-                    // Stagger so bars fill top-to-bottom.
                     delay: ((5 - item.stars) * 80).ms,
                   ),
               ],
@@ -822,7 +778,6 @@ class _DistributionBar extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: 4.h),
       child: Row(
         children: [
-          // ── Star label ─────────────────────────────────────────────────
           Text(
             '${item.stars}',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -835,7 +790,6 @@ class _DistributionBar extends StatelessWidget {
           Icon(Icons.star_rounded, size: 11.w, color: colorScheme.primary),
           Gap(8.w),
 
-          // ── Track + fill ───────────────────────────────────────────────
           Expanded(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(4.h),
@@ -843,15 +797,12 @@ class _DistributionBar extends StatelessWidget {
                 height: 6.h,
                 color: theme.dividerColor.withOpacity(0.18),
                 child: Align(
-                  // Direction-aware: fills from the start edge (right in RTL).
                   alignment: AlignmentDirectional.centerStart,
                   child: TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0, end: item.fraction),
                     duration: 800.ms,
                     curve: Curves.easeOutCubic,
                     builder: (_, value, __) => FractionallySizedBox(
-                      // 0 would render nothing; keep a tiny cap visible
-                      // only when the value is actually > 0.
                       widthFactor: value <= 0 ? 0.0 : value.clamp(0.02, 1.0),
                       child: Container(
                         decoration: BoxDecoration(
@@ -869,7 +820,6 @@ class _DistributionBar extends StatelessWidget {
 
           Gap(8.w),
 
-          // ── Percentage ─────────────────────────────────────────────────
           SizedBox(
             width: 32.w,
             child: Text(
@@ -891,9 +841,6 @@ class _DistributionBar extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// WarningButton
-// ─────────────────────────────────────────────────────────────────────────────
 
 class WarningButton extends StatelessWidget {
   final VoidCallback? onTap;

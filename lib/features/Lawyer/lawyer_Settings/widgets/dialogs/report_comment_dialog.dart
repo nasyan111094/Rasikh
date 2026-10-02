@@ -1,12 +1,8 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/lawyer_Settings/widgets/dialogs/report_comment_dialog.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:size_config/size_config.dart';
 
-/// Shows the report dialog and calls [onSubmit] with the typed message
-/// when the user taps "إرسال". Does nothing if the field is empty.
 Future<void> showReportDialog(
     BuildContext context, {
       required void Function(String message) onSubmit,
@@ -103,7 +99,6 @@ class _ReportDialogState extends State<_ReportDialog>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ❌ Close button
                       Align(
                         alignment: direction == TextDirection.rtl
                             ? Alignment.topRight
@@ -117,10 +112,9 @@ class _ReportDialogState extends State<_ReportDialog>
                         ),
                       ),
 
-                      // 🩶 Title
                       Center(
                         child: Text(
-                          'الإبلاغ عن التعليق',
+                          Loc.reportComment(),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: cs.onSurface,
@@ -131,10 +125,9 @@ class _ReportDialogState extends State<_ReportDialog>
 
                       SizedBox(height: 20.h),
 
-                      // 📝 Label
                       Text.rich(
                         TextSpan(
-                          text: 'رسالة الإبلاغ',
+                          text: Loc.reportMessage(),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w600,
@@ -154,13 +147,12 @@ class _ReportDialogState extends State<_ReportDialog>
                       ),
                       SizedBox(height: 8.h),
 
-                      // 🧾 TextField
                       TextField(
                         controller: _textController,
                         maxLines: 4,
                         textDirection: direction,
                         decoration: InputDecoration(
-                          hintText: 'اكتب هنا ...',
+                          hintText: Loc.writeHere(),
                           hintStyle: theme.textTheme.bodyMedium?.copyWith(
                             color: cs.onSurface.withOpacity(.4),
                             fontSize: 13.sp,
@@ -189,10 +181,8 @@ class _ReportDialogState extends State<_ReportDialog>
 
                       SizedBox(height: 20.h),
 
-                      // 🧩 Buttons row
                       Row(
                         children: [
-                          // Cancel
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () => Navigator.of(context).pop(),
@@ -206,7 +196,7 @@ class _ReportDialogState extends State<_ReportDialog>
                                 side: BorderSide.none,
                               ),
                               child: Text(
-                                'إلغاء',
+                                Loc.cancel(),
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: cs.onSurface.withOpacity(.6),
@@ -216,7 +206,6 @@ class _ReportDialogState extends State<_ReportDialog>
                             ),
                           ),
                           SizedBox(width: 10.w),
-                          // Send
                           Expanded(
                             child: ElevatedButton(
                               onPressed: _onSend,
@@ -229,7 +218,7 @@ class _ReportDialogState extends State<_ReportDialog>
                                 ),
                               ),
                               child: Text(
-                                'إرسال',
+                                Loc.sendAction(),
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,

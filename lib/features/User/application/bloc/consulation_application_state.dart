@@ -1,9 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// consulation_application_state.dart
-// Master state shared across all steps of the Create-Consultation flow.
-// Added: citiesStatus/cities/citiesError for /api/v1/enums/cities
-// Added: consultationTypesStatus for /api/v1/enums/consultation-types
-// ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:io';
 
@@ -13,28 +7,26 @@ import '../models/bookable_slot_model.dart';
 enum ConsultationStatus { initial, loading, success, failure }
 
 class ConsultationState {
-  // ── Step-1: Specializations ────────────────────────────────────────────────
   final ConsultationStatus specializationsStatus;
   final List<SpecializationModel> specializations;
   final String? specializationsError;
 
   final SpecializationModel? selectedSpecialization;
   final List<SubSpecializationModel> selectedSubSpecializations;
+  final Map<String, List<SubSpecializationModel>>
+      lawsuitTypesBySubSpecialization;
+  final SubSpecializationModel? selectedLawsuitType;
 
-  // ── Enums: Consultation types (from /api/v1/enums/consultation-types) ──────
   final ConsultationStatus consultationTypesStatus;
   final List<EnumValueModel> consultationTypes;
   final String? consultationTypesError;
 
-  // ── Enums: Cities (from /api/v1/enums/cities) ─────────────────────────────
   final ConsultationStatus citiesStatus;
   final List<EnumValueModel> cities;
   final String? citiesError;
 
-  // ── Step-2: Consultation type ──────────────────────────────────────────────
   final ConsultationType selectedConsultationType;
 
-  // ── Step-3: Consultation details ──────────────────────────────────────────
   final ConsultationStatus pricingStatus;
   final List<PricingModel> pricingPlans;
   final PricingModel? selectedPricing;
@@ -48,7 +40,6 @@ class ConsultationState {
   final int? voiceNoteDurationSeconds;
   final List<File> attachments;
 
-  // ── Step-4: Lawyer selection ───────────────────────────────────────────────
   final ConsultationStatus lawyersStatus;
   final List<LawyerDetailModel> lawyers;
   final String? lawyersError;
@@ -63,57 +54,49 @@ class ConsultationState {
 
   final LawyerModel? selectedLawyer;
 
-  // ── Step-5: Schedule ──────────────────────────────────────────────────────
   final int selectedDayIndex;
   final int selectedTimeIndex;
   final DateTime? startTime;
   final DateTime? endTime;
 
-  // ── Bookable slots for scheduled consultations ──────────────────────────────
   final ConsultationStatus bookableSlotsStatus;
   final BookableSlotsResponse? bookableSlots;
   final String? bookableSlotsError;
   final BookableSlotModel? selectedBookableSlot;
 
-  // ── Step-6: Create consultation ───────────────────────────────────────────
   final ConsultationStatus createStatus;
   final CreatedConsultationModel? createdConsultation;
   final String? createError;
 
-  // ── Step-7: Payment ─────────────────────────────────────────────────────
   final ConsultationStatus paymentStatus;
   final Map<String, dynamic>? paymentData;
   final String? paymentError;
 
   const ConsultationState({
-    // Specializations
     this.specializationsStatus = ConsultationStatus.initial,
     this.specializations = const [],
     this.specializationsError,
 
     this.selectedSpecialization,
     this.selectedSubSpecializations = const [],
+    this.lawsuitTypesBySubSpecialization = const {},
+    this.selectedLawsuitType,
 
-    // Consultation type enums
     this.consultationTypesStatus = ConsultationStatus.initial,
     this.consultationTypes = const [],
     this.consultationTypesError,
 
-    // Cities enum
     this.citiesStatus = ConsultationStatus.initial,
     this.cities = const [],
     this.citiesError,
 
-    // Consultation type selection
     this.selectedConsultationType = ConsultationType.instant,
 
-    // Pricing
     this.pricingStatus = ConsultationStatus.initial,
     this.pricingPlans = const [],
     this.selectedPricing,
     this.pricingError,
 
-    // Details
     this.consultationTitle = '',
     this.consultationDetails = '',
     this.hideClientFromLawyer = false,
@@ -121,7 +104,6 @@ class ConsultationState {
     this.voiceNoteDurationSeconds,
     this.attachments = const [],
 
-    // Lawyers
     this.lawyersStatus = ConsultationStatus.initial,
     this.lawyers = const [],
     this.lawyersError,
@@ -136,57 +118,50 @@ class ConsultationState {
 
     this.selectedLawyer,
 
-    // Schedule
     this.selectedDayIndex = 0,
     this.selectedTimeIndex = 0,
     this.startTime,
     this.endTime,
 
-    // Bookable slots
     this.bookableSlotsStatus = ConsultationStatus.initial,
     this.bookableSlots,
     this.bookableSlotsError,
     this.selectedBookableSlot,
 
-    // Create
     this.createStatus = ConsultationStatus.initial,
     this.createdConsultation,
     this.createError,
 
-    // Payment
     this.paymentStatus = ConsultationStatus.initial,
     this.paymentData,
     this.paymentError,
   });
 
   ConsultationState copyWith({
-    // Specializations
     ConsultationStatus? specializationsStatus,
     List<SpecializationModel>? specializations,
     String? specializationsError,
     SpecializationModel? selectedSpecialization,
     List<SubSpecializationModel>? selectedSubSpecializations,
+    Map<String, List<SubSpecializationModel>>? lawsuitTypesBySubSpecialization,
+    SubSpecializationModel? selectedLawsuitType,
+    bool clearSelectedLawsuitType = false,
 
-    // Consultation type enums
     ConsultationStatus? consultationTypesStatus,
     List<EnumValueModel>? consultationTypes,
     String? consultationTypesError,
 
-    // Cities enum
     ConsultationStatus? citiesStatus,
     List<EnumValueModel>? cities,
     String? citiesError,
 
-    // Type selection
     ConsultationType? selectedConsultationType,
 
-    // Pricing
     ConsultationStatus? pricingStatus,
     List<PricingModel>? pricingPlans,
     PricingModel? selectedPricing,
     String? pricingError,
 
-    // Details
     String? consultationTitle,
     String? consultationDetails,
     bool? hideClientFromLawyer,
@@ -194,7 +169,6 @@ class ConsultationState {
     int? voiceNoteDurationSeconds,
     List<File>? attachments,
 
-    // Lawyers
     ConsultationStatus? lawyersStatus,
     List<LawyerDetailModel>? lawyers,
     String? lawyersError,
@@ -209,24 +183,20 @@ class ConsultationState {
 
     LawyerModel? selectedLawyer,
 
-    // Schedule
     int? selectedDayIndex,
     int? selectedTimeIndex,
     DateTime? startTime,
     DateTime? endTime,
 
-    // Bookable slots
     ConsultationStatus? bookableSlotsStatus,
     BookableSlotsResponse? bookableSlots,
     String? bookableSlotsError,
     BookableSlotModel? selectedBookableSlot,
 
-    // Create
     ConsultationStatus? createStatus,
     CreatedConsultationModel? createdConsultation,
     String? createError,
 
-    // Payment
     ConsultationStatus? paymentStatus,
     Map<String, dynamic>? paymentData,
     String? paymentError,
@@ -240,6 +210,11 @@ class ConsultationState {
         selectedSpecialization ?? this.selectedSpecialization,
         selectedSubSpecializations:
         selectedSubSpecializations ?? this.selectedSubSpecializations,
+        lawsuitTypesBySubSpecialization: lawsuitTypesBySubSpecialization ??
+            this.lawsuitTypesBySubSpecialization,
+        selectedLawsuitType: clearSelectedLawsuitType
+            ? null
+            : selectedLawsuitType ?? this.selectedLawsuitType,
 
         consultationTypesStatus:
         consultationTypesStatus ?? this.consultationTypesStatus,
@@ -302,10 +277,18 @@ class ConsultationState {
         paymentError: paymentError ?? this.paymentError,
       );
 
-  // ── Convenience getters ───────────────────────────────────────────────────
+
+  List<SubSpecializationModel> get availableLawsuitTypes =>
+      selectedSubSpecializations.isEmpty
+          ? const []
+          : lawsuitTypesBySubSpecialization[
+                  selectedSubSpecializations.first.id] ??
+              const [];
 
   bool get canProceedFromSpecialty =>
-      selectedSpecialization != null && selectedSubSpecializations.isNotEmpty;
+      selectedSpecialization != null &&
+      selectedSubSpecializations.isNotEmpty &&
+      (availableLawsuitTypes.isEmpty || selectedLawsuitType != null);
 
   bool get canProceedFromDetails =>
       consultationTitle.trim().isNotEmpty &&
@@ -315,6 +298,5 @@ class ConsultationState {
   bool get isScheduled =>
       selectedConsultationType == ConsultationType.scheduled;
 
-  /// City names derived from the enum API (falls back to empty list).
   List<String> get cityNames => cities.map((e) => e.value).toList();
 }

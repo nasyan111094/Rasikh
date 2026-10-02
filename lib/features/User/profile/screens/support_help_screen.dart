@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:rasikh/core/widgets/general_divider.dart';
@@ -21,13 +22,12 @@ class SupportHelpScreen extends StatelessWidget {
     final cs = theme.colorScheme;
 
     return Scaffold(
-      appBar:  GeneralAppBar(title: 'الدعم والمساعدة'),
+      appBar:  GeneralAppBar(title: Loc.supportAndHelp()),
       body: ListView(
         padding: EdgeInsets.symmetric(horizontal: 8.w),
         children: [
           SizedBox(height: 9.h),
 
-          /// الأسئلة الشائعة
           SupportActionRow(
             leading: SvgPicture.asset(
               'assets/icons/Question_Circle.svg',
@@ -35,7 +35,7 @@ class SupportHelpScreen extends StatelessWidget {
               height: 24.h,
               colorFilter: ColorFilter.mode(cs.onSurface, BlendMode.srcIn),
             ),
-            label: 'الأسئلة الشائعة',
+            label: Loc.faq(),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -50,7 +50,6 @@ class SupportHelpScreen extends StatelessWidget {
             height: 10.h,
           ),
 
-          /// تواصل معنا
           SupportActionRow(
             leading: SvgPicture.asset(
               'assets/icons/Call_Chat_Rounded.svg',
@@ -58,7 +57,7 @@ class SupportHelpScreen extends StatelessWidget {
               height: 24.h,
               colorFilter: ColorFilter.mode(cs.onSurface, BlendMode.srcIn),
             ),
-            label: 'تواصل معنا',
+            label: Loc.contactUs(),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
@@ -72,7 +71,6 @@ class SupportHelpScreen extends StatelessWidget {
             height: 10.h,
           ),
 
-          /// سياسة الإستخدام
           SupportActionRow(
             leading: SvgPicture.asset(
               'assets/icons/Notebook.svg',
@@ -80,22 +78,22 @@ class SupportHelpScreen extends StatelessWidget {
               height: 24.h,
               colorFilter: ColorFilter.mode(cs.onSurface, BlendMode.srcIn),
             ),
-            label: 'سياسة الإستخدام',
+            label: Loc.termsOfUse(),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const PolicyTextScreen(
-                    pageTitle: 'سياسة الإستخدام',
+                  builder: (_) => PolicyTextScreen(
+                    pageTitle: Loc.termsOfUse(),
                     sections: [
                       PolicySection(
-                        title: 'سياسة الاستخدام',
+                        title: Loc.termsOfUseAlt(),
                         body:
-                        'باستخدامك للتطبيق فإنك تقر بالالتزام بالقوانين المنظمة وعدم إساءة استخدام الخدمات أو العبث بآليات النظام...',
+                        Loc.termsOfUseSummary(),
                       ),
                       PolicySection(
-                        title: 'الأمان والتواصل',
+                        title: Loc.securityAndCommunication(),
                         body:
-                        'نحرص على تطبيق ضوابط الأمان وحماية الحسابات. قد يتم التواصل للتحقق من نشاطات غير اعتيادية...',
+                        Loc.securitySummary(),
                       ),
                     ],
                   ),
@@ -108,7 +106,6 @@ class SupportHelpScreen extends StatelessWidget {
             height: 10.h,
           ),
 
-          /// سياسة الخصوصية
           SupportActionRow(
             leading: SvgPicture.asset(
               'assets/icons/Shield.svg',
@@ -116,17 +113,17 @@ class SupportHelpScreen extends StatelessWidget {
               height: 24.h,
               colorFilter: ColorFilter.mode(cs.onSurface, BlendMode.srcIn),
             ),
-            label: 'سياسة الخصوصية',
+            label: Loc.privacyPolicy(),
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => const PolicyTextScreen(
-                    pageTitle: 'سياسة الخصوصية',
+                  builder: (_) => PolicyTextScreen(
+                    pageTitle: Loc.privacyPolicy(),
                     sections: [
                       PolicySection(
-                        title: 'سياسة الخصوصية',
+                        title: Loc.privacyPolicy(),
                         body:
-                        'نولي أهمية كبيرة لخصوصية المستخدم. قد نجمع بيانات لازمة لتحسين الخدمة وفق الأنظمة المعمول بها...',
+                        Loc.privacySummary(),
                       ),
                     ],
                   ),

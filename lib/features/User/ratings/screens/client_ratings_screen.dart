@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/User/ratings/presentation/screens/client_ratings_screen.dart
-//
-// Client "My ratings" — paginated list of ratings created by the client.
-//   GET /api/v1/client/ratings?page=&limit=
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -25,9 +20,6 @@ import 'package:rasikh/features/User/ratings/bloc/client_ratings_cubit.dart';
 import 'package:rasikh/features/User/ratings/repo/client_ratings_repo.dart';
 import 'package:rasikh/features/User/ratings/screens/client_rating_detail_screen.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Entry-point
-// ─────────────────────────────────────────────────────────────────────────────
 
 class ClientRatingsScreen extends StatelessWidget {
   const ClientRatingsScreen({super.key});
@@ -42,9 +34,6 @@ class ClientRatingsScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Internal stateful view
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ClientRatingsView extends StatefulWidget {
   const _ClientRatingsView();
@@ -68,7 +57,6 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
     super.dispose();
   }
 
-  // ── Infinite scroll ───────────────────────────────────────────────────────
 
   void _onScroll() {
     if (_scrollController.position.pixels >=
@@ -81,12 +69,10 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
     }
   }
 
-  // ── Pull-to-refresh ───────────────────────────────────────────────────────
 
   Future<void> _onRefresh() =>
       context.read<ClientRatingsCubit>().fetchRatings();
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -94,15 +80,13 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: const GeneralAppBar(title: 'تقييماتي'),
+      appBar: GeneralAppBar(title: Loc.myRatings()),
       body: BlocBuilder<ClientRatingsCubit, ClientRatingsState>(
         builder: (context, state) {
-          // ── Shimmer skeleton on first load ─────────────────────────────
           if (state is ClientRatingsLoading) {
             return _RatingsShimmer(theme: theme);
           }
 
-          // ── Error ──────────────────────────────────────────────────────
           if (state is ClientRatingsError) {
             return RefreshIndicator(
               onRefresh: _onRefresh,
@@ -131,7 +115,7 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
                           onPressed: () => context
                               .read<ClientRatingsCubit>()
                               .fetchRatings(),
-                          child: const Text('إعادة المحاولة'),
+                          child: Text(Loc.retryAgain()),
                         ),
                       ],
                     ),
@@ -141,7 +125,6 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
             );
           }
 
-          // ── Resolve model from any "has data" state ────────────────────
           final LawyerRatingsModel? ratingsModel;
           final bool isPaginationLoading;
 
@@ -162,7 +145,6 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
           }
           final model = ratingsModel;
 
-          // ── Main content ───────────────────────────────────────────────
           return RefreshIndicator(
             onRefresh: _onRefresh,
             color: colorScheme.primary,
@@ -171,9 +153,9 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
                       SizedBox(height: 120.h),
-                      const NoDataWidget(
-                        title: 'لا توجد تقييمات بعد',
-                        message: 'تقييماتك للمحامين ستظهر هنا',
+                      NoDataWidget(
+                        title: Loc.noRatingsYet(),
+                        message: Loc.yourLawyerRatingsWillAppearHere(),
                       ),
                     ],
                   )
@@ -210,7 +192,6 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
     );
   }
 
-  // ── Single rating card ────────────────────────────────────────────────────
 
   Widget _buildRatingCard(
     ThemeData theme,
@@ -252,7 +233,6 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Lawyer
                       Expanded(
                         child: Row(
                           children: [
@@ -335,7 +315,6 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
                         ),
                       ),
 
-                      // Stars
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
@@ -372,7 +351,6 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
                       ),
                     ),
                   ],
-                  // Published lawyer reply indicator (text shown in details)
                   if (rating.lawyerReplyPublished &&
                       rating.lawyerReply.trim().isNotEmpty) ...[
                     Gap(8.h),
@@ -385,7 +363,7 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
                         ),
                         Gap(4.w),
                         Text(
-                          'يوجد رد من المحامي',
+                          Loc.lawyerReplied(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.primary,
                             fontFamily: 'cairo',
@@ -409,9 +387,6 @@ class _ClientRatingsViewState extends State<_ClientRatingsView> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer skeleton
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _RatingsShimmer extends StatelessWidget {
   const _RatingsShimmer({required this.theme});

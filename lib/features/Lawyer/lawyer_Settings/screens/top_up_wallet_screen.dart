@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -36,7 +37,7 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال المبلغ')),
+        SnackBar(content: Text(Loc.pleaseEnterAmount())),
       );
       return;
     }
@@ -44,28 +45,26 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال مبلغ صحيح')),
+        SnackBar(content: Text(Loc.pleaseEnterValidAmount())),
       );
       return;
     }
 
-    // Validate against limits
     if (_topupLimits != null) {
       if (amount < _topupLimits!.minSar) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('الحد الأدنى للإيداع هو ${_topupLimits!.minSar.toStringAsFixed(2)} ريال')),
+          SnackBar(content: Text(Loc.minimumDepositIs(_topupLimits!.minSar.toStringAsFixed(2)))),
         );
         return;
       }
       if (amount > _topupLimits!.maxSar) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('الحد الأقصى للإيداع هو ${_topupLimits!.maxSar.toStringAsFixed(2)} ريال')),
+          SnackBar(content: Text(Loc.maximumDepositIs(_topupLimits!.maxSar.toStringAsFixed(2)))),
         );
         return;
       }
     }
 
-    // Initiate top-up
     cubit.initiateTopup(amount: amount);
   }
 
@@ -75,7 +74,7 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا يمكن فتح رابط الدفع')),
+        SnackBar(content: Text(Loc.unableToOpenPaymentLink())),
       );
     }
   }
@@ -89,19 +88,17 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
       create: (_) => getIt<WalletCubit>()..getTopupLimits(),
       child: BlocListener<WalletCubit, WalletState>(
         listener: (context, state) {
-          // Store top-up limits when loaded
           if (state.topupLimits != null) {
             _topupLimits = state.topupLimits;
           }
 
-          // Handle top-up success
           if (state.topupStatus == WalletStatus.success && state.topupResponse != null) {
             final paymentUrl = state.topupResponse!.payment.paymentURL;
             _handlePaymentUrl(paymentUrl);
             context.read<WalletCubit>().resetTopup();
           } else if (state.topupStatus == WalletStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.topupError ?? 'فشل إرسال طلب الإيداع')),
+              SnackBar(content: Text(state.topupError ?? Loc.depositRequestFailed())),
             );
           }
         },
@@ -112,8 +109,8 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
 
             return SafeArea(
               child: Scaffold(
-                appBar: const GeneralAppBar(
-                  title: 'إيداع رصيد',
+                appBar: GeneralAppBar(
+                  title: Loc.depositBalance(),
 
                 ),
                 body: Padding(
@@ -121,7 +118,6 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // 💰 معلومات الإيداع
                       Container(
                         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
                         decoration: BoxDecoration(
@@ -145,7 +141,7 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    "إيداع رصيد في محفظتك",
+                                    Loc.depositBalanceToWallet(),
                                     style: textTheme.bodyMedium?.copyWith(
                                       fontWeight: FontWeight.w600,
                                       color: theme.colorScheme.onSurface,
@@ -154,14 +150,14 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
                                   Gap(3.h),
                                   if (_topupLimits != null)
                                     Text(
-                                      "الحد الأدنى: ${_topupLimits!.minSar.toStringAsFixed(2)} ريال | الحد الأقصى: ${_topupLimits!.maxSar.toStringAsFixed(2)} ريال",
+                                      Loc.depositLimitsLabel(_topupLimits!.minSar.toStringAsFixed(2), _topupLimits!.maxSar.toStringAsFixed(2)),
                                       style: textTheme.bodySmall?.copyWith(
                                         color: theme.colorScheme.onSurfaceVariant,
                                       ),
                                     )
                                   else if (limitsLoading)
-                                    const Text(
-                                      "جاري تحميل الحدود...",
+                                    Text(
+                                      Loc.loadingLimits(),
                                       style: TextStyle(fontSize: 12),
                                     ),
                                 ],
@@ -173,9 +169,8 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
 
                       Gap(40.h),
 
-                      // 💵 المبلغ المطلوب للإيداع
                       Text(
-                        "المبلغ المطلوب للإيداع *",
+                        Loc.depositAmountRequired(),
                         style: textTheme.bodySmall?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                           fontWeight: FontWeight.w600,
@@ -216,7 +211,6 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
 
                       Gap(20.h),
 
-                      // 💡 معلومات إضافية
                       Container(
                         padding: EdgeInsets.all(12.w),
                         decoration: BoxDecoration(
@@ -233,7 +227,7 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
                             Gap(8.w),
                             Expanded(
                               child: Text(
-                                'سيتم توجيهك إلى بوابة الدفع لإكمال عملية الإيداع',
+                                Loc.redirectToPaymentGatewayForDeposit(),
                                 style: textTheme.bodySmall?.copyWith(
                                   color: Colors.blue.shade700,
                                 ),
@@ -245,7 +239,6 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
 
                       const Spacer(),
 
-                      // 🟡 زر تجديد الإيداع
                       SizedBox(
                         width: double.infinity,
                         height: 48.h,
@@ -270,7 +263,7 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
                                   ),
                                 )
                               : Text(
-                                  'إيداع',
+                                  Loc.deposit(),
                                   style: textTheme.bodyMedium?.copyWith(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,

@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rasikh/config/theme/colors.dart';
@@ -19,13 +20,12 @@ class SettingsScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: GeneralAppBar(title: 'الإعدادات'),
+      appBar: GeneralAppBar(title: Loc.settings()),
       body: SafeArea(
         child: Column(
           children: [
             const SizedBox(height: 16),
 
-            // تعديل رقم الجوال
             _SettingsRow(
               leading: SvgPicture.asset(
                 'assets/icons/Pen_New_Square.svg',
@@ -36,7 +36,7 @@ class SettingsScreen extends StatelessWidget {
                   BlendMode.srcIn,
                 ),
               ),
-              label: 'تعديل رقم الجوال',
+              label: Loc.editMobileNumber(),
               trailing: Icon(
                 isRTL
                     ? Icons.arrow_forward_ios_rounded
@@ -59,13 +59,12 @@ class SettingsScreen extends StatelessWidget {
 
             const SizedBox(height: 24),
 
-            // حذف الحساب
             _DeleteRow(
-              label: 'حذف الحساب',
+              label: Loc.deleteAccount(),
               onTap: ()
               async
               {
-                showLogoutAndDeletAccountConfirmDialog(context, title: "حذف الحساب", message: "هل أنت متأكد من أنك تريد حذف الحساب  ؟", svgAsset: "assets/icons/Trash_Bin.svg") ;
+                showLogoutAndDeletAccountConfirmDialog(context, title: Loc.deleteAccount(), message: Loc.deleteAccountConfirmation(), svgAsset: "assets/icons/Trash_Bin.svg") ;
               },
             ),
           ],

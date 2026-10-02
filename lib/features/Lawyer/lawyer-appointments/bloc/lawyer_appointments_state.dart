@@ -1,10 +1,9 @@
-// features/Lawyer/lawyer-appointments/presentation/bloc/lawyer_appointments_state.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:equatable/equatable.dart';
 
 import '../models/availability_slot_model.dart';
 
-// ── Base State ───────────────────────────────────────────────────────────────
 
 abstract class LawyerAppointmentsState extends Equatable {
   const LawyerAppointmentsState();
@@ -13,7 +12,6 @@ abstract class LawyerAppointmentsState extends Equatable {
   List<Object?> get props => [];
 }
 
-// ── Fetch States ─────────────────────────────────────────────────────────────
 
 class LawyerAppointmentsInitial extends LawyerAppointmentsState {
   const LawyerAppointmentsInitial();
@@ -41,7 +39,6 @@ class LawyerAppointmentsError extends LawyerAppointmentsState {
   List<Object?> get props => [message];
 }
 
-// ── Mutation States ─────────────────────────────────────────────────────────
 
 class SlotMutationLoading extends LawyerAppointmentsState {
   const SlotMutationLoading();
@@ -68,7 +65,8 @@ class SlotUpdatedSuccess extends LawyerAppointmentsState {
 class SlotDeletedSuccess extends LawyerAppointmentsState {
   final String message;
 
-  const SlotDeletedSuccess({this.message = 'تم حذف الموعد بنجاح'});
+  SlotDeletedSuccess({String? message})
+      : message = message ?? Loc.appointmentDeletedSuccessfully();
 
   @override
   List<Object?> get props => [message];

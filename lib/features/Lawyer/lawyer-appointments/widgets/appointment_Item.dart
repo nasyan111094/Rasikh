@@ -1,5 +1,5 @@
-// features/Lawyer/lawyer-appointments/presentation/widgets/appointment_item.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -18,9 +18,6 @@ import '../models/availability_slot_model.dart';
 class AppointmentItem extends StatelessWidget {
   final AvailabilitySlot slot;
 
-  /// Server day index (0=Sat … 6=Fri) of the day card this slot lives in.
-  /// Forwarded to the edit screen so it can pre-select the correct day
-  /// immediately, without depending on any cached weekly data.
   final int dayIndex;
 
   const AppointmentItem({
@@ -29,7 +26,6 @@ class AppointmentItem extends StatelessWidget {
     required this.dayIndex,
   });
 
-  // ── Delete confirmation dialog ────────────────────────────────────────────
 
   Future<void> _confirmDelete(BuildContext context) async {
     final theme = Theme.of(context);
@@ -42,14 +38,14 @@ class AppointmentItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
         ),
         title: Text(
-          'حذف الموعد',
+          Loc.deleteAppointment(),
           style: theme.textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
           ),
           textAlign: TextAlign.center,
         ),
         content: Text(
-          'هل أنت متأكد من حذف هذا الموعد؟\nلا يمكن التراجع عن هذا الإجراء.',
+          Loc.deleteAppointmentConfirmation(),
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.hintColor,
             height: 1.6,
@@ -58,18 +54,16 @@ class AppointmentItem extends StatelessWidget {
         ),
         actionsAlignment: MainAxisAlignment.spaceEvenly,
         actions: [
-          // ── Cancel ──────────────────────────────────────────────────────
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
             child: Text(
-              'إلغاء',
+              Loc.cancel(),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.hintColor,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          // ── Confirm delete ───────────────────────────────────────────────
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -80,8 +74,8 @@ class AppointmentItem extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             ),
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text(
-              'حذف',
+            child: Text(
+              Loc.delete(),
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
@@ -98,11 +92,9 @@ class AppointmentItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final durationLabel = 'مدة الجلسة ${slot.sessionDurationMinutes} دقيقة';
-    final gapLabel = 'فاصل ${slot.gapMinutes} دقائق';
+    final durationLabel = Loc.sessionDurationMinutesLabel(slot.sessionDurationMinutes);
+    final gapLabel = Loc.gapMinutesLabel(slot.gapMinutes);
 
-    // Convert the 24h "HH:mm" times coming from the API into 12h AM/PM
-    // for display (e.g. "14:30" -> "2:30 PM").
     final startTimeLabel = TimeFormatUtils.formatTimeString(slot.startTime);
     final endTimeLabel = TimeFormatUtils.formatTimeString(slot.endTime);
 
@@ -118,7 +110,6 @@ class AppointmentItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // ── Calendar icon ───────────────────────────────────────────────
           Container(
             width: 44.w,
             height: 44.w,
@@ -138,7 +129,6 @@ class AppointmentItem extends StatelessWidget {
 
           Gap(8.w),
 
-          // ── Time & details ──────────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,7 +147,7 @@ class AppointmentItem extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const TextSpan(text: ' إلى ' , style: TextStyle( color: colorScheme.primary,)),
+                      TextSpan(text: Loc.toWord() , style: TextStyle( color: colorScheme.primary,)),
                       TextSpan(
                         text: endTimeLabel,
                         style: TextStyle(
@@ -199,7 +189,6 @@ class AppointmentItem extends StatelessWidget {
                     ),
                   ],
                 ),
-                // ── Weekly repeat badge ──────────────────────────────────
                 if (slot.repeatsWeekly) ...[
                   Gap(2.h),
                   Row(
@@ -211,7 +200,7 @@ class AppointmentItem extends StatelessWidget {
                       ),
                       Gap(3.w),
                       Text(
-                        'يتكرر أسبوعياً',
+                        Loc.repeatsWeekly(),
                         style: theme.textTheme.bodySmall?.copyWith(
                           fontSize: 11.sp,
                           color: theme.colorScheme.primary.withOpacity(0.7),
@@ -226,7 +215,6 @@ class AppointmentItem extends StatelessWidget {
 
           Gap(6.w),
 
-          // ── Edit button ─────────────────────────────────────────────────
           CustomIconButton(
             onTap: () => Nav.addWorkAppointment(
               context,
@@ -244,7 +232,6 @@ class AppointmentItem extends StatelessWidget {
 
           Gap(6.w),
 
-          // ── Delete button ───────────────────────────────────────────────
           CustomIconButton(
             onTap: () => _confirmDelete(context),
             iconPath: 'Trash_Bin.svg',
@@ -264,7 +251,6 @@ class AppointmentItem extends StatelessWidget {
 class TimeFormatUtils {
   TimeFormatUtils._();
 
-  /// Formats a [TimeOfDay] as "h:mm a" e.g. 09:05 -> "9:05 AM", 14:30 -> "2:30 PM"
   static String formatTimeOfDay(TimeOfDay time) {
     final hour = time.hourOfPeriod == 0 ? 12 : time.hourOfPeriod;
     final minute = time.minute.toString().padLeft(2, '0');
@@ -272,13 +258,10 @@ class TimeFormatUtils {
     return '$hour:$minute $period';
   }
 
-  /// Formats a [DateTime] as "h:mm a" using its local time-of-day.
   static String formatDateTime(DateTime dateTime) {
     return formatTimeOfDay(TimeOfDay.fromDateTime(dateTime));
   }
 
-  /// Formats a 24-hour time string like "14:30" or "14:30:00" as "2:30 PM".
-  /// Returns the original string unchanged if it can't be parsed.
   static String formatTimeString(String time) {
     final parts = time.split(':');
     if (parts.length < 2) return time;
@@ -290,9 +273,6 @@ class TimeFormatUtils {
     return formatTimeOfDay(TimeOfDay(hour: hour, minute: minute));
   }
 
-  /// Formats a "HH:mm - HH:mm" range string as "9:00 AM - 5:00 PM".
-  /// Useful for appointment slot ranges. Returns the original string
-  /// unchanged if the format doesn't match.
   static String formatTimeRangeString(String range, {String separator = ' - '}) {
     final parts = range.split(separator);
     if (parts.length != 2) return range;
@@ -303,12 +283,10 @@ class TimeFormatUtils {
   }
 }
 
-/// Convenience extension so you can call `myTimeOfDay.toAmPm()` directly.
 extension TimeOfDayAmPmExtension on TimeOfDay {
   String toAmPm() => TimeFormatUtils.formatTimeOfDay(this);
 }
 
-/// Convenience extension so you can call `myDateTime.toAmPm()` directly.
 extension DateTimeAmPmExtension on DateTime {
   String toAmPm() => TimeFormatUtils.formatDateTime(this);
 }

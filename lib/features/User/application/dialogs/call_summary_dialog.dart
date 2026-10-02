@@ -1,12 +1,8 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/User/application/dialogs/call_summary_dialog.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:size_config/size_config.dart';
 
-/// Shows the call summary dialog and calls [onSubmit] with the typed summary
-/// when the user taps "إرسال". Does nothing if the field is empty.
 Future<void> showCallSummaryDialog(
     BuildContext context, {
       required void Function(String summary) onSubmit, required Future<Null> Function() onSkip,
@@ -69,8 +65,8 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
 
     if (summary.length < 50) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('يجب ألا يقل ملخص المكالمة عن 50 حرفاً'),
+        SnackBar(
+          content: Text(Loc.callSummaryMinLength()),
         ),
       );
       return;
@@ -114,7 +110,6 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ❌ Close button
                       Align(
                         alignment: direction == TextDirection.rtl
                             ? Alignment.topRight
@@ -128,10 +123,9 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                         ),
                       ),
 
-                      // 🩶 Title
                       Center(
                         child: Text(
-                          'ملخص المكالمة',
+                          Loc.callSummary(),
                           style: theme.textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: cs.onSurface,
@@ -142,10 +136,9 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
 
                       SizedBox(height: 20.h),
 
-                      // 📝 Label
                       Text.rich(
                         TextSpan(
-                          text: 'اكتب ملخصاً للمكالمة',
+                          text: Loc.writeCallSummary(),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontSize: 13.sp,
                             fontWeight: FontWeight.w600,
@@ -165,13 +158,12 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                       ),
                       SizedBox(height: 8.h),
 
-                      // 🧾 TextField
                       TextField(
                         controller: _textController,
                         maxLines: 5,
                         textDirection: direction,
                         decoration: InputDecoration(
-                          hintText: 'اكتب هنا ملخص المكالمة...',
+                          hintText: Loc.writeCallSummaryHint(),
                           hintStyle: theme.textTheme.bodyMedium?.copyWith(
                             color: cs.onSurface.withOpacity(.4),
                             fontSize: 13.sp,
@@ -200,10 +192,8 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
 
                       SizedBox(height: 20.h),
 
-                      // 🧩 Buttons row
                       Row(
                         children: [
-                          // Cancel
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () => Navigator.of(context).pop(),
@@ -217,7 +207,7 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                                 side: BorderSide.none,
                               ),
                               child: Text(
-                                'إلغاء',
+                                Loc.cancel(),
                                 style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: cs.onSurface.withOpacity(.6),
@@ -227,7 +217,6 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                             ),
                           ),
                           SizedBox(width: 10.w),
-                          // Send
                           Expanded(
                             child: ElevatedButton(
                               onPressed: _onSend,
@@ -240,7 +229,7 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                                 ),
                               ),
                               child: Text(
-                                'إرسال',
+                                Loc.sendAction(),
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,

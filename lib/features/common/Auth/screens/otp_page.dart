@@ -1,18 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// shared/auth/pages/otp_page.dart
-//
-// OTP verification screen.
-// UI matches OTP_Screen.png 100%.
-//
-// Design notes from image:
-//  • رمز التحقق * label above PIN boxes
-//  • 6 rounded-square pin boxes (LTR direction)
-//  • "دخول" button (same as login label)
-//  • "إعادة إرسال الكود بعد : 1:59 دقيقة" with countdown (underlined link)
-//  • "تغيير الرقم" link below (underlined)
-//  • Pinned terms footer at bottom
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -44,7 +31,6 @@ class OtpPage extends StatefulWidget {
     required this.from,
   });
 
-  /// 1 = came from register flow (7-step), 2 = came from login flow (3-step)
   final int    from;
   final String phoneNumber;
   final String otpCode;
@@ -78,16 +64,14 @@ class _OtpPageState extends State<OtpPage> {
     try {
       _otpController.dispose();
     } catch (e) {
-      // Controller might already be disposed
     }
     super.dispose();
   }
 
-  // ── format seconds → "1:59 دقيقة" ────────────────────────────────────────
   String _formatTimer(int seconds) {
     final m = (seconds ~/ 60).toString().padLeft(1, '0');
     final s = (seconds % 60).toString().padLeft(2, '0');
-    return '$m:$s ثانيه ';
+    return Loc.otpTimerSeconds(m, s);
   }
 
   @override
@@ -112,7 +96,6 @@ class _OtpPageState extends State<OtpPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Scrollable area ───────────────────────────────────
                   Expanded(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -123,7 +106,6 @@ class _OtpPageState extends State<OtpPage> {
                           children: [
                             Gap(16.h),
 
-                            // Step indicator
                             AuthStepperWidget(
                               totalSteps: widget.from == 1 ? 7 : 3,
                               activeStep: 3,
@@ -131,7 +113,6 @@ class _OtpPageState extends State<OtpPage> {
 
                             Gap(24.h),
 
-                            // Logo
                             Align(
                               alignment: Alignment.centerRight,
                               child: Picture(
@@ -143,9 +124,8 @@ class _OtpPageState extends State<OtpPage> {
 
                             Gap(20.h),
 
-                            // Heading
                             Text(
-                              'رمز التحقق',
+                              Loc.verificationCode(),
                               style: theme.textTheme.titleMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                                 color:      cs.primary,
@@ -155,9 +135,8 @@ class _OtpPageState extends State<OtpPage> {
 
                             Gap(6.h),
 
-                            // Subtitle with masked phone
                             Text(
-                              'تم إرسال الرمز الخاص بالتحقق إلى : ${_maskPhone(widget.phoneNumber)}',
+                              Loc.verificationCodeSentTo(_maskPhone(widget.phoneNumber)),
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: theme.hintColor,
                               ),
@@ -166,12 +145,11 @@ class _OtpPageState extends State<OtpPage> {
 
                             Gap(28.h),
 
-                            // OTP label
                             Row(
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: [
                                 Text(
-                                  'رمز التحقق',
+                                  Loc.verificationCode(),
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     fontWeight: FontWeight.w600,
                                     color:      cs.onSurface,
@@ -190,15 +168,13 @@ class _OtpPageState extends State<OtpPage> {
 
                             Gap(12.h),
 
-                            // ── PIN boxes ─────────────────────────────
                             _buildPinField(theme, cs),
 
                             Gap(24.h),
 
-                            // Submit button
                             AppButton(
                               isLoading: isVerifying,
-                              title: 'دخول',
+                              title: Loc.signIn(),
                               onPressed: () {
                                 if (isVerifying) return;
                                 if (_formKey.currentState?.validate() ?? false) {
@@ -212,17 +188,15 @@ class _OtpPageState extends State<OtpPage> {
 
                             Gap(28.h),
 
-                            // Resend row
                             _buildResendRow(state, theme, cs, isResending),
 
                             Gap(14.h),
 
-                            // "تغيير الرقم" link
                             Center(
                               child: GestureDetector(
                                 onTap: () => Navigator.of(context).pop(),
                                 child: Text(
-                                  'تغيير الرقم',
+                                  Loc.changeNumber(),
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color:           cs.primary,
                                     fontWeight:      FontWeight.w600,
@@ -240,7 +214,6 @@ class _OtpPageState extends State<OtpPage> {
                     ),
                   ),
 
-                  // ── Pinned terms footer ───────────────────────────────
                   _TermsFooter(cs: cs, theme: theme),
                 ],
               ),
@@ -251,9 +224,6 @@ class _OtpPageState extends State<OtpPage> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // PIN boxes — LTR inside RTL scaffold
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildPinField(ThemeData theme, ColorScheme cs) {
     return Directionality(
@@ -268,7 +238,7 @@ class _OtpPageState extends State<OtpPage> {
         cursorColor:      cs.primary,
         validator: (v) {
           if (v == null || v.length != _otpLength) {
-            return 'يرجى إدخال رمز التحقق كاملاً';
+            return Loc.pleaseEnterFullVerificationCode();
           }
           return null;
         },
@@ -293,11 +263,6 @@ class _OtpPageState extends State<OtpPage> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Resend row
-  //   While counting down: "إعادة إرسال الكود بعد : 1:59 دقيقة"
-  //   When can resend:     "إعادة إرسال الكود"  (tappable, underlined)
-  // ─────────────────────────────────────────────────────────────────────────
 
   Widget _buildResendRow(
       AuthState   state,
@@ -320,11 +285,10 @@ class _OtpPageState extends State<OtpPage> {
 
     return Center(
       child: state.canResend
-      // Can resend — show tappable link
           ? GestureDetector(
         onTap: () => _cubit.resendOtp(phone: widget.phoneNumber),
         child: Text(
-          'إعادة إرسال الكود',
+          Loc.resendCode(),
           style: theme.textTheme.bodyMedium?.copyWith(
             color:           cs.primary,
             fontWeight:      FontWeight.w600,
@@ -333,14 +297,13 @@ class _OtpPageState extends State<OtpPage> {
           ),
         ),
       )
-      // Counting down — show formatted timer
           : RichText(
         text: TextSpan(
           style: theme.textTheme.bodyMedium?.copyWith(
             color: theme.hintColor,
           ),
           children: [
-            const TextSpan(text: 'إعادة إرسال الكود بعد : '),
+            TextSpan(text: Loc.resendCodeAfter()),
             TextSpan(
               text: _formatTimer(state.secondsLeft),
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -356,10 +319,6 @@ class _OtpPageState extends State<OtpPage> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Mask phone: show last 2 digits + country code, hide middle with *
-  // e.g. "512345678" → "+966*******35"
-  // ─────────────────────────────────────────────────────────────────────────
 
   String _maskPhone(String phone) {
     if (phone.length < 4) return '+966$phone';
@@ -368,15 +327,10 @@ class _OtpPageState extends State<OtpPage> {
     return '$suffix$stars\966';
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // State listener
-  // ─────────────────────────────────────────────────────────────────────────
 
   void _handleState(BuildContext context, AuthState state) {
-    // Safety check: don't process state changes if widget is being disposed
     if (!mounted) return;
     
-    // Verify success
     if (state.verifyOtpStatus == RequestStatus.success) {
       final profileCompleted = state.verifyOtpModel!.lawyer.profileCompleted;
       if (state.isRegister && !profileCompleted) {
@@ -386,13 +340,11 @@ class _OtpPageState extends State<OtpPage> {
         );
       }
       else {
-        // Login + profile complete → show user congratulation then go home
         _showUserCongratulationDialog(context);
       }
       _cubit.resetVerifyOtpState();
     }
 
-    // Verify error
     if (state.verifyOtpStatus == RequestStatus.error) {
       SnackBarBuilder.showFeedBackMessage(
         context,
@@ -402,7 +354,6 @@ class _OtpPageState extends State<OtpPage> {
       _cubit.resetVerifyOtpState();
     }
 
-    // Resend success
     if (state.resendOtpStatus == RequestStatus.success) {
       SnackBarBuilder.showFeedBackMessage(
         context,
@@ -413,7 +364,6 @@ class _OtpPageState extends State<OtpPage> {
       _cubit.resetResendOtpState();
     }
 
-    // Resend error
     if (state.resendOtpStatus == RequestStatus.error) {
       SnackBarBuilder.showFeedBackMessage(
         context,
@@ -440,19 +390,8 @@ class _OtpPageState extends State<OtpPage> {
 
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _UserCongratulationDialog — matches Congratulation_TO_USER.png
-//
-// Layout:
-//   • Circular avatar (illustrated Saudi man) with gold border
-//   • "عزيزي العميل، تهانينا 🎉" — bold primary
-//   • "حسابك جاهز للاستخدام. سيتم تحويلك إلى الصفحة الرئيسية خلال لحظات."
-//   • Spinner — auto-navigates after 3 s
-// ─────────────────────────────────────────────────────────────────────────────
 
 
-// _TermsFooter — shared pinned footer
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _TermsFooter extends StatelessWidget {
   final ColorScheme cs;
@@ -466,7 +405,7 @@ class _TermsFooter extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 16.h),
       child: Text.rich(
         TextSpan(
-          text:  'من خلال التسجيل، فإنك ',
+          text:  Loc.byRegisteringYou(),
           style: theme.textTheme.bodySmall?.copyWith(
             color: cs.onSurfaceVariant,
           ),
@@ -482,7 +421,7 @@ class _TermsFooter extends StatelessWidget {
                   builder: (_) => const TermsBottomSheet(),
                 ),
                 child: Text(
-                  'توافق على شروط الخدمة',
+                  Loc.agreeToTermsOfService(),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color:           cs.primary,
                     fontWeight:      FontWeight.w700,
@@ -492,7 +431,7 @@ class _TermsFooter extends StatelessWidget {
                 ),
               ),
             ),
-            const TextSpan(text: ' واتفاقية معالجة البيانات.'),
+            TextSpan(text: Loc.andDataProcessingAgreementLeading()),
           ],
         ),
         textAlign: TextAlign.center,
@@ -534,7 +473,6 @@ class _CongratulationDialogState extends State<_CongratulationDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Avatar with light blue gradient background + gold border
             Container(
               width:      116.w,
               height:     116.w,
@@ -566,7 +504,7 @@ class _CongratulationDialogState extends State<_CongratulationDialog> {
             Gap(24.h),
 
             Text(
-              "عزيزي ${getIt<CacheHelper>().cachedVendorType == VendorType.lawyer ? "المحامي" : "العميل"} ، تهانينا 🎉",
+              Loc.dearUserCongratulations(getIt<CacheHelper>().cachedVendorType == VendorType.lawyer ? Loc.theLawyer() : Loc.theClient()),
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
                 color:      cs.primary,
@@ -577,7 +515,7 @@ class _CongratulationDialogState extends State<_CongratulationDialog> {
             Gap(14.h),
 
             Text(
-              "حسابك جاهز للاستخدام. سيتم تحويلك إلى الصفحة الرئيسية خلال لحظات.",
+              Loc.accountReadyRedirecting(),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color:  cs.onSurfaceVariant,
                 height: 1.65,

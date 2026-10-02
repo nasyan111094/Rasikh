@@ -1,5 +1,6 @@
 
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:size_config/size_config.dart';
@@ -18,7 +19,7 @@ class WeeklyRepeatSwitch extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text("تكرار أسبوعي ؟",
+        Text(Loc.weeklyRepeatQuestion(),
             style: TextStyle(fontSize: 18.
             sp, fontWeight: FontWeight.w500)),
         Switch(

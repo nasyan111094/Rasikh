@@ -1,14 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// shared/dialogs/otp_dialog.dart
-//
-// Reusable OTP Dialog
-// • Internal resend countdown handling
-// • No Bloc
-// • No API
-// • No Navigation Logic
-// • Reusable anywhere
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -57,7 +48,6 @@ class _OtpDialogState extends State<OtpDialog> {
 
   Timer? _timer;
 
-  // ───────────────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -68,18 +58,13 @@ class _OtpDialogState extends State<OtpDialog> {
     _startTimer();
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
 
   @override
   void dispose() {
     _timer?.cancel();
-    // Don't dispose the controller - it's owned by the parent widget
     super.dispose();
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // TIMER
-  // ───────────────────────────────────────────────────────────────────────────
 
   void _startTimer() {
     _timer?.cancel();
@@ -120,9 +105,6 @@ class _OtpDialogState extends State<OtpDialog> {
     _startTimer();
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // FORMAT TIMER
-  // ───────────────────────────────────────────────────────────────────────────
 
   String _formatTimer(int seconds) {
     final minutes = (seconds ~/ 60).toString();
@@ -130,12 +112,9 @@ class _OtpDialogState extends State<OtpDialog> {
     final remainingSeconds =
     (seconds % 60).toString().padLeft(2, '0');
 
-    return '$minutes:$remainingSeconds ثانية';
+    return Loc.otpDialogTimer(minutes, remainingSeconds);
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
-  // MASK PHONE
-  // ───────────────────────────────────────────────────────────────────────────
 
   String _maskPhone(String phone) {
     if (phone.length < 4) return phone;
@@ -147,7 +126,6 @@ class _OtpDialogState extends State<OtpDialog> {
     return '$stars$suffix';
   }
 
-  // ───────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -180,12 +158,9 @@ class _OtpDialogState extends State<OtpDialog> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
 
               children: [
-                // ───────────────────────────────────────────────────────
-                // TITLE
-                // ───────────────────────────────────────────────────────
 
                 Text(
-                  'رمز التحقق',
+                  Loc.verificationCode(),
 
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
@@ -197,9 +172,6 @@ class _OtpDialogState extends State<OtpDialog> {
 
                 Gap(10.h),
 
-                // ───────────────────────────────────────────────────────
-                // SUBTITLE
-                // ───────────────────────────────────────────────────────
 
                 Row(
                   mainAxisAlignment:
@@ -208,7 +180,7 @@ class _OtpDialogState extends State<OtpDialog> {
                   children: [
                     Expanded(
                       child: Text(
-                        'تم إرسال رمز التحقق إلى',
+                        Loc.verificationCodeSentToLabel(),
 
                         style:
                         theme.textTheme.bodyMedium?.copyWith(
@@ -234,14 +206,11 @@ class _OtpDialogState extends State<OtpDialog> {
 
                 Gap(28.h),
 
-                // ───────────────────────────────────────────────────────
-                // LABEL
-                // ───────────────────────────────────────────────────────
 
                 Row(
                   children: [
                     Text(
-                      'رمز التحقق',
+                      Loc.verificationCode(),
 
                       style:
                       theme.textTheme.bodyMedium?.copyWith(
@@ -265,9 +234,6 @@ class _OtpDialogState extends State<OtpDialog> {
 
                 Gap(14.h),
 
-                // ───────────────────────────────────────────────────────
-                // PIN FIELD
-                // ───────────────────────────────────────────────────────
 
                 Directionality(
                   textDirection: TextDirection.ltr,
@@ -290,7 +256,7 @@ class _OtpDialogState extends State<OtpDialog> {
                     validator: (v) {
                       if (v == null ||
                           v.trim().length != _otpLength) {
-                        return 'يرجى إدخال الرمز كاملاً';
+                        return Loc.pleaseEnterFullCode();
                       }
 
                       return null;
@@ -326,15 +292,12 @@ class _OtpDialogState extends State<OtpDialog> {
 
                 Gap(28.h),
 
-                // ───────────────────────────────────────────────────────
-                // SUBMIT BUTTON
-                // ───────────────────────────────────────────────────────
 
                 SizedBox(
                   height: 54.h,
 
                   child: AppButton(
-                    title: 'تأكيد',
+                    title: Loc.confirm(),
 
                     isLoading: widget.isLoading,
 
@@ -352,9 +315,6 @@ class _OtpDialogState extends State<OtpDialog> {
 
                 Gap(26.h),
 
-                // ───────────────────────────────────────────────────────
-                // RESEND
-                // ───────────────────────────────────────────────────────
 
                 Center(
                   child: _canResend
@@ -362,7 +322,7 @@ class _OtpDialogState extends State<OtpDialog> {
                     onTap: _onResendPressed,
 
                     child: Text(
-                      'إعادة إرسال الكود',
+                      Loc.resendCode(),
 
                       style: theme.textTheme.bodyMedium
                           ?.copyWith(
@@ -382,9 +342,9 @@ class _OtpDialogState extends State<OtpDialog> {
                       ),
 
                       children: [
-                        const TextSpan(
+                        TextSpan(
                           text:
-                          'إعادة إرسال الكود بعد : ',
+                          Loc.resendCodeAfter(),
                         ),
 
                         TextSpan(

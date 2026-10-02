@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
@@ -15,7 +16,6 @@ import '../../../../core/widgets/transparent_text_icon_button.dart';
 import '../widgets/onboarding_navigation_buttons.dart';
 import '../widgets/onboarding_pages.dart';
 
-/// Main OnBoarding Screen with enhanced animations
 class OnBoardingScreen extends StatefulWidget {
   const OnBoardingScreen({super.key});
 
@@ -42,7 +42,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
     getIt<CacheHelper>().setOnBoardingDone(true);
     
 
-    // Entry animation for the whole screen
     _entryController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -55,14 +54,12 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
 
     _entryController.forward();
 
-    // Listen to page scroll for parallax effects
     pageController.addListener(() {
       setState(() {
         pageValue = pageController.page ?? 0.0;
       });
     });
 
-    // Set initial system UI style based on theme
     WidgetsBinding.instance.addPostFrameCallback((_) {
       SystemChrome.setSystemUIOverlayStyle(
         const SystemUiOverlayStyle(
@@ -120,7 +117,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                         ),
                         Gap(24.h),
 
-                        // Smooth Page Indicator with scale animation
 
                         Gap(200.h)  ,
 
@@ -133,20 +129,18 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
               Gap(50.h)  ,
             ],
           ),
-          // داخل StatefulWidget اللي فيه currentIndex و pageController
           Positioned(
             top: 70.h,
             left: 0,
             right: 0,
             child: Row(
               children: [
-                // زر "تخطي"
               currentIndex < 2 ?   Container(
                   child: TransparentIconButton(
                     onPressed: () {
-                      HapticFeedback.lightImpact(); // haptic feedback
+                      HapticFeedback.lightImpact();
                       pageController.animateToPage(
-                        2, // آخر صفحة
+                        2,
                         duration: const Duration(milliseconds: 400),
                         curve: Curves.easeInOutCubic,
                       );
@@ -154,12 +148,11 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                         currentIndex = 2;
                       });
                     },
-                    text: "تخطي",
+                    text: Loc.skip(),
                     icon: Icons.arrow_back_ios,
                   ),
                 ) : SizedBox.shrink(),
                 Spacer(),
-                // عداد الصفحة
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: w20),
                   child: RichText(
@@ -195,19 +188,17 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
             ),
           ),
 
-// زر "التالي" و الـ Page Indicator
           Positioned(
             bottom: 20.h,
             left: 0,
             right: 0,
             child: Row(
               children: [
-                // زر "التالي"
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: w20),
                   child: TextButton(
                     onPressed: () {
-                      HapticFeedback.lightImpact(); // haptic feedback
+                      HapticFeedback.lightImpact();
                       if (currentIndex < 2) {
                         pageController.animateToPage(
                           currentIndex + 1,
@@ -218,8 +209,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                           currentIndex += 1;
                         });
                       } else {
-                        // آخر صفحة -> ابدأ التطبيق
-                        // Mark onboarding as completed before navigating
                         getIt<CacheHelper>().setOnBoardingDone(true);
                         Nav.account_type_screen(context);
                       }
@@ -231,7 +220,7 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     ),
                     child: Text(
-                      currentIndex == 2 ? 'ابدأ الآن' : 'التالي',
+                      currentIndex == 2 ? Loc.startNow() : Loc.next(),
                       style: theme.textTheme.titleLarge!.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.w700,
@@ -240,7 +229,6 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                   ),
                 ),
                 Spacer(),
-                // Page Indicator
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: w20),
                   child: Transform.scale(
@@ -260,8 +248,8 @@ class _OnBoardingScreenState extends State<OnBoardingScreen>
                           effect: ExpandingDotsEffect(
                             dotHeight: 8.h,
                             dotWidth: 12.w,
-                            activeDotColor: theme.colorScheme.primary, // من الثيم
-                            dotColor: theme.colorScheme.onSurface.withOpacity(0.3), // من الثيم بدل disabledColor
+                            activeDotColor: theme.colorScheme.primary,
+                            dotColor: theme.colorScheme.onSurface.withOpacity(0.3),
                             expansionFactor: 4,
                             spacing: 8.w,
                           ),

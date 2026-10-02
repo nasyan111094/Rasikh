@@ -1,5 +1,5 @@
-// features/notifications/data/repos/notifications_repo.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
@@ -8,21 +8,18 @@ import '../../../../../../core/get_it_service/get_it_service.dart';
 import '../../../../../../core/utils/api/api_handler.dart';
 import '../models/notification_model.dart';
 
-// ── Endpoint constants ────────────────────────────────────────────────────────
 
 class _NotificationsEndpoints {
   static const String myNotifications = 'notifications/my';
-  static const String markRead = 'notifications'; // PATCH /notifications/:id/read
+  static const String markRead = 'notifications';
   static const String markAllRead = 'notifications/mark-all-read';
-  static const String unreadCount = 'notifications/unread-count'; // GET unread badge count
+  static const String unreadCount = 'notifications/unread-count';
 }
 
-// ── Repository ────────────────────────────────────────────────────────────────
 
 class NotificationsRepo {
   final DioAdapterBase _adapter = getIt<ApiHandler>().dioAdapterBase;
 
-  // ── GET my notifications (paginated) ─────────────────────────────────────
 
   Future<Either<String, NotificationsResponse>> getMyNotifications({
     int page = 1,
@@ -59,7 +56,6 @@ class NotificationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── MARK single notification as read ─────────────────────────────────────
 
   Future<Either<String, bool>> markAsRead(String notificationId) async {
     final result = await _adapter.put(
@@ -72,7 +68,6 @@ class NotificationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── MARK all notifications as read ───────────────────────────────────────
 
   Future<Either<String, bool>> markAllAsRead() async {
     final result = await _adapter.put(
@@ -85,8 +80,6 @@ class NotificationsRepo {
     return Left(_extractError(result.left));
   }
 
-  // ── GET unread notifications count (badge) ───────────────────────────────
-  // GET /api/v1/notifications/unread-count → { "count": 3 }
 
   Future<Either<String, int>> getUnreadCount() async {
     final result = await _adapter.get(
@@ -97,26 +90,23 @@ class NotificationsRepo {
       try {
         final data = result.right.data;
         if (data is Map) {
-          // Direct shape: { "count": 3 }
           if (data['count'] is num) {
             return Right((data['count'] as num).toInt());
           }
-          // Wrapped shapes: { "data": { "count": 3 } } or { "data": 3 }
           final wrapped = data['data'];
           if (wrapped is num) return Right(wrapped.toInt());
           if (wrapped is Map && wrapped['count'] is num) {
             return Right((wrapped['count'] as num).toInt());
           }
         }
-        return const Left('تعذر قراءة عدد الإشعارات');
+        return Left(Loc.unableToReadNotificationsCount());
       } catch (_) {
-        return const Left('تعذر قراءة عدد الإشعارات');
+        return Left(Loc.unableToReadNotificationsCount());
       }
     }
     return Left(_extractError(result.left));
   }
 
-  // ── Error helper ──────────────────────────────────────────────────────────
 
   String _extractError(dynamic left) {
     try {
@@ -125,12 +115,12 @@ class NotificationsRepo {
         if (data is Map) {
           return data['message']?.toString() ??
               data['error']?['details']?.toString() ??
-              'حدث خطأ غير متوقع';
+              Loc.unexpectedError();
         }
       }
       return left.toString();
     } catch (_) {
-      return 'حدث خطأ غير متوقع';
+      return Loc.unexpectedError();
     }
   }
 }

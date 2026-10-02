@@ -1,5 +1,5 @@
-// features/Lawyer/lawyer-appointments/presentation/screens/lawyer_appointments_screen.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -30,7 +30,6 @@ class LawyerAppointmentsScreen extends StatelessWidget {
   }
 }
 
-// ── Inner view ────────────────────────────────────────────────────────────────
 
 class _LawyerAppointmentsView extends StatelessWidget {
   const _LawyerAppointmentsView();
@@ -40,7 +39,6 @@ class _LawyerAppointmentsView extends StatelessWidget {
     final theme = Theme.of(context);
 
     return BlocConsumer<LawyerAppointmentsCubit, LawyerAppointmentsState>(
-      // ── Side-effects (snackbars) ─────────────────────────────────────────
       listenWhen: (_, current) =>
       current is SlotCreatedSuccess ||
           current is SlotUpdatedSuccess ||
@@ -53,19 +51,16 @@ class _LawyerAppointmentsView extends StatelessWidget {
         } else if (state is SlotUpdatedSuccess) {
           _showSnack(context, state.message, isError: false);
         } else if (state is SlotDeletedSuccess) {
-          _showSnack(context, 'تم حذف الموعد بنجاح', isError: false);
+          _showSnack(context, Loc.appointmentDeletedSuccessfully(), isError: false);
         } else if (state is SlotMutationError) {
           _showSnack(context, state.message, isError: true);
         } else if (state is LawyerAppointmentsError) {
-          // Only show snackbar for errors when we already have cached data
-          // (i.e. a pull-to-refresh failure). First-load errors are shown inline.
           final hasCached = context.read<LawyerAppointmentsCubit>().cachedWeeklyData != null;
           if (hasCached) {
             _showSnack(context, state.message, isError: true);
           }
         }
       },
-      // ── UI ───────────────────────────────────────────────────────────────
       builder: (context, state) {
         return Scaffold(
           body: Directionality(
@@ -73,18 +68,16 @@ class _LawyerAppointmentsView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AppBarWithoutBackIconButton(theme: theme, title: 'مواعيدي'),
+                AppBarWithoutBackIconButton(theme: theme, title: Loc.myAppointments()),
                 AppointmentsScreenTitle(theme: theme),
                 GeneralDivider(height: 25.h),
 
-                // ── Content area ────────────────────────────────────────
                 _buildBody(context, state, theme),
 
-                // ── Add button (always visible) ─────────────────────────
                  Padding(
                   padding: EdgeInsets.symmetric(horizontal: 16.w),
                   child: GradiantButton(
-                    text: 'إضافة موعد عمل',
+                    text: Loc.addWorkAppointment(),
                     onTap: () => Nav.addWorkAppointment(context),
                   ),
                 ),
@@ -96,23 +89,18 @@ class _LawyerAppointmentsView extends StatelessWidget {
     );
   }
 
-  // ── Body builder ──────────────────────────────────────────────────────────
 
   Widget _buildBody(
       BuildContext context,
       LawyerAppointmentsState state,
       ThemeData theme,
       ) {
-    // 1. Hard loading — very first fetch, nothing cached yet → shimmer
     if (state is LawyerAppointmentsInitial || state is LawyerAppointmentsLoading) {
       final hasCached =
           context.read<LawyerAppointmentsCubit>().cachedWeeklyData != null;
       if (!hasCached) {
         return const AppointmentsListShimmer();
       }
-      // Already have cached data (e.g. pull-to-refresh triggered a new
-      // LawyerAppointmentsLoading) — keep showing the list so the
-      // RefreshIndicator spinner is the only visual feedback.
       return AppointmentsList(
         days: context
             .read<LawyerAppointmentsCubit>()
@@ -122,7 +110,6 @@ class _LawyerAppointmentsView extends StatelessWidget {
       );
     }
 
-    // 2. Loaded — happy path
     if (state is LawyerAppointmentsLoaded) {
       return AppointmentsList(
         days: state.weeklyData.days,
@@ -130,7 +117,6 @@ class _LawyerAppointmentsView extends StatelessWidget {
       );
     }
 
-    // 3. Mutation in flight or just completed → show cached list optimistically
     if (state is SlotMutationLoading ||
         state is SlotCreatedSuccess ||
         state is SlotUpdatedSuccess ||
@@ -140,12 +126,9 @@ class _LawyerAppointmentsView extends StatelessWidget {
       if (cached != null) {
         return AppointmentsList(days: cached.days, theme: theme);
       }
-      // Edge-case: mutation fired before any list was ever loaded (shouldn't
-      // normally happen, but handle it gracefully with shimmer).
       return const AppointmentsListShimmer();
     }
 
-    // 4. Mutation error — the listener shows a snackbar; keep the cached list
     if (state is SlotMutationError) {
       final cached =
           context.read<LawyerAppointmentsCubit>().cachedWeeklyData;
@@ -154,18 +137,14 @@ class _LawyerAppointmentsView extends StatelessWidget {
       }
     }
 
-    // 5. Fetch error — only show error page on the very first load failure
     if (state is LawyerAppointmentsError) {
       final cached =
           context.read<LawyerAppointmentsCubit>().cachedWeeklyData;
 
-      // If we have cached data (failed pull-to-refresh) keep showing the list;
-      // the snackbar in the listener already informed the user.
       if (cached != null) {
         return AppointmentsList(days: cached.days, theme: theme);
       }
 
-      // First-load failure → inline error with retry
       return Expanded(
         child: Center(
           child: Padding(
@@ -192,7 +171,7 @@ class _LawyerAppointmentsView extends StatelessWidget {
                       .read<LawyerAppointmentsCubit>()
                       .fetchWeeklyAvailability(),
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('إعادة المحاولة'),
+                  label: Text(Loc.retryAgain()),
                 ),
               ],
             ),
@@ -204,7 +183,6 @@ class _LawyerAppointmentsView extends StatelessWidget {
     return const Expanded(child: SizedBox());
   }
 
-  // ── Snackbar helper ───────────────────────────────────────────────────────
 
   void _showSnack(BuildContext context, String message,
       {required bool isError}) {
@@ -224,20 +202,10 @@ class _LawyerAppointmentsView extends StatelessWidget {
 
 
 
-// core/utils/time_format_utils.dart
-//
-// Utilities for formatting time values as 12-hour AM/PM strings.
-// Works with Flutter's TimeOfDay, DateTime, or raw "HH:mm" strings
-// (the common shapes time data arrives in from an API).
 
 
 
 
-// core/utils/time_format_utils.dart
-//
-// Utilities for formatting time values as 12-hour AM/PM strings.
-// Works with Flutter's TimeOfDay, DateTime, or raw "HH:mm" strings
-// (the common shapes time data arrives in from an API).
 
 
 

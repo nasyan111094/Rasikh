@@ -1,17 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// shared/auth/bloc/auth_cubit.dart
-//
-// Manages the entire phone-OTP auth flow:
-//   1. login / register  → sends OTP → state.sendOtpStatus
-//   2. verifyOtp         → validates code → state.verifyOtpStatus
-//   3. resendOtp         → re-fires OTP   → state.resendOtpStatus
-//   4. Timer             → counts from 60 down to 0, then canResend = true
-//
-// Validation at the UI layer (Form + PhoneField validator) guards against empty
-// input before any cubit method is called.  Guards inside the cubit act as a
-// second line of defence only.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,15 +17,12 @@ class AuthCubit extends Cubit<AuthState> {
 
   Timer? _timer;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LOGIN — send OTP for existing account
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> login({required String phone}) async {
     if (phone.trim().isEmpty) {
       emit(state.copyWith(
         sendOtpStatus: RequestStatus.error,
-        errorMessage:  'يرجى إدخال رقم الهاتف',
+        errorMessage:  Loc.pleaseEnterPhoneNumber(),
       ));
       return;
     }
@@ -66,15 +51,12 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // REGISTER — send OTP for new account
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> register({required String phone}) async {
     if (phone.trim().isEmpty) {
       emit(state.copyWith(
         sendOtpStatus: RequestStatus.error,
-        errorMessage:  'يرجى إدخال رقم الهاتف',
+        errorMessage:  Loc.pleaseEnterPhoneNumber(),
       ));
       return;
     }
@@ -103,9 +85,6 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // VERIFY OTP
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> verifyOtp({
     required String phone,
@@ -114,7 +93,7 @@ class AuthCubit extends Cubit<AuthState> {
     if (code.length != 6) {
       emit(state.copyWith(
         verifyOtpStatus: RequestStatus.error,
-        errorMessage:    'يرجى إدخال رمز التحقق كاملاً',
+        errorMessage:    Loc.pleaseEnterFullVerificationCode(),
       ));
       return;
     }
@@ -142,9 +121,6 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RESEND OTP
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> resendOtp({required String phone}) async {
     emit(state.copyWith(resendOtpStatus: RequestStatus.loading));
@@ -167,12 +143,7 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // TIMER — 60 s countdown; canResend becomes true at 0
-  // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Starts (or restarts) the 60-second OTP cooldown timer.
-  /// Call this right after navigating to OtpPage and after a successful resend.
   void startOtpTimer() {
     _timer?.cancel();
     emit(state.copyWith(secondsLeft: 60, canResend: false));
@@ -189,9 +160,6 @@ class AuthCubit extends Cubit<AuthState> {
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RESETTERS — called after UI handles a completed state
-  // ═══════════════════════════════════════════════════════════════════════════
 
   void resetSendOtpState()   => emit(state.resetSendOtp());
   void resetVerifyOtpState() => emit(state.resetVerifyOtp());

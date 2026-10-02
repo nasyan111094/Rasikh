@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/profile/presentation/screens/lawyer_profile_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
@@ -25,7 +23,7 @@ class LawyerProfileScreen extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: GeneralAppBar(title: 'ملفي الشخصي'),
+        appBar: GeneralAppBar(title: Loc.myProfile()),
         body: SafeArea(
           child: Column(
             children: [
@@ -53,34 +51,34 @@ class _LawyerProfileMenuBody extends StatelessWidget {
         children: [
           AccountItem(
             svgAsset: 'assets/icons/edit.svg',
-            label: 'تعديل البيانات الشخصيه',
+            label: Loc.editPersonalData(),
             trailingChevronRight: true,
             onTap: () => Nav.lawyerEditProfileScreen(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/user_id.svg',
-            label: 'تعديل رخصة مزاولة المهنه',
+            label: Loc.editPracticeLicense(),
             trailingChevronRight: true,
             onTap: () => Nav.lawyerUpdateLicense(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/mobile.svg',
-            label: 'تعديل رقم الجوال',
+            label: Loc.editMobileNumber(),
             trailingChevronRight: true,
             onTap: () => Nav.changePhoneNumber(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/Trash_Bin.svg',
-            label: 'حذف الحساب',
+            label: Loc.deleteAccount(),
             iconbgColor: Colors.red,
             trailingChevronRight: true,
             onTap: () => showLogoutAndDeletAccountConfirmDialog(
               context,
-              title: 'تأكيد الحذف',
-              message: 'حذف الحساب سيؤدي لفقدان جميع بياناتك نهائيًا. هل ترغب بالمتابعة؟',
+              title: Loc.confirmDeletion(),
+              message: Loc.deleteAccountWarning(),
               svgAsset: 'assets/icons/Trash_Bin.svg',
               isLogout: false ,
             ),

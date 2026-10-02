@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -38,9 +39,9 @@ class LogoutBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const Expanded(
+            Expanded(
               child: Text(
-                'تسجيل الخروج',
+                Loc.logout(),
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   fontFamily: 'Tajawal',

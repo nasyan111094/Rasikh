@@ -1,5 +1,5 @@
-// features/Lawyer/lawyer-home/lawyer_home.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -40,7 +40,6 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
   void initState() {
     super.initState();
     final profileCubit = context.read<LawyerProfileCubit>();
-    // Always fetch profile on init to ensure fresh data after login
     profileCubit.getProfile();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final cubit = context.read<LawyerConsultationsCubit>();
@@ -75,13 +74,12 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
       body: SafeArea(
         child: BlocListener<LawyerConsultationsCubit, LawyerConsultationsState>(
           listener: (context, state) {
-            // ── Instant consultation accepted → navigate to video call ──
             if (state is AcceptConsultationSuccess) {
               final accepted = state.acceptedConsultation;
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تم قبول الاستشارة الفورية بنجاح'),
+                SnackBar(
+                  content: Text(Loc.instantConsultationAcceptedSuccessfully()),
                   backgroundColor: Colors.green,
                   duration: Duration(seconds: 2),
                 ),
@@ -102,13 +100,12 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
               });
             }
 
-            // ── Written consultation accepted → navigate to written chat ──
             else if (state is AcceptWrittenConsultationSuccess) {
               final accepted = state.acceptedConsultation;
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('تم قبول الاستشارة الكتابية بنجاح'),
+                SnackBar(
+                  content: Text(Loc.writtenConsultationAcceptedSuccessfully()),
                   backgroundColor: Colors.green,
                   duration: Duration(seconds: 2),
                 ),
@@ -127,24 +124,22 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
               });
             }
 
-            // ── Instant error ──
             else if (state is AcceptConsultationError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content:
-                  Text('فشل قبول الاستشارة الفورية: ${state.message}'),
+                  Text(Loc.acceptInstantConsultationFailed(state.message)),
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 3),
                 ),
               );
             }
 
-            // ── Written error ──
             else if (state is AcceptWrittenConsultationError) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content:
-                  Text('فشل قبول الاستشارة الكتابية: ${state.message}'),
+                  Text(Loc.acceptWrittenConsultationFailed(state.message)),
                   backgroundColor: Colors.red,
                   duration: const Duration(seconds: 3),
                 ),
@@ -167,9 +162,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── New Consultations Section ──────────────────────
-                        const _SectionHeader(
-                          title: 'إستشارات جديدة',
+                        _SectionHeader(
+                          title: Loc.newConsultations(),
                           onViewAll: null,
                         ),
                         Gap(10.h),
@@ -192,7 +186,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                             if (state is LawyerConsultationsError) {
                               return Center(
                                 child: Text(
-                                  'حدث خطأ: ${state.message}',
+                                  Loc.errorOccurredWithMessage(state.message),
                                   style:
                                   const TextStyle(color: Colors.red),
                                 ),
@@ -200,8 +194,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                             }
                             if (state is LawyerConsultationsLoaded) {
                               if (state.consultations.isEmpty) {
-                                return const Center(
-                                  child: NoDataWidget(title: "لا توجد إستشارات فوريه أو كتابيه جديدة",),
+                                return Center(
+                                  child: NoDataWidget(title: Loc.noNewInstantOrWrittenConsultations(),),
                                 );
                               }
                               return ListView.separated(
@@ -228,9 +222,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
 
                         Gap(24.h),
 
-                        // ── Upcoming Appointments Section ──────────────────
-                        const _SectionHeader(
-                          title: 'أقرب 3 مواعيد اليوم',
+                        _SectionHeader(
+                          title: Loc.nearestThreeAppointmentsToday(),
                           onViewAll: null,
                         ),
                         Gap(10.h),
@@ -256,7 +249,7 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                             if (state is UpcomingScheduledLoaded) {
                               if (state.appointments.isEmpty) {
                                 return Center(
-                                  child: NoDataWidget(title: " لا توجد مواعيد قادمه اليوم",),
+                                  child: NoDataWidget(title: Loc.noUpcomingAppointmentsToday(),),
                                 );
                               }
                               return Column(
@@ -278,9 +271,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
 
                         Gap(24.h),
 
-                        // ── Last Transaction Section ───────────────────────
-                        const _SectionHeader(
-                            title: 'آخر حركة مالية', onViewAll: null),
+                        _SectionHeader(
+                            title: Loc.lastFinancialTransaction(), onViewAll: null),
                         Gap(10.h),
                         BlocBuilder<LawyerConsultationsCubit,
                             LawyerConsultationsState>(
@@ -304,8 +296,8 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
                             if (state is DashboardLoaded) {
                               final movement = state.dashboardData.lastFinancialMovement;
                               if (movement == null) {
-                                return const Center(
-                                  child: NoDataWidget(title: "لا توجد حركات مالية"),
+                                return Center(
+                                  child: NoDataWidget(title: Loc.noFinancialTransactions()),
                                 );
                               }
                               return _TransactionCard(movement: movement);
@@ -341,21 +333,21 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('التفاصيل: ${consultation.details}'),
+              Text(Loc.detailsWithValue(consultation.details)),
               Gap(8.h),
-              Text('العميل: ${consultation.client.fullName}'),
-              Text('الهاتف: ${consultation.client.phone}'),
-              Text('المدينة: ${consultation.client.city}'),
+              Text(Loc.clientWithName(consultation.client.fullName)),
+              Text(Loc.phoneWithValue(consultation.client.phone)),
+              Text(Loc.cityWithValue(consultation.client.city)),
               Gap(8.h),
-              Text('المدة: ${consultation.durationMin} دقيقة'),
-              Text('السعر: ${consultation.priceAmountHalala / 100} ر.س'),
+              Text(Loc.durationWithMinutes(consultation.durationMin)),
+              Text(Loc.priceWithSar(consultation.priceAmountHalala / 100)),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('إغلاق'),
+            child: Text(Loc.close()),
           ),
         ],
       ),
@@ -363,7 +355,6 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
   }
 }
 
-// ── Availability Card ────────────────────────────────────────────────────────
 
 class _AvailabilityCard extends StatefulWidget {
   const _AvailabilityCard();
@@ -459,9 +450,9 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('حالة التوفر', style: theme.textTheme.titleMedium),
+                      Text(Loc.availabilityStatus(), style: theme.textTheme.titleMedium),
                       Text(
-                        'هل أنت متاح الآن للإستشارات الفورية',
+                        Loc.availableNowForInstantConsultations(),
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.hintColor),
                       ),
@@ -486,7 +477,7 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
                         ),
                       )
                           : Text(
-                        _isAvailable ? 'متاح' : 'غير متاح',
+                        _isAvailable ? Loc.available() : Loc.notAvailable(),
                         key: ValueKey(_isAvailable),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: _isAvailable
@@ -516,7 +507,6 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
   }
 }
 
-// ── Consultation Card ────────────────────────────────────────────────────────
 
 class _ConsultationCard extends StatelessWidget {
   final Consultation consultation;
@@ -533,7 +523,7 @@ class _ConsultationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isInstant = consultation.type == 'instant';
-    final typeText = isInstant ? 'إستشارة فورية' : 'إستشارة كتابية';
+    final typeText = isInstant ? Loc.instantConsultation() : Loc.writtenConsultationLabel();
     final formattedTime = _formatTime(consultation.createdAt);
 
     return BlocBuilder<LawyerConsultationsCubit, LawyerConsultationsState>(
@@ -603,7 +593,7 @@ class _ConsultationCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10.h)),
                         padding: EdgeInsets.symmetric(vertical: 10.h),
                       ),
-                      child: Text('قبول',
+                      child: Text(Loc.accept(),
                           style: theme.textTheme.titleSmall
                               ?.copyWith(color: Colors.white)),
                     ),
@@ -629,7 +619,7 @@ class _ConsultationCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(10.h)),
                         padding: EdgeInsets.symmetric(vertical: 10.h),
                       ),
-                      child: Text('التفاصيل',
+                      child: Text(Loc.detailsLabel(),
                           style: theme.textTheme.titleSmall
                               ?.copyWith(color: primary)),
                     ),
@@ -646,13 +636,12 @@ class _ConsultationCard extends StatelessWidget {
   String _formatTime(DateTime dateTime) {
     final now = DateTime.now();
     final diff = now.difference(dateTime);
-    if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} دقيقة';
-    if (diff.inHours < 24) return 'منذ ${diff.inHours} ساعة';
+    if (diff.inMinutes < 60) return Loc.minutesAgo(diff.inMinutes);
+    if (diff.inHours < 24) return Loc.hoursAgo(diff.inHours);
     return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
   }
 }
 
-// ── Section Header ───────────────────────────────────────────────────────────
 
 class _SectionHeader extends StatelessWidget {
   final String title;
@@ -672,7 +661,7 @@ class _SectionHeader extends StatelessWidget {
         if (onViewAll != null)
           InkWell(
             onTap: onViewAll,
-            child: Text('عرض الكل',
+            child: Text(Loc.viewAll(),
                 style: theme.textTheme.bodySmall?.copyWith(color: primary)),
           ),
       ],
@@ -680,7 +669,6 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ── Appointment Card ─────────────────────────────────────────────────────────
 
 class _AppointmentCard extends StatelessWidget {
   final ScheduledConsultation appointment;
@@ -690,7 +678,7 @@ class _AppointmentCard extends StatelessWidget {
     dt = dt.toLocal() ;
     final h = dt.hour;
     final m = dt.minute.toString().padLeft(2, '0');
-    final period = h >= 12 ? 'مساء' : 'صباحا';
+    final period = h >= 12 ? Loc.pmPlain() : Loc.amPlain();
     final hour = h > 12 ? h - 12 : (h == 0 ? 12 : h);
     return '$hour:$m $period';
   }
@@ -743,7 +731,6 @@ class _AppointmentCard extends StatelessWidget {
   }
 }
 
-// ── Consultations Shimmer ────────────────────────────────────────────────────
 
 class _ConsultationsShimmer extends StatelessWidget {
   const _ConsultationsShimmer();
@@ -772,7 +759,6 @@ class _ConsultationsShimmer extends StatelessWidget {
   }
 }
 
-// ── Upcoming Shimmer ─────────────────────────────────────────────────────────
 
 class _UpcomingShimmer extends StatelessWidget {
   const _UpcomingShimmer();
@@ -801,7 +787,6 @@ class _UpcomingShimmer extends StatelessWidget {
   }
 }
 
-// ── Transaction Card ─────────────────────────────────────────────────────────
 
 class _TransactionCard extends StatelessWidget {
   final LastFinancialMovement movement;
@@ -842,7 +827,7 @@ class _TransactionCard extends StatelessWidget {
               children: [
                 Text(movement.description, style: theme.textTheme.titleMedium),
                 Text(
-                  '${movement.amount} ريال',
+                  Loc.amountRiyal(movement.amount),
                   style: theme.textTheme.titleSmall
                       ?.copyWith(color: primary, fontWeight: FontWeight.w900),
                 ),
@@ -870,7 +855,6 @@ class _TransactionCard extends StatelessWidget {
   }
 }
 
-// ── Transaction Shimmer ─────────────────────────────────────────────────────
 
 class _TransactionShimmer extends StatelessWidget {
   const _TransactionShimmer();

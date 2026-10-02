@@ -1,5 +1,5 @@
-// features/notifications/presentation/screens/notifications_screen.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -18,9 +18,6 @@ import '../../User/profile/widgets/header_capsule_appbar_widget.dart';
 import 'bloc/notifications_cubit.dart';
 import 'models/notification_model.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -35,9 +32,6 @@ class NotificationsScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// View
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _NotificationsView extends StatefulWidget {
   const _NotificationsView();
@@ -79,7 +73,7 @@ class _NotificationsViewState extends State<_NotificationsView> {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         appBar: GeneralAppBar(
-          title: 'الإشعارات',
+          title: Loc.notifications(),
         ),
         body: BlocConsumer<NotificationsCubit, NotificationsState>(
           listenWhen: (_, current) =>
@@ -105,21 +99,19 @@ class _NotificationsViewState extends State<_NotificationsView> {
             }
           },
           builder: (context, state) {
-            // ── Loading (initial) ───────────────────────────────────────────
             if (state is NotificationsLoading) {
               return const _NotificationsShimmer();
             }
 
-            // ── Error ───────────────────────────────────────────────────────
             if (state is NotificationsFailure) {
               return Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   SizedBox(height: 80.h),
                   ErrorStateWidget(
-                    title: 'تعذر تحميل الإشعارات',
+                    title: Loc.unableToLoadNotifications(),
                     message: state.message,
-                    actionLabel: 'إعادة المحاولة',
+                    actionLabel: Loc.retryAgain(),
                     onAction: () =>
                         context.read<NotificationsCubit>().fetchNotifications(),
                   ),
@@ -127,18 +119,16 @@ class _NotificationsViewState extends State<_NotificationsView> {
               );
             }
 
-            // ── Loaded (or refreshing with old data) ──────────────────────
             if (state is NotificationsLoaded) {
-              // ── Empty ───────────────────────────────────────────────────
               if (state.notifications.isEmpty) {
                 return Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     SizedBox(height: 80.h),
-                    const NoDataWidget(
+                    NoDataWidget(
                       icon: Icons.notifications_off_outlined,
-                      title: 'لا توجد إشعارات',
-                      message: 'ستظهر إشعاراتك الجديدة هنا عند وصولها',
+                      title: Loc.noNotifications(),
+                      message: Loc.notificationsEmptyMessage(),
                     ),
                   ],
                 );
@@ -154,7 +144,6 @@ class _NotificationsViewState extends State<_NotificationsView> {
                       (state.isPaginating ? 1 : 0),
                   separatorBuilder: (_, __) => SizedBox(height: 12.h),
                   itemBuilder: (context, index) {
-                    // Pagination loader at the bottom
                     if (index == state.notifications.length) {
                       return Padding(
                         padding: EdgeInsets.symmetric(vertical: 16.h),
@@ -186,9 +175,6 @@ class _NotificationsViewState extends State<_NotificationsView> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Notification Card  (unchanged UI, now driven by real data)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _NotificationCard extends StatelessWidget {
   const _NotificationCard({
@@ -199,7 +185,6 @@ class _NotificationCard extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback? onTap;
 
-  /// Format ISO-8601 date to a human-readable string
   String _formatDate(String? isoDate) {
     if (isoDate == null || isoDate.isEmpty) return '';
     try {
@@ -282,7 +267,6 @@ class _NotificationCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // 🔔 Icon
                     Container(
                       width: 40.w,
                       height: 40.w,
@@ -306,7 +290,6 @@ class _NotificationCard extends StatelessWidget {
                     ),
                     SizedBox(width: 14.w),
 
-                    // 📝 Texts
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,7 +311,6 @@ class _NotificationCard extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              // Unread dot
                               if (isUnread) ...[
                                 SizedBox(width: 6.w),
                                 Container(
@@ -393,7 +375,7 @@ class _NotificationCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(6.h),
                                   ),
                                   child: Text(
-                                    'New',
+                                    Loc.newLabel(),
                                     style: theme.textTheme.labelSmall?.copyWith(
                                       color: cs.primary,
                                       fontWeight: FontWeight.w700,
@@ -418,9 +400,6 @@ class _NotificationCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer placeholder (mirrors card structure exactly)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _NotificationsShimmer extends StatelessWidget {
   const _NotificationsShimmer();
@@ -457,7 +436,6 @@ class _ShimmerCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Circle placeholder
           Container(
             width: 40.w,
             height: 40.w,
@@ -468,7 +446,6 @@ class _ShimmerCard extends StatelessWidget {
           ),
           SizedBox(width: 14.w),
 
-          // Text placeholders
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,6 +494,3 @@ class _ShimmerCard extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// REMOVED: _ErrorBody — replaced by ErrorStateWidget
-// ═══════════════════════════════════════════════════════════════════════════

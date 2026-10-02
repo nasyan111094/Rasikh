@@ -32,9 +32,8 @@ class CustomDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Title
               Text(
-                "عزيزنا العميل ",
+                Loc.dearCustomerLabel(),
                 style: TextStyle(
                   fontSize: 20.sp,
                   fontWeight: FontWeight.bold,
@@ -43,9 +42,8 @@ class CustomDialog extends StatelessWidget {
               ),
               const SizedBox(height: 10),
 
-              // Message
               Text(
-                "يرجي تسجبل الدخول للوصول لخدماتنا",
+                Loc.pleaseLoginToAccessServices(),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.black,
@@ -54,13 +52,11 @@ class CustomDialog extends StatelessWidget {
               ),
               const SizedBox(height: 20),
 
-              // Buttons
               SizedBox(
                 height: 55.h,
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    // Agree button
                     Expanded(
                       child: TextButton(
                         style: TextButton.styleFrom(
