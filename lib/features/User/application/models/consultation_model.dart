@@ -24,15 +24,36 @@ class EnumValueModel {
 
 // ── 1. Specialization ────────────────────────────────────────────────────────
 
+class LawsuitTypeModel {
+  final String id;
+  final String name;
+  final bool isActive;
+
+  const LawsuitTypeModel({
+    required this.id,
+    required this.name,
+    required this.isActive,
+  });
+
+  factory LawsuitTypeModel.fromJson(Map<String, dynamic> json) =>
+      LawsuitTypeModel(
+        id: json['id'] as String? ?? json['_id'] as String? ?? '',
+        name: json['name'] as String? ?? '',
+        isActive: json['isActive'] as bool? ?? true,
+      );
+}
+
 class SubSpecializationModel {
   final String id;
   final String name;
   final bool isActive;
+  final List<LawsuitTypeModel> lawsuitTypes;
 
   const SubSpecializationModel({
     required this.id,
     required this.name,
     required this.isActive,
+    this.lawsuitTypes = const [],
   });
 
   factory SubSpecializationModel.fromJson(Map<String, dynamic> json) =>
@@ -40,6 +61,10 @@ class SubSpecializationModel {
         id: json['id'] as String? ?? '',
         name: json['name'] as String? ?? '',
         isActive: json['isActive'] as bool? ?? true,
+        lawsuitTypes: (json['lawsuitTypes'] as List<dynamic>? ?? [])
+            .map((e) => LawsuitTypeModel.fromJson(e as Map<String, dynamic>))
+            .where((l) => l.isActive)
+            .toList(),
       );
 }
 
@@ -127,6 +152,20 @@ class LawyerSpecializationRef {
       );
 }
 
+/// Lawsuit type linked to a lawyer (GET /clients/lawyers → `lawsuitTypeIds`).
+class LawyerLawsuitRef {
+  final String id;
+  final String? name;
+
+  const LawyerLawsuitRef({required this.id, this.name});
+
+  factory LawyerLawsuitRef.fromJson(Map<String, dynamic> json) =>
+      LawyerLawsuitRef(
+        id: json['id'] as String? ?? json['_id'] as String? ?? '',
+        name: json['name'] as String?,
+      );
+}
+
 class LawyerModel {
   final String id;
   final String fullName;
@@ -135,6 +174,7 @@ class LawyerModel {
   final int? experienceYears;
   final double rating;
   final List<LawyerSpecializationRef> mainSpecializations;
+  final List<LawyerLawsuitRef> lawsuitTypes;
   final double? consultationFee;
   final bool isCompany;
   final String? bio;
@@ -147,6 +187,7 @@ class LawyerModel {
     this.experienceYears,
     required this.rating,
     required this.mainSpecializations,
+    this.lawsuitTypes = const [],
     this.consultationFee,
     required this.isCompany,
     this.bio,
@@ -162,6 +203,10 @@ class LawyerModel {
     mainSpecializations:
     (json['mainSpecializations'] as List<dynamic>? ?? [])
         .map((e) => LawyerSpecializationRef.fromJson(e as Map<String, dynamic>))
+        .toList(),
+    lawsuitTypes:
+    (json['lawsuitTypeIds'] as List<dynamic>? ?? [])
+        .map((e) => LawyerLawsuitRef.fromJson(e as Map<String, dynamic>))
         .toList(),
     consultationFee: (json['consultationFee'] as num?)?.toDouble(),
     isCompany: json['isCompany'] as bool? ?? false,
@@ -254,6 +299,7 @@ class LawyerDetailModel extends LawyerModel {
     super.experienceYears,
     required super.rating,
     required super.mainSpecializations,
+    super.lawsuitTypes,
     super.consultationFee,
     required super.isCompany,
     super.bio,
@@ -278,6 +324,10 @@ class LawyerDetailModel extends LawyerModel {
         mainSpecializations:
         (json['mainSpecializations'] as List<dynamic>? ?? [])
             .map((e) => LawyerSpecializationRef.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        lawsuitTypes:
+        (json['lawsuitTypeIds'] as List<dynamic>? ?? [])
+            .map((e) => LawyerLawsuitRef.fromJson(e as Map<String, dynamic>))
             .toList(),
         consultationFee: (json['consultationFee'] as num?)?.toDouble(),
         isCompany: json['isCompany'] as bool? ?? false,
@@ -380,6 +430,7 @@ class CreateConsultationParams {
   final String lawyerId;
   final String specializationId;
   final List<String> subSpecializationIds;
+  final List<String> lawsuitTypeIds;
   final String title;
   final String details;
   final ConsultationType type;
@@ -399,6 +450,7 @@ class CreateConsultationParams {
     required this.lawyerId,
     required this.specializationId,
     required this.subSpecializationIds,
+    this.lawsuitTypeIds = const [],
     required this.title,
     required this.details,
     required this.type,
@@ -415,6 +467,7 @@ class CreateConsultationParams {
     String? lawyerId,
     String? specializationId,
     List<String>? subSpecializationIds,
+    List<String>? lawsuitTypeIds,
     String? title,
     String? details,
     ConsultationType? type,
@@ -430,6 +483,7 @@ class CreateConsultationParams {
         lawyerId: lawyerId ?? this.lawyerId,
         specializationId: specializationId ?? this.specializationId,
         subSpecializationIds: subSpecializationIds ?? this.subSpecializationIds,
+        lawsuitTypeIds: lawsuitTypeIds ?? this.lawsuitTypeIds,
         title: title ?? this.title,
         details: details ?? this.details,
         type: type ?? this.type,

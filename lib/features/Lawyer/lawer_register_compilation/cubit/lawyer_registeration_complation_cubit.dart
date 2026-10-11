@@ -186,10 +186,12 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
   void saveSpecializations({
     required List<String> mainIds,
     required List<String> subIds,
+    List<String> lawsuitIds = const [],
   }) {
     formData = formData.copyWith(
       mainSpecializationIds: mainIds,
       subSpecializationIds:  subIds,
+      lawsuitTypeIds:        lawsuitIds,
     );
   }
 

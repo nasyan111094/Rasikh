@@ -21,6 +21,10 @@ class ConsultationState {
   final SpecializationModel? selectedSpecialization;
   final List<SubSpecializationModel> selectedSubSpecializations;
 
+  /// IDs of selected lawsuit types (multi-select) under the chosen sub.
+  /// Sent downstream as-is; sub list stays single-element for compatibility.
+  final List<String> selectedLawsuitTypeIds;
+
   // ── Enums: Consultation types (from /api/v1/enums/consultation-types) ──────
   final ConsultationStatus consultationTypesStatus;
   final List<EnumValueModel> consultationTypes;
@@ -93,6 +97,7 @@ class ConsultationState {
 
     this.selectedSpecialization,
     this.selectedSubSpecializations = const [],
+    this.selectedLawsuitTypeIds = const [],
 
     // Consultation type enums
     this.consultationTypesStatus = ConsultationStatus.initial,
@@ -166,6 +171,7 @@ class ConsultationState {
     String? specializationsError,
     SpecializationModel? selectedSpecialization,
     List<SubSpecializationModel>? selectedSubSpecializations,
+    List<String>? selectedLawsuitTypeIds,
 
     // Consultation type enums
     ConsultationStatus? consultationTypesStatus,
@@ -240,6 +246,8 @@ class ConsultationState {
         selectedSpecialization ?? this.selectedSpecialization,
         selectedSubSpecializations:
         selectedSubSpecializations ?? this.selectedSubSpecializations,
+        selectedLawsuitTypeIds:
+        selectedLawsuitTypeIds ?? this.selectedLawsuitTypeIds,
 
         consultationTypesStatus:
         consultationTypesStatus ?? this.consultationTypesStatus,
@@ -304,8 +312,23 @@ class ConsultationState {
 
   // ── Convenience getters ───────────────────────────────────────────────────
 
-  bool get canProceedFromSpecialty =>
-      selectedSpecialization != null && selectedSubSpecializations.isNotEmpty;
+  /// Single selected sub (new flow: exactly one sub).
+  SubSpecializationModel? get selectedSubSpecialization =>
+      selectedSubSpecializations.isEmpty ? null : selectedSubSpecializations.first;
+
+  /// Active lawsuit types of the chosen sub.
+  List<LawsuitTypeModel> get availableLawsuitTypes =>
+      selectedSubSpecialization?.lawsuitTypes ?? const [];
+
+  /// Main (1) + sub (1) required; if the sub has lawsuits, ≥1 lawsuit required.
+  bool get canProceedFromSpecialty {
+    if (selectedSpecialization == null || selectedSubSpecializations.isEmpty) {
+      return false;
+    }
+    final lawsuits = availableLawsuitTypes;
+    if (lawsuits.isNotEmpty && selectedLawsuitTypeIds.isEmpty) return false;
+    return true;
+  }
 
   bool get canProceedFromDetails =>
       consultationTitle.trim().isNotEmpty &&

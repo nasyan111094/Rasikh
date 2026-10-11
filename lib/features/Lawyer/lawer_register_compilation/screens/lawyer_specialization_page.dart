@@ -3,19 +3,18 @@
 //
 // Step 4 (final) – Specializations (التخصصات)
 //
-// Behaviour:
-//  • Tap a card header → expands/collapses the sub-chip section.
-//  • A card is "selected" (filled radio, coloured border) only when ≥1 sub
-//    chip has been chosen from it.
-//  • Multiple cards can be expanded and/or selected simultaneously.
-//  • "إرسال للمراجعة" is enabled once at least one main has ≥1 sub chosen.
+// Behaviour (LawyerSpecializationsSelector):
+//  • إضافة أكثر من تخصص رئيسي عبر SearchableDropdown
+//  • أكثر من تخصص فرعي داخل كل رئيسي (chips)
+//  • أكثر من دعوة داخل كل فرعي مختار (chips)
+//  • "إرسال للمراجعة" مفعّل عند اختيار رئيسي واحد على الأقل
+//    وفرعي واحد داخل كل رئيسي مختار.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/auth_stepper.dart';
@@ -26,11 +25,9 @@ import 'package:rasikh/features/common/Auth/screens/auth_page.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../../Shared/bottom_sheets/terms_conditions_button_sheet.dart';
-import '../../../../Shared/widgets/specialization_card.dart';
-import '../../../../config/navigation/nav.dart';
+import '../../../../Shared/widgets/lawyer_specializations_selector.dart';
 import '../cubit/lawyer_registeration_complation_cubit.dart';
 import '../cubit/lawyer_registeration_complation_state.dart';
-import '../models/lawyer_registeration_complation_model.dart';
 
 class LawyerSpecializationPage extends StatefulWidget {
   const LawyerSpecializationPage({super.key});
@@ -42,6 +39,7 @@ class LawyerSpecializationPage extends StatefulWidget {
 
 class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
   late final LawyerCompletionCubit _cubit;
+  LawyerSpecSelection? _selection;
 
   @override
   void initState() {
@@ -131,7 +129,26 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                           );
                         }
                         if (state is LawyerSpecializationLoaded) {
-                          if (state.specializations.isEmpty) {
+                          final mains = state.specializations
+                              .where((s) => s.subSpecializations.isNotEmpty)
+                              .map((s) => LawyerSpecMain(
+                                    id: s.id,
+                                    name: s.name,
+                                    subs: s.subSpecializations
+                                        .map((sub) => LawyerSpecSub(
+                                              id: sub.id,
+                                              name: sub.name,
+                                              lawsuits: sub.lawsuitTypes
+                                                  .map((l) =>
+                                                      LawyerSpecLawsuit(
+                                                          id: l.id,
+                                                          name: l.name))
+                                                  .toList(),
+                                            ))
+                                        .toList(),
+                                  ))
+                              .toList();
+                          if (mains.isEmpty) {
                             return Center(
                               child: Text(
                                 'لم يتم العثور على تخصصات متاحة',
@@ -140,17 +157,39 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                               ),
                             );
                           }
-                          return ListView.separated(
+                          return ListView(
                             physics: const BouncingScrollPhysics(),
                             padding: EdgeInsets.fromLTRB(
                                 20.w, 0, 20.w, 8.h),
-                            itemCount: state.specializations.length,
-                            separatorBuilder: (_, __) => Gap(12.h),
-                            itemBuilder: (_, i) => SpecializationCard(
-                              spec:  state.specializations[i],
-                              state: state,
-                              cubit: _cubit,
-                            ),
+                            children: [
+                              LawyerSpecializationsSelector(
+                                catalog: mains,
+                                onChanged: (sel) =>
+                                    setState(() => _selection = sel),
+                              ),
+                              if (_selection?.validationMessage != null &&
+                                  (_selection?.mainIds.isNotEmpty ??
+                                      false)) ...[
+                                Gap(8.h),
+                                Row(
+                                  children: [
+                                    Icon(Icons.info_outline_rounded,
+                                        size: 15,
+                                        color: colorScheme.error),
+                                    Gap(6.w),
+                                    Expanded(
+                                      child: Text(
+                                        _selection!.validationMessage!,
+                                        style: theme.textTheme.bodySmall
+                                            ?.copyWith(
+                                          color: colorScheme.error,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ],
                           );
                         }
                         return const SizedBox.shrink();
@@ -163,7 +202,10 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                     padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 0),
                     child: Column(
                       children: [
-                        _SubmitButton(cubit: _cubit),
+                        _SubmitButton(
+                          cubit: _cubit,
+                          selection: _selection,
+                        ),
                         Gap(14.h),
                         Text.rich(
                           TextSpan(
@@ -261,7 +303,8 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
 
 class _SubmitButton extends StatelessWidget {
   final LawyerCompletionCubit cubit;
-  const _SubmitButton({required this.cubit});
+  final LawyerSpecSelection? selection;
+  const _SubmitButton({required this.cubit, required this.selection});
 
   @override
   Widget build(BuildContext context) {
@@ -270,8 +313,7 @@ class _SubmitButton extends StatelessWidget {
 
     return BlocBuilder<LawyerCompletionCubit, LawyerCompletionState>(
       builder: (context, state) {
-        final canProceed   = state is LawyerSpecializationLoaded &&
-            state.canProceed;
+        final canProceed   = (selection?.isValid ?? false);
         final isSubmitting = state is LawyerProfileSubmitting;
 
         return SizedBox(
@@ -295,8 +337,9 @@ class _SubmitButton extends StatelessWidget {
               onPressed: (canProceed && !isSubmitting)
                   ? () {
                 cubit.saveSpecializations(
-                  mainIds: cubit.selectedMainIds,
-                  subIds:  cubit.selectedSubIds,
+                  mainIds: selection!.mainIds,
+                  subIds:  selection!.subIds,
+                  lawsuitIds: selection!.lawsuitIds,
                 );
                 cubit.completeProfile();
               }

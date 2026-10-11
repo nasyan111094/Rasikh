@@ -85,31 +85,24 @@ class LawyerProfileRepo {
 
   // ── UPDATE specializations (multipart/form-data) ───────────────────────────
   //
-  // Sends only the specialization fields:
-  //   mainSpecializations  → JSON-encoded array of main spec IDs
-  //   subSpecializations   → JSON-encoded array of sub  spec IDs
+  // Per API docs (PUT /api/v1/lawyers/update/form):
+  //   mainSpecializations / subSpecializations / lawsuitTypeIds
+  //   are JSON-as-string arrays, e.g. '["id1","id2"]'.
+  // Server validates hierarchy: subs must belong to the selected mains,
+  // and lawsuit types must belong to the selected subs.
   //
   // Returns the refreshed profile so the cubit can cache it.
 
   Future<Either<String, LawyerProfileModel>> updateSpecializations({
     required List<String> mainSpecializationIds,
     required List<String> subSpecializationIds,
+    List<String> lawsuitTypeIds = const [],
   }) async {
-    final formData = FormData();
-
-    // Main Specializations
-    for (final id in mainSpecializationIds) {
-      formData.fields.add(
-        MapEntry('mainSpecializations[]', id),
-      );
-    }
-
-    // Sub Specializations
-    for (final id in subSpecializationIds) {
-      formData.fields.add(
-        MapEntry('subSpecializations[]', id),
-      );
-    }
+    final formData = FormData.fromMap({
+      'mainSpecializations': jsonEncode(mainSpecializationIds),
+      'subSpecializations': jsonEncode(subSpecializationIds),
+      'lawsuitTypeIds': jsonEncode(lawsuitTypeIds),
+    });
 
     // Debug
     debugPrint('========== FormData ==========');

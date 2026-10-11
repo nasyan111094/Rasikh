@@ -4,28 +4,56 @@
 // All models exclusive to the lawyer profile-completion flow.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'dart:convert';
 import 'dart:io';
 
 
 
 // ── Specialization models (GET /api/v1/specializations/active) ────────────────
 
-class SubSpecializationModel {
+class LawsuitTypeModel {
   final String id;
   final String name;
   final bool   isActive;
 
-  const SubSpecializationModel({
+  const LawsuitTypeModel({
     required this.id,
     required this.name,
     required this.isActive,
   });
 
+  factory LawsuitTypeModel.fromJson(Map<String, dynamic> json) {
+    return LawsuitTypeModel(
+      id:       json['id'] as String? ?? json['_id'] as String? ?? '',
+      name:     json['name']     as String? ?? '',
+      isActive: json['isActive'] as bool?   ?? true,
+    );
+  }
+}
+
+class SubSpecializationModel {
+  final String id;
+  final String name;
+  final bool   isActive;
+  final List<LawsuitTypeModel> lawsuitTypes;
+
+  const SubSpecializationModel({
+    required this.id,
+    required this.name,
+    required this.isActive,
+    this.lawsuitTypes = const [],
+  });
+
   factory SubSpecializationModel.fromJson(Map<String, dynamic> json) {
+    final rawLawsuits = json['lawsuitTypes'] as List<dynamic>? ?? [];
     return SubSpecializationModel(
       id:       json['id']       as String? ?? '',
       name:     json['name']     as String? ?? '',
       isActive: json['isActive'] as bool?   ?? false,
+      lawsuitTypes: rawLawsuits
+          .map((e) => LawsuitTypeModel.fromJson(e as Map<String, dynamic>))
+          .where((l) => l.isActive)
+          .toList(),
     );
   }
 }
@@ -156,6 +184,7 @@ class LawyerRegistrationFormData {
   // Step 4 – Specializations
   List<String> mainSpecializationIds;
   List<String> subSpecializationIds;
+  List<String> lawsuitTypeIds;
 
   bool acceptedTerms;
 
@@ -176,6 +205,7 @@ class LawyerRegistrationFormData {
     this.experienceYears                 = 0,
     this.mainSpecializationIds           = const [],
     this.subSpecializationIds            = const [],
+    this.lawsuitTypeIds                  = const [],
     this.acceptedTerms                   = false,
   });
 
@@ -214,8 +244,11 @@ class LawyerRegistrationFormData {
         'commercialRegistrationNumber': commercialRegistrationNumber,
       'qualifications':    qualifications,
       'experienceYears':   experienceYears.toString(),
-      'mainSpecializations': mainSpecializationIds,
-      'subSpecializations':  subSpecializationIds,
+      'mainSpecializations': jsonEncode(mainSpecializationIds),
+      'subSpecializations':  jsonEncode(subSpecializationIds),
+      if (lawsuitTypeIds.isNotEmpty)
+        'lawsuitTypeIds': jsonEncode(lawsuitTypeIds),
+      if (lawsuitTypeIds.isNotEmpty) 'lawsuitTypeIds': lawsuitTypeIds,
       'acceptedTerms':     acceptedTerms.toString(),
     };
   }
@@ -237,6 +270,7 @@ class LawyerRegistrationFormData {
     int?          experienceYears,
     List<String>? mainSpecializationIds,
     List<String>? subSpecializationIds,
+    List<String>? lawsuitTypeIds,
     bool?         acceptedTerms,
   }) {
     return LawyerRegistrationFormData(
@@ -256,6 +290,7 @@ class LawyerRegistrationFormData {
       experienceYears:                experienceYears                ?? this.experienceYears,
       mainSpecializationIds:          mainSpecializationIds          ?? this.mainSpecializationIds,
       subSpecializationIds:           subSpecializationIds           ?? this.subSpecializationIds,
+      lawsuitTypeIds:                 lawsuitTypeIds                 ?? this.lawsuitTypeIds,
       acceptedTerms:                  acceptedTerms                  ?? this.acceptedTerms,
     );
   }

@@ -51,21 +51,46 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
   }
 
   void selectSpecialization(SpecializationModel specialization) {
+    // New flow: exactly one main → clears sub + lawsuits.
+    if (state.selectedSpecialization?.id == specialization.id) return;
     emit(state.copyWith(
       selectedSpecialization: specialization,
       selectedSubSpecializations: [],
+      selectedLawsuitTypeIds: [],
+    ));
+  }
+
+  /// New flow: exactly one sub → replaces previous sub + clears lawsuits.
+  void selectSubSpecialization(SubSpecializationModel sub) {
+    emit(state.copyWith(
+      selectedSubSpecializations: [sub],
+      selectedLawsuitTypeIds: [],
     ));
   }
 
   void toggleSubSpecialization(SubSpecializationModel sub) {
-    final current =
-    List<SubSpecializationModel>.from(state.selectedSubSpecializations);
-    if (current.any((s) => s.id == sub.id)) {
-      current.removeWhere((s) => s.id == sub.id);
+    // Backward-compatible single-select: tapping the chosen sub deselects it,
+    // tapping another sub switches to it (and clears lawsuits).
+    final current = state.selectedSubSpecialization;
+    if (current != null && current.id == sub.id) {
+      emit(state.copyWith(
+        selectedSubSpecializations: [],
+        selectedLawsuitTypeIds: [],
+      ));
     } else {
-      current.add(sub);
+      selectSubSpecialization(sub);
     }
-    emit(state.copyWith(selectedSubSpecializations: current));
+  }
+
+  /// Multi-select lawsuit types under the chosen sub.
+  void toggleLawsuitType(String lawsuitId) {
+    final current = List<String>.from(state.selectedLawsuitTypeIds);
+    if (current.contains(lawsuitId)) {
+      current.remove(lawsuitId);
+    } else {
+      current.add(lawsuitId);
+    }
+    emit(state.copyWith(selectedLawsuitTypeIds: current));
   }
 
   // ── Enums ─────────────────────────────────────────────────────────────────
@@ -178,6 +203,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       specializationsError: s.specializationsError,
       selectedSpecialization: s.selectedSpecialization,
       selectedSubSpecializations: s.selectedSubSpecializations,
+      selectedLawsuitTypeIds: s.selectedLawsuitTypeIds,
       consultationTypesStatus: s.consultationTypesStatus,
       consultationTypes: s.consultationTypes,
       consultationTypesError: s.consultationTypesError,
@@ -243,6 +269,10 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       subSpecializationIds: state.selectedSubSpecializations.isNotEmpty
           ? state.selectedSubSpecializations.map((s) => s.id).join(',')
           : null,
+      lawsuitTypeIds: state.selectedLawsuitTypeIds.isNotEmpty
+          ? state.selectedLawsuitTypeIds.join(',')
+          : null,
+      pricingId: state.selectedPricing?.id,
       search: search,
       city: city,
       sortBy: sortBy,
@@ -427,6 +457,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       specializationId: state.selectedSpecialization!.id,
       subSpecializationIds:
       state.selectedSubSpecializations.map((s) => s.id).toList(),
+      lawsuitTypeIds: List.of(state.selectedLawsuitTypeIds),
       title: state.consultationTitle.trim(),
       details: state.consultationDetails.trim(),
       type: state.selectedConsultationType,
@@ -462,6 +493,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       experienceYears: detail.experienceYears,
       rating: detail.rating,
       mainSpecializations: detail.mainSpecializations,
+      lawsuitTypes: detail.lawsuitTypes,
       consultationFee: detail.consultationFee,
       isCompany: detail.isCompany,
       bio: detail.bio,

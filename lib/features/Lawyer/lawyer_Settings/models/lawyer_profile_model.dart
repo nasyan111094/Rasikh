@@ -23,6 +23,9 @@ class LawyerProfileModel {
   final List<SpecializationModel> mainSpecializations;
   final List<SpecializationModel> subSpecializations;
   final List<SpecializationByMainModel> specializationsByMain;
+  /// Saved lawsuit-type ids (PUT /lawyers/update/form returns/accepts
+  /// `lawsuitTypeIds`; some responses embed `lawsuitTypes` objects instead).
+  final List<String> lawsuitTypeIds;
   final bool acceptedTerms;
   final String status;
   final String accountStatus;
@@ -52,6 +55,7 @@ class LawyerProfileModel {
     this.mainSpecializations = const [],
     this.subSpecializations = const [],
     this.specializationsByMain = const [],
+    this.lawsuitTypeIds = const [],
     this.acceptedTerms = false,
     this.status = '',
     this.accountStatus = '',
@@ -96,6 +100,7 @@ class LawyerProfileModel {
           ?.map((e) => SpecializationByMainModel.fromJson(e))
           .toList() ??
           [],
+      lawsuitTypeIds: _parseLawsuitIds(json),
       acceptedTerms: json['acceptedTerms'] ?? false,
       status: json['status'] ?? '',
       accountStatus: json['accountStatus'] ?? '',
@@ -153,6 +158,7 @@ class LawyerProfileModel {
       mainSpecializations: mainSpecializations,
       subSpecializations: subSpecializations,
       specializationsByMain: specializationsByMain,
+      lawsuitTypeIds: lawsuitTypeIds,
       acceptedTerms: acceptedTerms,
       status: status,
       accountStatus: accountStatus,
@@ -168,6 +174,23 @@ class LawyerProfileModel {
 }
 
 // ── License ───────────────────────────────────────────────────────────────────
+
+/// Accepts `lawsuitTypeIds: ["id", ...]` or `lawsuitTypes: [{id|_id, ...}]`.
+List<String> _parseLawsuitIds(Map<String, dynamic> json) {
+  final rawIds = json['lawsuitTypeIds'] as List<dynamic>?;
+  if (rawIds != null) {
+    return rawIds.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+  }
+  final rawTypes = json['lawsuitTypes'] as List<dynamic>?;
+  if (rawTypes != null) {
+    return [
+      for (final e in rawTypes)
+        if (e is Map<String, dynamic>)
+          (e['id'] ?? e['_id'])?.toString() ?? '',
+    ].where((s) => s.isNotEmpty).toList();
+  }
+  return const [];
+}
 
 class LicenseModel {
   final String? number;

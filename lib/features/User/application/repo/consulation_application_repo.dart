@@ -112,6 +112,8 @@ class ConsultationRepo {
   Future<Either<String, List<LawyerDetailModel>>> fetchLawyers({
     String? specializationId,
     String? subSpecializationIds, // comma-separated
+    String? lawsuitTypeIds, // comma-separated (OR) — same pattern as subs
+    String? pricingId, // excludes lawyers with overlapping bookings
     String? city,
     int? minExperience,
     double? maxPrice,
@@ -130,6 +132,9 @@ class ConsultationRepo {
       if (specializationId != null) 'specialization': specializationId,
       if (subSpecializationIds != null)
         'subSpecializationIds': subSpecializationIds,
+      if (lawsuitTypeIds != null && lawsuitTypeIds.isNotEmpty)
+        'lawsuitTypeIds': lawsuitTypeIds,
+      if (pricingId != null && pricingId.isNotEmpty) 'pricingId': pricingId,
       if (city != null) 'city': city,
       if (minExperience != null) 'minExperience': minExperience,
       if (maxPrice != null) 'maxPrice': maxPrice,
@@ -244,6 +249,11 @@ class ConsultationRepo {
     if (params.subSpecializationIds.isNotEmpty) {
       fields['subSpecializationIds'] =
       '[${params.subSpecializationIds.map((id) => '"$id"').join(',')}]';
+    }
+
+    if (params.lawsuitTypeIds.isNotEmpty) {
+      fields['lawsuitTypeIds'] =
+      '[${params.lawsuitTypeIds.map((id) => '"$id"').join(',')}]';
     }
 
     // ✅ Unified DateTime format (LOCAL ISO 8601)

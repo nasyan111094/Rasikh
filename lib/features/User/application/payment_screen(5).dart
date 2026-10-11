@@ -437,6 +437,15 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                                     .map((s) => s.name)
                                     .join('، '),
                               ),
+                            if (state.selectedLawsuitTypeIds.isNotEmpty)
+                              rowItem(
+                                'الدعاوى',
+                                state.availableLawsuitTypes
+                                    .where((l) => state.selectedLawsuitTypeIds
+                                        .contains(l.id))
+                                    .map((l) => l.name)
+                                    .join('، '),
+                              ),
                             if (isScheduled && state.startTime != null)
                               rowItem(
                                 'تاريخ الجلسة',
