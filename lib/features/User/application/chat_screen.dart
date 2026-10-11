@@ -1,40 +1,5 @@
-// =============================================================================
-// chat_screen.dart  — v3  (PRODUCTION)
-//
-// Full Agora Chat SDK integration for the timed written-consultation flow.
-//
-// Architecture mirrors VideoCallScreen / VideoCallCubit exactly:
-//   • ChatScreenSession  — public entry-point (BlocProvider)
-//   • _ChatSessionView   — BlocConsumer, renders overlays + ChatBody
-//   • ChatBody           — StatefulWidget that owns the Agora Chat SDK
-//                          (login, send, receive, history, logout)
-//
-// Agora Chat SDK lifecycle:
-//   initState  → login
-//             → load conversation history
-//             → register message listener
-//
-//   dispose    → remove listener
-//             → logout
-//
-// Message model:
-//   _ChatMessage  — lightweight local model wrapping Agora ChatMessage.
-//
-// Attachment flow:
-//   • Incoming image → download thumbnail automatically.
-//   • Image tap with thumbnail only → download original image.
-//   • Original image → open full-screen.
-//   • File tap → download original file → OpenFilex.
-//   • Failed outgoing attachment → retry upload.
-//   • Failed incoming attachment → retry download.
-//
-// IMPORTANT:
-//   downloadThumbnail() and downloadAttachment() return void/Future<void>
-//   in the installed Agora Chat SDK version. Therefore we NEVER assign
-//   their return value to a ChatMessage.
-//
-// =============================================================================
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -55,9 +20,6 @@ import 'bloc/chat_session_cubit.dart';
 import 'bloc/chat_session_state.dart';
 import 'dialogs/call_summary_dialog.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Local lightweight message model
-// ─────────────────────────────────────────────────────────────────────────────
 
 enum _MsgStatus {
   sending,
@@ -79,28 +41,18 @@ class _ChatMessage {
 
   _MsgStatus status;
 
-  /// Text content — only meaningful for [_MsgType.text].
   String text;
 
-  /// Local path to the attachment.
-  ///
-  /// For outgoing messages this is available immediately.
-  /// For received messages this is populated after downloading the original.
   String? localPath;
 
-  /// Downloaded thumbnail path — images only.
   String? thumbnailLocalPath;
 
-  /// Remote path/URL provided by Agora.
   String? remoteUrl;
 
-  /// Original file name — files only.
   String? fileName;
 
-  /// File size in bytes.
   int? fileSize;
 
-  /// Upload/download progress, 0.0–1.0.
   double progress;
 
   _ChatMessage({
@@ -118,7 +70,6 @@ class _ChatMessage {
     this.progress = 0,
   });
 
-  /// Build from an Agora SDK ChatMessage.
   factory _ChatMessage.fromAgora(
       ChatMessage msg,
       String myUserId,
@@ -172,7 +123,7 @@ class _ChatMessage {
     return _ChatMessage(
       msgId: msg.msgId,
       type: _MsgType.text,
-      text: '[نوع رسالة غير مدعوم]',
+      text: Loc.unsupportedMessageType(),
       isMine: isMine,
       timestamp: timestamp,
       status: _MsgStatus.sent,
@@ -180,7 +131,6 @@ class _ChatMessage {
   }
 }
 
-/// Formats a byte count as a short human-readable size string.
 String _formatBytes(int? bytes) {
   if (bytes == null) return '';
 
@@ -195,9 +145,6 @@ String _formatBytes(int? bytes) {
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }
 
-// =============================================================================
-// PUBLIC ENTRY-POINT
-// =============================================================================
 
 class ChatScreenSession extends StatelessWidget {
   const ChatScreenSession({
@@ -234,9 +181,6 @@ class ChatScreenSession extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// INTERNAL VIEW
-// =============================================================================
 
 class _ChatSessionView extends StatefulWidget {
   const _ChatSessionView({
@@ -416,9 +360,6 @@ class _ChatSessionViewState extends State<_ChatSessionView> {
   }
 }
 
-// =============================================================================
-// CHAT BODY
-// =============================================================================
 
 class _ChatBody extends StatefulWidget {
   const _ChatBody({
@@ -440,9 +381,6 @@ class _ChatBody extends StatefulWidget {
 }
 
 class _ChatBodyState extends State<_ChatBody> {
-  // ─────────────────────────────────────────────────────────────────────────
-  // State
-  // ─────────────────────────────────────────────────────────────────────────
 
   final List<_ChatMessage> _messages = [];
 
@@ -462,19 +400,12 @@ class _ChatBodyState extends State<_ChatBody> {
   static const int _maxAttachmentBytes =
       20 * 1024 * 1024;
 
-  /// Raw Agora SDK messages keyed by msgId.
   final Map<String, ChatMessage> _agoraMessages = {};
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Agora references
-  // ─────────────────────────────────────────────────────────────────────────
 
   late final ChatClient _chatClient;
   late final ChatEventHandler _msgHandler;
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Lifecycle
-  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   void initState() {
@@ -499,9 +430,6 @@ class _ChatBodyState extends State<_ChatBody> {
     super.dispose();
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Agora Chat bootstrap
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _bootstrapAgoraChat() async {
     try {
@@ -535,21 +463,18 @@ class _ChatBodyState extends State<_ChatBody> {
 
       setState(() {
         _sdkError =
-        'فشل الاتصال بخادم الرسائل: ${e.description}';
+        Loc.messagingServerConnectionFailed(e.description);
       });
     } catch (e) {
       if (!mounted) return;
 
       setState(() {
         _sdkError =
-        'خطأ غير متوقع: $e';
+        Loc.unexpectedErrorWithDetails(e);
       });
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // History
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _loadHistory() async {
     try {
@@ -612,7 +537,6 @@ class _ChatBodyState extends State<_ChatBody> {
         );
       });
 
-      // Download thumbnails for images already in history.
       for (final message in supported) {
         if (message.body is ChatImageMessageBody) {
           _downloadThumbnail(message);
@@ -627,13 +551,9 @@ class _ChatBodyState extends State<_ChatBody> {
         'Failed to load chat history: $error',
       );
 
-      // History loading is non-fatal.
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Message received
-  // ─────────────────────────────────────────────────────────────────────────
 
   void _onMessagesReceived(
       List<ChatMessage> messages,
@@ -656,7 +576,6 @@ class _ChatBodyState extends State<_ChatBody> {
         continue;
       }
 
-      // Prevent duplicate messages.
       if (_agoraMessages.containsKey(message.msgId)) {
         continue;
       }
@@ -683,7 +602,6 @@ class _ChatBodyState extends State<_ChatBody> {
 
     _scrollToBottom();
 
-    // Automatically download thumbnails for incoming images.
     for (final message in newMessages) {
       if (message.body is ChatImageMessageBody) {
         _downloadThumbnail(message);
@@ -701,17 +619,6 @@ class _ChatBodyState extends State<_ChatBody> {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Download image thumbnail
-  //
-  // IMPORTANT:
-  // Agora SDK method returns void/Future<void>.
-  // Do NOT do:
-  //
-  // final updated = await downloadThumbnail(...)
-  //
-  // Instead, call it and then read the updated body from the same message.
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _downloadThumbnail(
       ChatMessage message,
@@ -737,7 +644,6 @@ class _ChatBodyState extends State<_ChatBody> {
         return;
       }
 
-      // Keep the same Agora ChatMessage reference.
       _agoraMessages[message.msgId] = message;
 
       final index = _messages.indexWhere(
@@ -759,9 +665,6 @@ class _ChatBodyState extends State<_ChatBody> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Delivery / read events
-  // ─────────────────────────────────────────────────────────────────────────
 
   void _onMessagesDelivered(
       List<ChatMessage> messages,
@@ -806,12 +709,8 @@ class _ChatBodyState extends State<_ChatBody> {
   void _onMessagesRead(
       List<ChatMessage> messages,
       ) {
-    // Extend here if you want double-tick/read receipts.
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Send text message
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _sendMessage() async {
     final text = _inputCtrl.text.trim();
@@ -824,9 +723,9 @@ class _ChatBodyState extends State<_ChatBody> {
 
     if (!widget.isSessionActive) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'الجلسة غير نشطة، لا يمكن إرسال رسائل',
+            Loc.sessionInactiveCannotSend(),
           ),
         ),
       );
@@ -884,7 +783,7 @@ class _ChatBodyState extends State<_ChatBody> {
       });
 
       _showError(
-        'فشل إرسال الرسالة: ${e.description}',
+        Loc.sendMessageFailed(e.description),
       );
     } catch (_) {
       if (!mounted) return;
@@ -910,9 +809,6 @@ class _ChatBodyState extends State<_ChatBody> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Pick/send image
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _pickAndSendImage(
       ImageSource source,
@@ -939,9 +835,7 @@ class _ChatBodyState extends State<_ChatBody> {
 
     if (size > _maxAttachmentBytes) {
       _showError(
-        'حجم الصورة كبير جداً '
-            '(الحد الأقصى '
-            '${_formatBytes(_maxAttachmentBytes)})',
+        Loc.imageTooLarge(_formatBytes(_maxAttachmentBytes)),
       );
 
       return;
@@ -979,9 +873,6 @@ class _ChatBodyState extends State<_ChatBody> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Pick/send file
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _pickAndSendFile() async {
     if (!widget.isSessionActive ||
@@ -1023,9 +914,7 @@ class _ChatBodyState extends State<_ChatBody> {
 
     if (size > _maxAttachmentBytes) {
       _showError(
-        'حجم الملف كبير جداً '
-            '(الحد الأقصى '
-            '${_formatBytes(_maxAttachmentBytes)})',
+        Loc.fileTooLarge(_formatBytes(_maxAttachmentBytes)),
       );
 
       return;
@@ -1066,9 +955,6 @@ class _ChatBodyState extends State<_ChatBody> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Dispatch image/file
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _dispatch(
       ChatMessage msg,
@@ -1090,7 +976,7 @@ class _ChatBodyState extends State<_ChatBody> {
         optimistic.status = _MsgStatus.failed;
       });
 
-      _showError('فشل إرسال المرفق: ${e.description}');
+      _showError(Loc.sendAttachmentFailed(e.description));
     } catch (_) {
       if (!mounted) return;
 
@@ -1100,14 +986,10 @@ class _ChatBodyState extends State<_ChatBody> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Open / download attachment
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _handleOpenAttachment(
       _ChatMessage message,
       ) async {
-    // Do not open/download while currently uploading/downloading.
     if (message.status ==
         _MsgStatus.sending) {
       return;
@@ -1118,9 +1000,6 @@ class _ChatBodyState extends State<_ChatBody> {
             message.localPath!.isNotEmpty &&
             File(message.localPath!).existsSync();
 
-    // ───────────────────────────────────────
-    // Image already downloaded
-    // ───────────────────────────────────────
 
     if (message.type == _MsgType.image &&
         hasLocalFile) {
@@ -1131,9 +1010,6 @@ class _ChatBodyState extends State<_ChatBody> {
       return;
     }
 
-    // ───────────────────────────────────────
-    // File already downloaded
-    // ───────────────────────────────────────
 
     if (message.type == _MsgType.file &&
         hasLocalFile) {
@@ -1144,9 +1020,6 @@ class _ChatBodyState extends State<_ChatBody> {
       return;
     }
 
-    // ───────────────────────────────────────
-    // Failed outgoing message → retry send
-    // ───────────────────────────────────────
 
     if (message.status ==
         _MsgStatus.failed &&
@@ -1158,29 +1031,12 @@ class _ChatBodyState extends State<_ChatBody> {
       return;
     }
 
-    // ───────────────────────────────────────
-    // Received attachment → download
-    // ───────────────────────────────────────
 
     await _downloadAttachment(
       message,
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Download original attachment
-  //
-  // IMPORTANT:
-  // downloadAttachment() returns void/Future<void> in this SDK version.
-  //
-  // We therefore:
-  //   await downloadAttachment(agoraMsg)
-  //   ↓
-  //   read agoraMsg.body
-  //
-  // We NEVER do:
-  //   final updated = await downloadAttachment(...)
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _downloadAttachment(
       _ChatMessage message,
@@ -1216,9 +1072,6 @@ class _ChatBodyState extends State<_ChatBody> {
       final body =
           agoraMsg.body;
 
-      // ─────────────────────────────────────
-      // Image
-      // ─────────────────────────────────────
 
       if (body is ChatImageMessageBody) {
         final localPath =
@@ -1246,8 +1099,6 @@ class _ChatBodyState extends State<_ChatBody> {
           message.progress = 1;
         });
 
-        // Automatically open the original image
-        // after successful download.
         if (message.localPath != null &&
             message.localPath!.isNotEmpty &&
             File(message.localPath!)
@@ -1260,9 +1111,6 @@ class _ChatBodyState extends State<_ChatBody> {
         return;
       }
 
-      // ─────────────────────────────────────
-      // File
-      // ─────────────────────────────────────
 
       if (body is ChatFileMessageBody) {
         final localPath =
@@ -1293,7 +1141,6 @@ class _ChatBodyState extends State<_ChatBody> {
         return;
       }
 
-      // Unsupported attachment body.
       setState(() {
         message.status =
             _MsgStatus.sent;
@@ -1313,14 +1160,11 @@ class _ChatBodyState extends State<_ChatBody> {
       );
 
       _showError(
-        'فشل تحميل المرفق',
+        Loc.downloadAttachmentFailed(),
       );
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Open image
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _openImage(
       _ChatMessage message,
@@ -1340,9 +1184,6 @@ class _ChatBodyState extends State<_ChatBody> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Open local file
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _openLocalFile(
       String path,
@@ -1356,25 +1197,20 @@ class _ChatBodyState extends State<_ChatBody> {
       if (result.type !=
           ResultType.done) {
         _showError(
-          'تعذر فتح الملف، تم حفظه على الجهاز',
+          Loc.unableToOpenFileSaved(),
         );
       }
     } catch (_) {
       _showError(
-        'تعذر فتح الملف',
+        Loc.unableToOpenFile(),
       );
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Retry failed outgoing message
-  // ─────────────────────────────────────────────────────────────────────────
 
   Future<void> _retryMessage(
       _ChatMessage failed,
       ) async {
-    // Retry is only valid for messages
-    // created locally/sent by the current user.
     if (!failed.isMine) {
       return;
     }
@@ -1439,8 +1275,6 @@ class _ChatBodyState extends State<_ChatBody> {
     _agoraMessages[msg.msgId] =
         msg;
 
-    // Status callback handled through state management
-    // Note: setMessageStatusCallBack method not available in current SDK
 
     try {
       await _chatClient.chatManager
@@ -1456,7 +1290,7 @@ class _ChatBodyState extends State<_ChatBody> {
       });
 
       _showError(
-        'فشل إعادة الإرسال: ${e.description}',
+        Loc.resendFailed(e.description),
       );
     } catch (_) {
       if (!mounted) return;
@@ -1468,9 +1302,6 @@ class _ChatBodyState extends State<_ChatBody> {
     }
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Scroll
-  // ─────────────────────────────────────────────────────────────────────────
 
   void _scrollToBottom({
     bool animate = true,
@@ -1501,9 +1332,6 @@ class _ChatBodyState extends State<_ChatBody> {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Build
-  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(
@@ -1540,8 +1368,7 @@ class _ChatBodyState extends State<_ChatBody> {
                 ? _messages.isEmpty
                 ? Center(
               child: Text(
-                'لا توجد رسائل بعد.\n'
-                    'ابدأ المحادثة الآن!',
+                Loc.noMessagesYetStartChat(),
                 style: theme
                     .textTheme
                     .bodyMedium
@@ -1608,9 +1435,6 @@ class _ChatBodyState extends State<_ChatBody> {
   }
 }
 
-// =============================================================================
-// CHAT HEADER
-// =============================================================================
 
 class _ChatHeader extends StatelessWidget {
   const _ChatHeader({
@@ -1708,7 +1532,7 @@ class _ChatHeader extends StatelessWidget {
             children: [
               Text(
                 peerName ??
-                    'المستشار',
+                    Loc.consultant(),
                 style: theme
                     .textTheme
                     .titleMedium
@@ -1742,8 +1566,8 @@ class _ChatHeader extends StatelessWidget {
                   ),
                   Text(
                     isConnecting
-                        ? 'جاري الاتصال…'
-                        : 'متصل',
+                        ? Loc.connecting()
+                        : Loc.connected(),
                     style: theme
                         .textTheme
                         .bodySmall
@@ -1765,9 +1589,6 @@ class _ChatHeader extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// MESSAGE BUBBLE
-// =============================================================================
 
 class _MessageBubble
     extends StatelessWidget {
@@ -1841,9 +1662,6 @@ class _MessageBubble
   }
 }
 
-// =============================================================================
-// MESSAGE CONTENT
-// =============================================================================
 
 class _MessageContent
     extends StatelessWidget {
@@ -1903,9 +1721,6 @@ class _MessageContent
   }
 }
 
-// =============================================================================
-// IMAGE CONTENT
-// =============================================================================
 
 class _ImageContent
     extends StatelessWidget {
@@ -1943,11 +1758,6 @@ class _ImageContent
       );
     }
 
-    // IMPORTANT:
-    // Agora remotePath is not necessarily a browser-accessible URL.
-    //
-    // We therefore intentionally do NOT use NetworkImage(remoteUrl)
-    // here. The SDK download methods should handle Agora attachments.
     return null;
   }
 
@@ -1974,8 +1784,6 @@ class _ImageContent
 
     return GestureDetector(
       onTap: () {
-        // If the original image does not exist,
-        // let the parent download it.
         if (!hasOriginal) {
           onOpenAttachment(
             message,
@@ -2028,7 +1836,6 @@ class _ImageContent
                   ),
                 ),
 
-              // Download overlay when no original exists.
               if (!hasOriginal &&
                   message.status ==
                       _MsgStatus.sent)
@@ -2105,9 +1912,6 @@ class _ImageContent
   }
 }
 
-// =============================================================================
-// FILE CONTENT
-// =============================================================================
 
 class _FileContent
     extends StatelessWidget {
@@ -2211,7 +2015,7 @@ class _FileContent
               children: [
                 Text(
                   message.fileName ??
-                      'ملف',
+                      Loc.fileLabel(),
                   maxLines: 1,
                   overflow:
                   TextOverflow
@@ -2251,9 +2055,6 @@ class _FileContent
   }
 }
 
-// =============================================================================
-// FULL-SCREEN IMAGE VIEWER
-// =============================================================================
 
 class _FullScreenImageViewer
     extends StatelessWidget {
@@ -2324,9 +2125,6 @@ class _FullScreenImageViewer
   }
 }
 
-// =============================================================================
-// SENT BUBBLE
-// =============================================================================
 
 class _SentBubble
     extends StatelessWidget {
@@ -2512,9 +2310,6 @@ class _SentBubble
   }
 }
 
-// =============================================================================
-// RECEIVED BUBBLE
-// =============================================================================
 
 class _ReceivedBubble
     extends StatelessWidget {
@@ -2658,9 +2453,6 @@ class _ReceivedBubble
   }
 }
 
-// =============================================================================
-// MESSAGE STATUS ICON
-// =============================================================================
 
 class _StatusIcon
     extends StatelessWidget {
@@ -2714,9 +2506,6 @@ class _StatusIcon
   }
 }
 
-// =============================================================================
-// CHAT INPUT
-// =============================================================================
 
 class _ChatInputField
     extends StatelessWidget {
@@ -2800,8 +2589,8 @@ class _ChatInputField
                         .photo_camera_outlined,
                   ),
                   title:
-                  const Text(
-                    'التقاط صورة',
+                  Text(
+                    Loc.takePhoto(),
                   ),
                   onTap: () {
                     Navigator.pop(
@@ -2822,8 +2611,8 @@ class _ChatInputField
                         .photo_library_outlined,
                   ),
                   title:
-                  const Text(
-                    'اختيار من المعرض',
+                  Text(
+                    Loc.chooseFromGallery(),
                   ),
                   onTap: () {
                     Navigator.pop(
@@ -2844,8 +2633,8 @@ class _ChatInputField
                         .insert_drive_file_outlined,
                   ),
                   title:
-                  const Text(
-                    'إرسال ملف',
+                  Text(
+                    Loc.sendFile(),
                   ),
                   onTap: () {
                     Navigator.pop(
@@ -2980,8 +2769,8 @@ class _ChatInputField
               decoration:
               InputDecoration(
                 hintText: enabled
-                    ? 'اكتب الرسالة هنا...'
-                    : 'الجلسة غير نشطة',
+                    ? Loc.writeMessageHere()
+                    : Loc.sessionInactive(),
                 hintStyle: theme
                     .textTheme
                     .bodyMedium
@@ -3035,7 +2824,7 @@ class _ChatInputField
                     null ||
                     value.trim()
                         .isEmpty) {
-                  return 'الرجاء إدخال رسالة';
+                  return Loc.pleaseEnterMessage();
                 }
 
                 return null;
@@ -3067,9 +2856,6 @@ class _ChatInputField
   }
 }
 
-// =============================================================================
-// ICON BUTTON
-// =============================================================================
 
 class _IconBtn
     extends StatelessWidget {
@@ -3110,9 +2896,6 @@ class _IconBtn
   }
 }
 
-// =============================================================================
-// SDK ERROR
-// =============================================================================
 
 class _ChatSdkErrorWidget
     extends StatelessWidget {
@@ -3172,8 +2955,8 @@ class _ChatSdkErrorWidget
                       context,
                     ).pop(),
                 child:
-                const Text(
-                  'العودة',
+                Text(
+                  Loc.goBack(),
                 ),
               ),
             ],
@@ -3184,9 +2967,6 @@ class _ChatSdkErrorWidget
   }
 }
 
-// =============================================================================
-// WAITING OVERLAY
-// =============================================================================
 
 class _ChatWaitingOverlay
     extends StatelessWidget {
@@ -3200,14 +2980,14 @@ class _ChatWaitingOverlay
     switch (phase) {
       case ChatSessionPhase
           .initializing:
-        return 'جاري تحضير المحادثة…';
+        return Loc.preparingChat();
 
       case ChatSessionPhase
           .waitingForClient:
-        return 'في انتظار انضمام الطرف الآخر…';
+        return Loc.waitingForOtherParty();
 
       default:
-        return 'جاري التحميل…';
+        return Loc.loadingEllipsis();
     }
   }
 
@@ -3254,9 +3034,6 @@ class _ChatWaitingOverlay
   }
 }
 
-// =============================================================================
-// TWO-MINUTE WARNING
-// =============================================================================
 
 class _ChatTwoMinuteWarningBanner
     extends StatelessWidget {
@@ -3303,7 +3080,7 @@ class _ChatTwoMinuteWarningBanner
           ),
 
           Text(
-            'تبقّت دقيقتان على انتهاء الجلسة',
+            Loc.twoMinutesLeftInSession(),
             style:
             TextStyle(
               color:
@@ -3318,9 +3095,6 @@ class _ChatTwoMinuteWarningBanner
   }
 }
 
-// =============================================================================
-// TIMER CHIP
-// =============================================================================
 
 class _TimerChip
     extends StatelessWidget {
@@ -3461,9 +3235,6 @@ class _TimerChip
   }
 }
 
-// =============================================================================
-// ERROR OVERLAY
-// =============================================================================
 
 class _ChatErrorOverlay
     extends StatelessWidget {
@@ -3511,7 +3282,7 @@ class _ChatErrorOverlay
 
                 Text(
                   message ??
-                      'حدث خطأ في تحميل المحادثة',
+                      Loc.errorLoadingChat(),
                   style:
                   const TextStyle(
                     color:
@@ -3532,8 +3303,8 @@ class _ChatErrorOverlay
                         context,
                       ).pop(),
                   child:
-                  const Text(
-                    'العودة',
+                  Text(
+                    Loc.goBack(),
                   ),
                 ),
               ],
@@ -3545,9 +3316,6 @@ class _ChatErrorOverlay
   }
 }
 
-// =============================================================================
-// END CHAT BUTTON
-// =============================================================================
 
 class _EndChatButton
     extends StatelessWidget {
@@ -3617,7 +3385,7 @@ class _EndChatButton
             ),
 
             Text(
-              'إنهاء المحادثة',
+              Loc.endChat(),
               style:
               TextStyle(
                 color:
@@ -3720,9 +3488,6 @@ class _EndChatButton
   }
 }
 
-// =============================================================================
-// END CHAT CONFIRMATION DIALOG
-// =============================================================================
 
 class _EndChatConfirmDialog {
   static Future<bool?> show(
@@ -3770,7 +3535,7 @@ class _EndChatConfirmDialog {
                 MainAxisSize.min,
                 children: [
                   Text(
-                    'إنهاء المحادثة',
+                    Loc.endChat(),
                     style: tt
                         .titleLarge
                         ?.copyWith(
@@ -3785,7 +3550,7 @@ class _EndChatConfirmDialog {
                   ),
 
                   Text(
-                    'هل أنت متأكد من إنهاء جلسة المحادثة؟',
+                    Loc.endChatConfirmation(),
                     style: tt
                         .bodyMedium
                         ?.copyWith(
@@ -3832,8 +3597,8 @@ class _EndChatConfirmDialog {
                             ),
                           ),
                           child:
-                          const Text(
-                            'إلغاء',
+                          Text(
+                            Loc.cancel(),
                           ),
                         ),
                       ),
@@ -3874,8 +3639,8 @@ class _EndChatConfirmDialog {
                             ),
                           ),
                           child:
-                          const Text(
-                            'إنهاء',
+                          Text(
+                            Loc.end(),
                             style:
                             TextStyle(
                               fontWeight:

@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -20,6 +21,7 @@ import 'package:size_config/size_config.dart';
 
 import '../../../../Shared/widgets/icon_with_bg.dart';
 import '../../../../config/navigation/nav.dart';
+import '../../../../config/navigation/nav_obs.dart';
 import '../../../../config/theme/colors.dart' as colors;
 import '../../../../core/widgets/general_app_bar.dart';
 import '../../../User/profile/widgets/header_capsule_appbar_widget.dart';
@@ -32,7 +34,44 @@ class WalletScreen extends StatefulWidget {
   State<WalletScreen> createState() => _WalletScreenState();
 }
 
-class _WalletScreenState extends State<WalletScreen> {
+class _WalletScreenState extends State<WalletScreen> with RouteAware {
+  WalletCubit? _cubit;
+  Route<dynamic>? _route;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null && route != _route) {
+      _route = route;
+      NavObs.instance.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPopNext() {
+    _refreshWallet().ignore();
+  }
+
+  @override
+  void dispose() {
+    if (_route != null) {
+      NavObs.instance.unsubscribe(this);
+    }
+    _route = null;
+    super.dispose();
+  }
+
+  Future<void> _refreshWallet() {
+    final cubit = _cubit;
+    if (!mounted || cubit == null) return Future<void>.value();
+    return Future.wait([
+      cubit.getWallet(),
+      cubit.getBankAccounts(),
+      cubit.getTransactions(limit: 5),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -40,15 +79,17 @@ class _WalletScreenState extends State<WalletScreen> {
     final textTheme = theme.textTheme;
 
     return BlocProvider(
-      create: (_) => getIt<WalletCubit>()..refreshAll(transactionsLimit: 5),
+      create: (_) => _cubit = getIt<WalletCubit>()
+        ..getWallet()
+        ..getBankAccounts()
+        ..getTransactions(limit: 5),
       child: Scaffold(
         appBar:  GeneralAppBar(
-          title: 'المحفظة الإلكترونيه',
+          title: Loc.electronicWallet(),
 
         ),
         bottomNavigationBar: Builder(
           builder: (context) => Padding(
-            // 1) مسافة مريحة بين زر الإضافة وأسفل الشاشة (تشمل منطقة الأمان)
             padding: EdgeInsets.fromLTRB(
               16.0.w,
               30.h,
@@ -60,10 +101,10 @@ class _WalletScreenState extends State<WalletScreen> {
               height: 45,
               child: OutlinedButton.icon(
                 onPressed: () {
-                  showAddBankAccountDialog(context); // now a valid descendant context
+                  showAddBankAccountDialog(context);
                 },
                 icon: const Icon(Icons.add_circle_outline, size: 18, color: primary),
-                label: Text('إضافة حساب جديد',
+                label: Text(Loc.addNewAccount(),
                     style: Theme.of(context).textTheme.titleSmall!.copyWith(color: primary)),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(color: colors.primary.withOpacity(0.3)),
@@ -79,7 +120,7 @@ class _WalletScreenState extends State<WalletScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content: Text(state.bankAccountsError ??
-                        'فشل تحديث الحسابات البنكية')),
+                        Loc.updateBankAccountsFailed())),
               );
             }
           },
@@ -96,15 +137,11 @@ class _WalletScreenState extends State<WalletScreen> {
 
             return RefreshIndicator(
               color: const Color(0xFFC7A47B),
-              onRefresh: () async {
-                final cubit = context.read<WalletCubit>();
-                await cubit.refreshAll(transactionsLimit: 5);
-              },
+              onRefresh: _refreshWallet,
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.all(16.w),
                 children: [
-                  // 💰 الرصيد الحالي
                   _buildBalanceCard(
                       theme, colorScheme, textTheme, context, wallet)
                       .animate()
@@ -117,7 +154,6 @@ class _WalletScreenState extends State<WalletScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // 🟤 عنوان القسم مع الأيقونة
                       Row(
                         children: [
                           Picture(
@@ -127,7 +163,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           ),
                           Gap(6.w),
                           Text(
-                            'العمليات الأخيرة',
+                            Loc.recentTransactions(),
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -138,7 +174,6 @@ class _WalletScreenState extends State<WalletScreen> {
                         ],
                       ),
 
-                      // 🟠 زر عرض الكل
                       InkWell(
                         borderRadius: BorderRadius.circular(12.h),
                         onTap: () {
@@ -151,7 +186,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         child: Row(
                           children: [
                             Text(
-                              'عرض الكل',
+                              Loc.viewAll(),
                               style: Theme.of(context)
                                   .textTheme
                                   .titleSmall
@@ -167,7 +202,6 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                   Gap(12.h),
 
-                  // Display recent transactions
                   if (transactions.isNotEmpty)
                     ...transactions
                         .take(3)
@@ -188,7 +222,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   else if (state.transactionsStatus == WalletStatus.loading)
                     const Center(child: CircularProgressIndicator())
                   else
-                    const NoDataWidget(title: 'لا توجد عمليات'),
+                    NoDataWidget(title: Loc.noTransactions()),
 
                   const SizedBox(height: 20),
 
@@ -199,7 +233,7 @@ class _WalletScreenState extends State<WalletScreen> {
                       Picture(getAssetIcon("dot.svg"),
                           width: 20.h, height: 20.h),
                       Gap(5.w),
-                      Text('الحسابات البنكية',
+                      Text(Loc.bankAccounts(),
                           style: Theme.of(context)
                               .textTheme
                               .titleMedium
@@ -221,12 +255,11 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // ------------------ 💰 الرصيد الحالي ------------------
   Widget _buildBalanceCard(ThemeData theme, ColorScheme colors, TextTheme text,
       BuildContext context, WalletModel? wallet) {
     final isUser = getIt<CacheHelper>().cachedVendorType == VendorType.user;
     final totalBalance = wallet?.totalBalance ?? 0;
-    final availableBalance = wallet?.availableBalance ?? 0;
+    final availableBalance = wallet?.availableBalance ?? 10;
     final pendingBalance = wallet?.pendingBalance ?? 0;
     final clientTotalBalance = availableBalance + pendingBalance;
 
@@ -252,10 +285,10 @@ class _WalletScreenState extends State<WalletScreen> {
             child: Picture(getAssetIcon("wallet.svg")),
           ),
           Gap(10.h),
-          Text('الرصيد الحالي', style: text.bodyMedium),
+          Text(Loc.currentBalance(), style: text.bodyMedium),
           const SizedBox(height: 8),
           Text(
-            '${(isUser ? clientTotalBalance : totalBalance).toStringAsFixed(2)} ريال',
+            Loc.amountRiyal((isUser ? clientTotalBalance : totalBalance).toStringAsFixed(2)),
             style: text.titleLarge?.copyWith(
               fontWeight: FontWeight.bold,
               color: const Color(0xFFC7A47B),
@@ -267,11 +300,11 @@ class _WalletScreenState extends State<WalletScreen> {
             children: [
               Column(
                 children: [
-                  Text('الرصيد المتاح',
+                  Text(Loc.availableBalance(),
                       style: text.bodySmall?.copyWith(color: colors.onSurface)),
                   const SizedBox(height: 4),
                   Text(
-                    '${availableBalance.toStringAsFixed(2)} ريال',
+                    Loc.amountRiyal(availableBalance.toStringAsFixed(2)),
                     style: text.bodyMedium?.copyWith(
                         color: Colors.green, fontWeight: FontWeight.w500),
                   ),
@@ -284,11 +317,11 @@ class _WalletScreenState extends State<WalletScreen> {
               ),
               Column(
                 children: [
-                  Text('الرصيد المعلق',
+                  Text(Loc.pendingBalance(),
                       style: text.bodySmall?.copyWith(color: colors.onSurface)),
                   const SizedBox(height: 4),
                   Text(
-                    '${pendingBalance.toStringAsFixed(2)} ريال',
+                    Loc.amountRiyal(pendingBalance.toStringAsFixed(2)),
                     style: text.bodyMedium?.copyWith(
                         color: Colors.redAccent, fontWeight: FontWeight.w500),
                   ),
@@ -314,7 +347,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: Text('شحن المحفظه',
+                      child: Text(Loc.topUpWallet(),
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -331,16 +364,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   height: 40,
                   child: ElevatedButton(
                     onPressed: () async {
-                      final cubit = context.read<WalletCubit>();
-                      // Shared cubit + true when a withdrawal was created.
-                      final created = await Nav.withdrawRequestScreen(
-                        context,
-                        walletCubit: cubit,
-                      );
-                      if (context.mounted && created == true) {
-                        await cubit.refreshAll(transactionsLimit: 5);
-                        cubit.resetWithdrawalRequest();
-                      }
+                      await Nav.withdrawRequestScreen(context);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: primary.withOpacity(.1),
@@ -349,7 +373,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text('طلب سحب',
+                    child: Text(Loc.withdrawRequest(),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: primary, fontWeight: FontWeight.bold)),
                   ),
@@ -362,10 +386,6 @@ class _WalletScreenState extends State<WalletScreen> {
     );
   }
 
-  // ------------------ 🧾 العمليات الأخيرة ------------------
-  // Same status -> (color, icon, Arabic label) mapping used in
-  // transaction_details_dialog.dart / financial_transactions_screen.dart,
-  // kept in sync so the badge looks identical everywhere it appears.
   MaterialColor _getStatusColor(String type) {
     switch (type) {
       case 'topup':
@@ -427,39 +447,39 @@ class _WalletScreenState extends State<WalletScreen> {
   String _getStatusText(String type) {
     switch (type) {
       case 'topup':
-        return 'تم الدفع';
+        return Loc.paid();
       case 'consultation_payment':
-        return 'تم الدفع';
+        return Loc.paid();
       case 'consultation_refund':
-        return 'تم الاسترداد';
+        return Loc.refunded();
       case 'withdrawal_request':
-        return 'قيد المعالجة';
+        return Loc.processing();
       case 'withdrawal_rejected':
-        return 'فشل الدفع';
+        return Loc.paymentFailed();
       case 'withdrawal_transferred':
-        return 'تم التحويل';
+        return Loc.transferred();
       case 'admin_adjustment':
-        return 'تم التعديل';
+        return Loc.adjusted();
       case 'consultation_earning':
-        return 'ربح استشارة';
+        return Loc.consultationEarning();
       case 'dispute_deposit':
-        return 'إيداع نزاع';
+        return Loc.disputeDeposit();
       case 'dispute_hold':
-        return 'تعليق نزاع';
+        return Loc.disputeHold();
       case 'dispute_release':
-        return 'إطلاق نزاع';
+        return Loc.disputeRelease();
       case 'dispute_forfeit':
-        return 'خسارة نزاع';
+        return Loc.disputeLoss();
       case 'consultation_earnings_accrual':
-        return 'تراكم أرباح';
+        return Loc.earningsAccrual();
       case 'consultation_earnings_release':
-        return 'إطلاق أرباح';
+        return Loc.earningsRelease();
       case 'consultation_earnings_reversal':
-        return 'عكس أرباح';
+        return Loc.earningsReversal();
       case 'commission_penalty':
-        return 'غرامة عمولة';
+        return Loc.commissionPenalty();
       default:
-        return 'غير معروف';
+        return Loc.unknown();
     }
   }
 
@@ -475,10 +495,8 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // الصف الأول: حالة العملية + رقم العملية
           Row(
             children: [
-              // شارة الحالة (خضراء)
               Text(
                 '${tx.referenceNumber}',
                 style: text.bodySmall?.copyWith(
@@ -513,7 +531,6 @@ class _WalletScreenState extends State<WalletScreen> {
                   ),
                 );
               }),
-              // رقم العملية
             ],
           ),
           const SizedBox(height: 10),
@@ -527,9 +544,8 @@ class _WalletScreenState extends State<WalletScreen> {
               Expanded(
                 child: Column(
                   children: [
-                    // الصف الثاني: وصف العملية
                     Text(
-                      tx.description, // "فتح نزاع على استشاره فوريه"
+                      tx.description,
                       textAlign: TextAlign.right,
                       style: text.bodySmall?.copyWith(
                         fontWeight: FontWeight.bold,
@@ -537,12 +553,11 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                     ),
 
-                    // الصف الثالث: المبلغ + التاريخ
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
-                          '${tx.amount.toStringAsFixed(0)} ريال',
+                          Loc.amountRiyal(tx.amount.toStringAsFixed(0)),
                           style: text.bodyMedium?.copyWith(
                             color: primary,
                             fontWeight: FontWeight.w700,
@@ -572,7 +587,6 @@ class _WalletScreenState extends State<WalletScreen> {
 
 
 
-  // ------------------ 🏦 الحسابات البنكية ------------------
   Widget _buildBankAccountsCard(
       ThemeData theme,
       ColorScheme colors,
@@ -587,7 +601,6 @@ class _WalletScreenState extends State<WalletScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // قائمة الحسابات
           if (bankAccounts.isNotEmpty)
             ...bankAccounts.map(
                   (acc) => Padding(
@@ -598,9 +611,8 @@ class _WalletScreenState extends State<WalletScreen> {
           else if (state.bankAccountsStatus == WalletStatus.loading)
             const Center(child: CircularProgressIndicator())
           else
-            const NoDataWidget(title: 'لا توجد حسابات بنكية'),
+            NoDataWidget(title: Loc.noBankAccounts()),
 
-          // زر الإضافة
           const SizedBox(height: 8),
         ],
       ),
@@ -664,7 +676,7 @@ class _WalletScreenState extends State<WalletScreen> {
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          "افتراضي",
+                          Loc.defaultLabel(),
                           style: text.bodySmall?.copyWith(
                             color: const Color(0xFFC7A47B),
                             fontWeight: FontWeight.bold,
@@ -683,7 +695,6 @@ class _WalletScreenState extends State<WalletScreen> {
             ),
           ),
 
-          /// Edit
           InkWell(
             borderRadius: BorderRadius.circular(15),
             onTap: isLoading
@@ -702,7 +713,6 @@ class _WalletScreenState extends State<WalletScreen> {
 
           Gap(5.w),
 
-          /// Default
           if (!acc.isDefault) ...[
             InkWell(
               borderRadius: BorderRadius.circular(15),
@@ -712,7 +722,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   .read<WalletCubit>()
                   .setDefaultBankAccount(id: acc.id),
               child: CircleIconContainer(
-                icon: "star.svg", // or your favorite/star asset
+                icon: "star.svg",
                 size: 40,
                 backgroundColor: Colors.amber.withOpacity(.1),
                 iconColor: Colors.amber,
@@ -724,7 +734,6 @@ class _WalletScreenState extends State<WalletScreen> {
             Gap(5.w),
           ],
 
-          /// Delete
           InkWell(
             borderRadius: BorderRadius.circular(15),
             onTap: isLoading
@@ -755,12 +764,12 @@ class _WalletScreenState extends State<WalletScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('تأكيد الحذف'),
-        content: Text('هل أنت متأكد من حذف حساب "$bankName"؟'),
+        title: Text(Loc.confirmDeletion()),
+        content: Text(Loc.deleteBankAccountConfirmation(bankName)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('إلغاء'),
+            child: Text(Loc.cancel()),
           ),
           ElevatedButton(
             onPressed: () {
@@ -773,7 +782,7 @@ class _WalletScreenState extends State<WalletScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
             ),
-            child: const Text('حذف', style: TextStyle(color: Colors.white)),
+            child: Text(Loc.delete(), style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -797,20 +806,20 @@ class _WalletScreenState extends State<WalletScreen> {
             if (state.bankAccountsStatus == WalletStatus.success) {
               Navigator.pop(dialogContext);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('تم تحديث الحساب البنكي بنجاح')),
+                SnackBar(content: Text(Loc.bankAccountUpdatedSuccessfully())),
               );
             } else if (state.bankAccountsStatus == WalletStatus.failure) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content: Text(
-                        state.bankAccountsError ?? 'فشل تحديث الحساب البنكي')),
+                        state.bankAccountsError ?? Loc.updateBankAccountFailed())),
               );
             }
           },
           child: AlertDialog(
             shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Text('تعديل الحساب البنكي'),
+            title: Text(Loc.editBankAccount()),
             content: SingleChildScrollView(
               child: Form(
                 key: formKey,
@@ -819,7 +828,7 @@ class _WalletScreenState extends State<WalletScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'اسم البنك',
+                      Loc.bankName(),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -828,21 +837,21 @@ class _WalletScreenState extends State<WalletScreen> {
                     TextFormField(
                       controller: bankNameController,
                       decoration: InputDecoration(
-                        hintText: 'أدخل اسم البنك',
+                        hintText: Loc.enterBankName(),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'يرجى إدخال اسم البنك';
+                          return Loc.pleaseEnterBankName();
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'اسم صاحب الحساب',
+                      Loc.accountHolderName(),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -851,21 +860,21 @@ class _WalletScreenState extends State<WalletScreen> {
                     TextFormField(
                       controller: accountHolderNameController,
                       decoration: InputDecoration(
-                        hintText: 'أدخل اسم صاحب الحساب',
+                        hintText: Loc.enterAccountHolderName(),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'يرجى إدخال اسم صاحب الحساب';
+                          return Loc.pleaseEnterAccountHolderName();
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'رقم الآيبان',
+                      Loc.iban(),
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -883,10 +892,10 @@ class _WalletScreenState extends State<WalletScreen> {
                       ),
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'يرجى إدخال رقم الآيبان';
+                          return Loc.pleaseEnterIban();
                         }
                         if (value.length != 24) {
-                          return 'رقم الآيبان يجب أن يكون 24 حرف';
+                          return Loc.ibanExactLength();
                         }
                         return null;
                       },
@@ -898,7 +907,7 @@ class _WalletScreenState extends State<WalletScreen> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('إلغاء'),
+                child: Text(Loc.cancel()),
               ),
               BlocBuilder<WalletCubit, WalletState>(
                 builder: (context, state) {
@@ -934,7 +943,7 @@ class _WalletScreenState extends State<WalletScreen> {
                         AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
-                        : const Text('حفظ',
+                        : Text(Loc.save(),
                         style: TextStyle(color: Colors.white)),
                   );
                 },

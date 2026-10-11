@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/profile/presentation/screens/change_phone_number_screen.dart
-//
-// Step 1 → enter new phone → request OTP
-// Step 2 → enter OTP      → verify & update phone
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -32,7 +27,7 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
   final _phoneCtrl = TextEditingController();
   final _otpCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _otpSent = false; // true → show OTP step
+  bool _otpSent = false;
 
   @override
   void dispose() {
@@ -41,7 +36,6 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
     super.dispose();
   }
 
-  // ── Step 1 ─────────────────────────────────────────────────────────────────
   void _requestOtp() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     context.read<LawyerProfileCubit>().requestPhoneChange(
@@ -49,7 +43,6 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
     );
   }
 
-  // ── Step 2 ─────────────────────────────────────────────────────────────────
   void _verifyOtp() {
     if (_otpCtrl.text.trim().length < 4) return;
     context.read<LawyerProfileCubit>().verifyPhoneChange(
@@ -75,11 +68,10 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ✅ Green Check Icon
                 Container(
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Color(0xFF2E7D32), // green background
+                    color: Color(0xFF2E7D32),
                   ),
                   padding: const EdgeInsets.all(18),
                   child: const Icon(
@@ -90,9 +82,8 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
                 ),
                 const SizedBox(height: 20),
 
-                // ✅ Title
                 Text(
-                  "تحديث البيانات",
+                  Loc.updateData(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFFAE895D),
@@ -102,9 +93,8 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
                 ),
                 const SizedBox(height: 8),
 
-                // ✅ Subtitle
                 Text(
-                  "تم تحديث بياناتك بنجاح !",
+                  Loc.dataUpdatedSuccessfullyExclamation(),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[700],
                     fontSize: 14,
@@ -151,7 +141,7 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
       child: Directionality(
         textDirection: TextDirection.rtl,
         child: Scaffold(
-          appBar: const GeneralAppBar(title: 'تعديل رقم الجوال'),
+          appBar: GeneralAppBar(title: Loc.editMobileNumber()),
           body: SafeArea(
             child: Form(
               key: _formKey,
@@ -162,10 +152,8 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
                   children: [
                     Gap(40.h),
 
-                    // ── Phone field ─────────────────────────────────────────
                     PhoneField(controller: _phoneCtrl),
 
-                    // ── OTP field (shown after step 1) ──────────────────────
                     if (_otpSent) ...[
                       Gap(24.h),
                       _OtpSentHint(phone: _phoneCtrl.text.trim()),
@@ -197,8 +185,8 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
                   title: isLoading
                       ? ''
                       : _otpSent
-                      ? 'تأكيد'
-                      : 'إرسال الرمز',
+                      ? Loc.confirm()
+                      : Loc.sendCode(),
                   isLoading: isLoading,
                   onPressed: isLoading
                       ? null
@@ -234,7 +222,6 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
   }
 }
 
-// ── OTP sent hint ─────────────────────────────────────────────────────────────
 
 class _OtpSentHint extends StatelessWidget {
   final String phone;
@@ -258,7 +245,7 @@ class _OtpSentHint extends StatelessWidget {
           Gap(8.w),
           Expanded(
             child: Text(
-              'تم إرسال رمز التحقق إلى +966$phone',
+              Loc.verificationCodeSentToPhoneNumber(phone),
               style: theme.textTheme.bodySmall?.copyWith(
                 color: theme.colorScheme.primary,
               ),
@@ -270,7 +257,6 @@ class _OtpSentHint extends StatelessWidget {
   }
 }
 
-// ── OTP Field ─────────────────────────────────────────────────────────────────
 
 class _OtpField extends StatelessWidget {
   final TextEditingController controller;
@@ -314,7 +300,7 @@ class _OtpField extends StatelessWidget {
         EdgeInsets.symmetric(horizontal: 14.w, vertical: 18.h),
       ),
       validator: (v) =>
-      (v == null || v.length < 4) ? 'من فضلك أدخل رمز التحقق' : null,
+      (v == null || v.length < 4) ? Loc.pleaseEnterVerificationCode() : null,
     );
   }
 }

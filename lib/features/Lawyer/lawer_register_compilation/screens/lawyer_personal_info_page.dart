@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// lawyer_completion/pages/lawyer_personal_info_page.dart
-//
-// Step 1 – Personal Data (البيانات الشخصية)
-// UI is 100% identical to Sign_Up_Screen__Personal_Data_.png
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
@@ -78,7 +73,6 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
               children: [
                 Gap(16.h),
 
-                // ── Progress stepper ──────────────────────────────────────
                 const AuthStepperWidget(totalSteps: 7, activeStep: 4),
 
                 Gap(16.h),
@@ -91,7 +85,6 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Logo ────────────────────────────────────────
                           Align(
                             alignment: Alignment.centerRight,
                             child: Picture(
@@ -103,9 +96,8 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                           Gap(12.h),
 
-                          // ── Page title ───────────────────────────────────
                           Text(
-                            "البيانات الشخصية",
+                            Loc.personalData(),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color:      colorScheme.primary,
@@ -116,7 +108,7 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                           Gap(4.h),
 
                           Text(
-                            "نحتاج بعض البيانات الشخصية لتفعيل حسابك بالكامل.",
+                            Loc.personalDataSubtitle(),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.hintColor,
                             ),
@@ -125,14 +117,12 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                           Gap(24.h),
 
-                          // ── Profile photo picker ─────────────────────────
                           Center(
                             child: GestureDetector(
                               onTap: _pickProfilePhoto,
                               child: Stack(
                                 clipBehavior: Clip.none,
                                 children: [
-                                  // Avatar circle
                                   CircleAvatar(
                                     radius:          48.w,
                                     backgroundColor: colorScheme.surfaceContainerHighest,
@@ -150,7 +140,6 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                                     )
                                         : null,
                                   ),
-                                  // Camera badge
                                   Positioned(
                                     bottom: 0,
                                     right:   0,
@@ -178,22 +167,19 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                           Gap(28.h),
 
-                          // ── Full name ────────────────────────────────────
-                          _FieldLabel(label: "الإسم كامل", theme: theme , isRequired: true ,),
+                          _FieldLabel(label: Loc.fullNameAlt(), theme: theme , isRequired: true ,),
                           Gap(10.h),
                           NameField(controller: _cubit.fullNameController),
 
                           Gap(30.h),
 
-                          // ── Email ────────────────────────────────────────
-                          _FieldLabel(label: "البريد الإلكتروني", theme: theme, isRequired: true ,),
+                          _FieldLabel(label: Loc.email(), theme: theme, isRequired: true ,),
                           Gap(10.h),
                           EmailField(controller: _cubit.emailController),
 
                           Gap(30.h),
 
-                          // ── City dropdown ────────────────────────────────
-                          _FieldLabel(label: "إختر المدينة", theme: theme, isRequired: true ,),
+                          _FieldLabel(label: Loc.chooseCity(), theme: theme, isRequired: true ,),
                           Gap(6.h),
 
                           BlocBuilder<LawyerCompletionCubit,
@@ -235,7 +221,7 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                               return SearchableDropdown(
                                 items:          displayValues,
-                                hint:           'إختر المدينة',
+                                hint:           Loc.chooseCity(),
                                 label:          '',
                                 enableSearch:   true ,
                                 controller:     TextEditingController(),
@@ -252,16 +238,15 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                                   }
                                 },
                                 validator: (v) =>
-                                v == null ? 'الرجاء اختيار المدينة' : null,
+                                v == null ? Loc.pleaseChooseCity() : null,
                               );
                             },
                           ),
 
                           Gap(32.h),
 
-                          // ── Submit button ────────────────────────────────
                           AppButton(
-                            title: "التالي",
+                            title: Loc.next(),
 
                             onPressed: () {
                               if (_formKey.currentState!.validate()) {
@@ -270,12 +255,11 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBarBuilder.showFeedBackMessage(
                                         context,
-                                        "يرجي إختيار المدينه",
+                                        Loc.pleaseChooseCityAlt(),
                                         isSuccess: false,
                                       ));
                                 }
 
-                                // Persist photo if picked
                                 if (_profilePhoto != null) {
                                   _cubit.formData = _cubit.formData.copyWith(
                                     photo: _profilePhoto,
@@ -291,11 +275,10 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                           Gap(24.h),
 
-                          // ── Terms note ───────────────────────────────────
                           Center(
                             child: Text.rich(
                               TextSpan(
-                                text: "من خلال التسجيل، فإنك ",
+                                text: Loc.byRegisteringYou(),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -311,15 +294,15 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                                         builder: (_) => const TermsBottomSheet(),
                                       );
                                     },
-                                    text: "توافق على شروط الخدمة ",
+                                    text: Loc.agreeToTermsOfServiceTrailing(),
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color:      colorScheme.primary,
                                       decoration: TextDecoration.underline,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const TextSpan(
-                                      text: "واتفاقية معالجة البيانات."),
+                                  TextSpan(
+                                      text: Loc.andDataProcessingAgreement()),
                                 ],
                               ),
                               textAlign: TextAlign.center,
@@ -341,7 +324,6 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
   }
 }
 
-// ── Helper widgets ────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String label;
@@ -404,14 +386,14 @@ class _CityErrorWidget extends StatelessWidget {
           Gap(8.w),
           Expanded(
             child: Text(
-              'تعذر تحميل المدن',
+              Loc.unableToLoadCities(),
               style:
               theme.textTheme.bodySmall?.copyWith(color: colorScheme.error),
             ),
           ),
           TextButton(
             onPressed: onRetry,
-            child: Text('إعادة',
+            child: Text(Loc.retryShort(),
                 style:
                 theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary)),
           ),

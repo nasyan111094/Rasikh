@@ -1,4 +1,3 @@
-// features/Lawyer/lawyer-appointments/presentation/bloc/lawyer_appointments_cubit.dart
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -12,13 +11,11 @@ class LawyerAppointmentsCubit extends Cubit<LawyerAppointmentsState> {
 
   final LawyerAppointmentsRepo _repo;
 
-  // ── Cache ─────────────────────────────────────────────────────────────────
   WeeklyAvailabilityModel? _cachedWeeklyData;
   String? _lastWeekStart;
 
   WeeklyAvailabilityModel? get cachedWeeklyData => _cachedWeeklyData;
 
-  // ── Fetch weekly availability ─────────────────────────────────────────────
 
   Future<void> fetchWeeklyAvailability({String? weekStart}) async {
     emit(const LawyerAppointmentsLoading());
@@ -35,7 +32,6 @@ class LawyerAppointmentsCubit extends Cubit<LawyerAppointmentsState> {
     );
   }
 
-  // ── Create slot ───────────────────────────────────────────────────────────
 
   Future<void> createSlot({required SlotRequestModel request}) async {
     emit(const SlotMutationLoading());
@@ -51,7 +47,6 @@ class LawyerAppointmentsCubit extends Cubit<LawyerAppointmentsState> {
     );
   }
 
-  // ── Update slot ───────────────────────────────────────────────────────────
 
   Future<void> updateSlot({
     required String slotId,
@@ -70,7 +65,6 @@ class LawyerAppointmentsCubit extends Cubit<LawyerAppointmentsState> {
     );
   }
 
-  // ── Delete slot ───────────────────────────────────────────────────────────
 
   Future<void> deleteSlot({required String slotId}) async {
     emit(const SlotMutationLoading());
@@ -80,13 +74,12 @@ class LawyerAppointmentsCubit extends Cubit<LawyerAppointmentsState> {
     result.fold(
           (error) => emit(SlotMutationError(message: error)),
           (_) async {
-        emit(const SlotDeletedSuccess());
+        emit(SlotDeletedSuccess());
         await _refreshWeekly();
       },
     );
   }
 
-  // ── Internal: re-fetch weekly data silently after a mutation ─────────────
 
   Future<void> _refreshWeekly() async {
     final result = await _repo.getWeeklyAvailability(weekStart: _lastWeekStart);

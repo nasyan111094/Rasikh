@@ -1,8 +1,6 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/consultations/data/models/consultation_model.dart
-// ─────────────────────────────────────────────────────────────────────────────
+import 'package:rasikh/config/localization/loc_keys.dart';
 
-// ── Status Enum ───────────────────────────────────────────────────────────────
+
 
 enum ConsultationStatus {
   none,
@@ -18,19 +16,19 @@ extension ConsultationStatusX on ConsultationStatus {
   String get label {
     switch (this) {
       case ConsultationStatus.none:
-        return 'الكل';
+        return Loc.all();
       case ConsultationStatus.pending:
-        return 'قيد الانتظار';
+        return Loc.pending();
       case ConsultationStatus.active:
-        return 'نشطة';
+        return Loc.statusActive();
       case ConsultationStatus.upcoming:
-        return 'قادمة';
+        return Loc.statusUpcoming();
       case ConsultationStatus.completed:
-        return 'مكتملة';
+        return Loc.statusCompleted();
       case ConsultationStatus.cancelled:
-        return 'ملغاة';
+        return Loc.statusCancelled();
       case ConsultationStatus.disputes:
-        return 'نزاعات';
+        return Loc.statusDisputes();
     }
   }
 
@@ -73,7 +71,6 @@ extension ConsultationStatusX on ConsultationStatus {
   }
 }
 
-// ── Client ───────────────────────────────────────────────────────────────────
 
 class ConsultationClient {
   final String id;
@@ -109,7 +106,6 @@ class ConsultationClient {
   };
 }
 
-// ── Lawyer ───────────────────────────────────────────────────────────────────
 
 class ConsultationLawyer {
   final String id;
@@ -145,7 +141,6 @@ class ConsultationLawyer {
   };
 }
 
-// ── Specialization ───────────────────────────────────────────────────────────
 
 class ConsultationSpecialization {
   final String id;
@@ -171,7 +166,6 @@ class ConsultationSpecialization {
   };
 }
 
-// ── Pricing ──────────────────────────────────────────────────────────────────
 
 class ConsultationPricing {
   final String? id;
@@ -206,7 +200,6 @@ class ConsultationPricing {
   Map<String, dynamic> toJson() => raw;
 }
 
-// ── Attachment ───────────────────────────────────────────────────────────────
 
 class ConsultationAttachment {
   final String url;
@@ -237,7 +230,6 @@ class ConsultationAttachment {
   };
 }
 
-// ── Dispute ──────────────────────────────────────────────────────────────────
 
 class ConsultationDispute {
   final String id;
@@ -249,10 +241,8 @@ class ConsultationDispute {
   final String? description;
   final List<ConsultationAttachment> attachments;
 
-  /// e.g. "Open"
   final String? status;
 
-  /// e.g. "None"
   final String? decision;
 
   final num? amount;
@@ -337,7 +327,6 @@ class ConsultationDispute {
   };
 }
 
-// ── Consultation ─────────────────────────────────────────────────────────────
 
 class ConsultationModel {
   final String id;
@@ -351,7 +340,6 @@ class ConsultationModel {
 
   final List<ConsultationAttachment> attachments;
 
-  /// instant | scheduled | written
   final String type;
 
   final ConsultationStatus status;
@@ -419,7 +407,6 @@ class ConsultationModel {
     this.updatedAt,
   });
 
-  // ── Computed Properties ───────────────────────────────────────────────────
 
   double? get priceInSar =>
       priceAmountHalala != null ? priceAmountHalala! / 100 : null;
@@ -488,7 +475,6 @@ class ConsultationModel {
       isUpcoming &&
           (timeUntilStart?.inMilliseconds ?? 0) > 0;
 
-  // ── Serialization ─────────────────────────────────────────────────────────
 
   factory ConsultationModel.fromJson(
       Map<String, dynamic> json,
@@ -618,7 +604,6 @@ class ConsultationModel {
   };
 }
 
-// ── Paginated Response ───────────────────────────────────────────────────────
 
 class ConsultationsModel {
   final List<ConsultationModel> consultations;
@@ -658,7 +643,6 @@ class ConsultationsModel {
   }
 }
 
-// ── Details Response ─────────────────────────────────────────────────────────
 
 class ConsultationDetailsResponse {
   final bool success;

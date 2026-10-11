@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// appointments_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -30,18 +28,12 @@ import '../../Lawyer/consultation/consultation_details_screen.dart';
 import '../../Lawyer/consultation/models/consultation_model.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Server time correction
-// ─────────────────────────────────────────────────────────────────────────────
 
 DateTime? _correctServerTime(DateTime? dt) {
   if (dt == null) return null;
   return dt.toLocal().subtract(const Duration(hours: 0));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class MyAppointmentsScreen extends StatefulWidget {
   const MyAppointmentsScreen({super.key});
@@ -51,10 +43,10 @@ class MyAppointmentsScreen extends StatefulWidget {
 }
 
 class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
-  static const _tabs = [
-    (label: 'قادمة', status: ConsultationStatus.upcoming),
-    (label: 'مكتملة', status: ConsultationStatus.completed),
-    (label: 'ملغاة', status: ConsultationStatus.cancelled),
+  static List<({String label, ConsultationStatus status})> get _tabs => [
+    (label: Loc.statusUpcoming(), status: ConsultationStatus.upcoming),
+    (label: Loc.statusCompleted(), status: ConsultationStatus.completed),
+    (label: Loc.statusCancelled(), status: ConsultationStatus.cancelled),
   ];
 
   late final ScrollController _scrollController;
@@ -81,7 +73,6 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
     }
   }
 
-  // ── Navigation helpers ────────────────────────────────────────────────────
   void _navigateToDetails(BuildContext context, ConsultationModel item) {
     Navigator.push(
       context,
@@ -159,8 +150,8 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
         listener: (context, state) {
           if (state is ConsultationRescheduled) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('تم إعادة جدولة الاستشارة بنجاح'),
+              SnackBar(
+                content: Text(Loc.consultationRescheduledSuccessfully()),
                 backgroundColor: Colors.green,
               ),
             );
@@ -173,8 +164,8 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
             );
           } else if (state is ConsultationCancelled) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('تم إلغاء الاستشارة بنجاح'),
+              SnackBar(
+                content: Text(Loc.consultationCancelledSuccessfully()),
                 backgroundColor: Colors.green,
               ),
             );
@@ -196,7 +187,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  "مواعيدي",
+                  Loc.myAppointments(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.textTheme.titleSmall?.color,
                     fontWeight: FontWeight.bold,
@@ -209,7 +200,6 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
                   color: theme.colorScheme.primary.withOpacity(0.1)),
               const Gap(12),
 
-              // ── Tabs ────────────────────────────────────────────────────
               BlocBuilder<ConsultationsCubit, ConsultationsState>(
                 buildWhen: (_, curr) =>
                 curr is ConsultationsLoaded ||
@@ -232,7 +222,6 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
               ),
               const Gap(16),
 
-              // ── Body ─────────────────────────────────────────────────────
               Expanded(
                 child: BlocBuilder<ConsultationsCubit, ConsultationsState>(
                   buildWhen: (_, curr) =>
@@ -258,25 +247,20 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // UPDATED: Full state handling with NoDataWidget & ErrorStateWidget
-  // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildBody(BuildContext context, ConsultationsState state) {
-    // ── Loading (initial) ───────────────────────────────────────────────────
     if (state is ConsultationsLoading) {
       return const _AppointmentShimmerList();
     }
 
-    // ── Error ───────────────────────────────────────────────────────────────
     if (state is ConsultationsError) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: 80.h),
           ErrorStateWidget(
-            title: 'تعذر تحميل المواعيد',
+            title: Loc.unableToLoadAppointments(),
             message: state.message,
-            actionLabel: 'إعادة المحاولة',
+            actionLabel: Loc.retryAgain(),
             onAction: () => context
                 .read<ConsultationsCubit>()
                 .fetchConsultations(status: context.read<ConsultationsCubit>().selectedStatus),
@@ -285,7 +269,6 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
       );
     }
 
-    // ── Empty ───────────────────────────────────────────────────────────────
     if (state is ConsultationsEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -293,14 +276,13 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
           SizedBox(height: 80.h),
           NoDataWidget(
             icon: Icons.calendar_today_outlined,
-            title: 'لا توجد مواعيد ${_getStatusLabel(state.selectedStatus)}',
-            message: 'لم يتم العثور على مواعيد في هذا التصنيف',
+            title: Loc.noAppointmentsWithStatus(_getStatusLabel(state.selectedStatus)),
+            message: Loc.noAppointmentsInCategory(),
           ),
         ],
       );
     }
 
-    // ── Loaded / Refreshing / Paginating / Action states ────────────────────
     final List<ConsultationModel> items;
     final bool isPaginating;
 
@@ -335,7 +317,6 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
       return const SizedBox.shrink();
     }
 
-    // Double-check empty after resolving
     if (items.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -343,8 +324,8 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
           SizedBox(height: 80.h),
           NoDataWidget(
             icon: Icons.calendar_today_outlined,
-            title: 'لا توجد مواعيد',
-            message: 'لم يتم العثور على مواعيد في هذا التصنيف',
+            title: Loc.noAppointments(),
+            message: Loc.noAppointmentsInCategory(),
           ),
         ],
       );
@@ -411,26 +392,23 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
   String _getStatusLabel(ConsultationStatus status) {
     switch (status) {
       case ConsultationStatus.upcoming:
-        return 'قادمة';
+        return Loc.statusUpcoming();
       case ConsultationStatus.completed:
-        return 'مكتملة';
+        return Loc.statusCompleted();
       case ConsultationStatus.cancelled:
-        return 'ملغاة';
+        return Loc.statusCancelled();
       case ConsultationStatus.active:
-        return 'نشطة';
+        return Loc.statusActive();
       case ConsultationStatus.disputes:
-        return 'متنازع عليها';
+        return Loc.statusDisputed();
       case ConsultationStatus.none:
         return '';
       case ConsultationStatus.pending:
-        return 'قيد الإنتظار';
+        return Loc.pendingAlt();
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// REMOVED: _buildErrorView and _buildEmptyView — replaced by ErrorStateWidget & NoDataWidget
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PickerTile extends StatelessWidget {
   final IconData icon;
@@ -496,9 +474,6 @@ class _PickerTile extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer List
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _AppointmentShimmerList extends StatelessWidget {
   const _AppointmentShimmerList();
@@ -515,9 +490,6 @@ class _AppointmentShimmerList extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer Card
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _AppointmentShimmerCard extends StatelessWidget {
   const _AppointmentShimmerCard();
@@ -615,9 +587,6 @@ class _AppointmentShimmerCard extends StatelessWidget {
       Container(width: 1.5, height: 24, color: Colors.white);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tabs Section
-// ─────────────────────────────────────────────────────────────────────────────
 
 class AppointmentTabs extends StatelessWidget {
   const AppointmentTabs({
@@ -629,7 +598,7 @@ class AppointmentTabs extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTabSelected;
 
-  static const _labels = ['قادمة', 'مكتملة', 'ملغاة'];
+  static List<String> get _labels => [Loc.statusUpcoming(), Loc.statusCompleted(), Loc.statusCancelled()];
 
   @override
   Widget build(BuildContext context) {
@@ -686,9 +655,6 @@ class AppointmentTabs extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// UPDATED: AppointmentCard — now matches _ConsultationCard from consultations_screen.dart
-// ═══════════════════════════════════════════════════════════════════════════
 
 class AppointmentCard extends StatelessWidget {
   const AppointmentCard._({
@@ -725,16 +691,15 @@ class AppointmentCard extends StatelessWidget {
     );
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   String _typeLabel(String type) {
     switch (type) {
       case 'instant':
-        return 'إستشارة فورية';
+        return Loc.instantConsultation();
       case 'scheduled':
-        return 'إستشارة مجدولة';
+        return Loc.scheduledConsultation();
       case 'written':
-        return 'إستشارة كتابيه';
+        return Loc.writtenConsultation();
       default:
         return type;
     }
@@ -750,12 +715,11 @@ class AppointmentCard extends StatelessWidget {
     final local = dt.toLocal();
     final hour = local.hour;
     final minute = local.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'مساءً' : 'صباحًا';
+    final period = hour >= 12 ? Loc.pmLong() : Loc.amLong();
     final displayHour = hour % 12 == 0 ? 12 : hour % 12;
     return '$displayHour:$minute $period';
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -766,7 +730,7 @@ class AppointmentCard extends StatelessWidget {
 
     final startDt = _correctServerTime(consultation.effectiveStartDateTime);
     final periodLabel = consultation.durationMin != null
-        ? '${consultation.durationMin} دقيقه'
+        ? Loc.durationMinutesShort(consultation.durationMin)
         : '—';
 
     return GestureDetector(
@@ -789,7 +753,6 @@ class AppointmentCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Header: type label + status badge ─────────────
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -812,11 +775,9 @@ class AppointmentCard extends StatelessWidget {
 
                       GeneralDivider(height: 20.h),
 
-                      // ── Lawyer info (client side shows lawyer) ────────
                       if (consultation.lawyer != null)
                         _LawyerInfoRow(lawyer: consultation.lawyer!),
 
-                      // ── Consultation title ────────────────────────────
                       if (consultation.title.isNotEmpty) ...[
                         SizedBox(height: 8.h),
                         Text(
@@ -831,13 +792,11 @@ class AppointmentCard extends StatelessWidget {
 
                       GeneralDivider(height: 20.h),
 
-                      // ── Cancelled warning banner ──────────────────────
                       if (consultation.status == ConsultationStatus.cancelled) ...[
                         const _CancelledWarningBanner(),
                         SizedBox(height: 14.h),
                       ],
 
-                      // ── Date / time / duration row ──────────────────
                       _TimePriceRow(
                         date: _formatDate(startDt),
                         time: _formatTime(startDt),
@@ -851,7 +810,6 @@ class AppointmentCard extends StatelessWidget {
                   ),
                 ),
 
-                // ── Bottom action (status-driven) ───────────────────────
                 _buildBottomAction(context),
               ],
             ),
@@ -861,14 +819,13 @@ class AppointmentCard extends StatelessWidget {
     );
   }
 
-  // ── Bottom action resolver ───────────────────────────────────────────────
 
   Widget _buildBottomAction(BuildContext context) {
     switch (consultation.status) {
       case ConsultationStatus.active:
         return SizedBox(
           width: double.infinity,
-          child: GradiantButton(text: 'أدخل الجلسه', onTap: onTap ?? () {}),
+          child: GradiantButton(text: Loc.enterSession(), onTap: onTap ?? () {}),
         );
 
       case ConsultationStatus.upcoming:
@@ -883,13 +840,13 @@ class AppointmentCard extends StatelessWidget {
           children: [
             Expanded(
               child: GradiantButton(
-                text: 'عرض الملخص',
+                text: Loc.viewSummary(),
                 onTap: onDetails ?? () {},
               ),
             ),
             Expanded(
               child: _OutlinedActionButton(
-                text: 'إضافة تقييم',
+                text: Loc.addRating(),
                 onTap: () => _showRatingSheet(context),
               ),
             ),
@@ -903,7 +860,7 @@ class AppointmentCard extends StatelessWidget {
         return SizedBox(
           width: double.infinity,
           child: GradiantButton(
-            text: 'عرض النزاع',
+            text: Loc.viewDispute(),
             onTap: () => _showDisputePopup(context),
           ),
         );
@@ -912,17 +869,15 @@ class AppointmentCard extends StatelessWidget {
         return SizedBox(
           width: double.infinity,
           child: GradiantButton(
-            text: 'عرض التفاصيل',
+            text: Loc.viewDetails(),
             onTap: onDetails ?? () {},
           ),
         );
       case ConsultationStatus.pending:
-        // TODO: Handle this case.
         throw UnimplementedError();
     }
   }
 
-  // ── Action handlers ───────────────────────────────────────────────────────
 
   void _showRatingSheet(BuildContext context) {
     showModalBottomSheet<void>(
@@ -944,9 +899,6 @@ class AppointmentCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Cancelled Warning Banner (copied from consultations_screen.dart)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CancelledWarningBanner extends StatelessWidget {
   const _CancelledWarningBanner();
@@ -968,7 +920,7 @@ class _CancelledWarningBanner extends StatelessWidget {
           SizedBox(width: 8.w),
           Expanded(
             child: Text(
-              'انتهت مهلة الدفع. يرجى إعادة الحجز بدلاً من الدفع.',
+              Loc.paymentDeadlineExpired(),
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: Colors.red.shade400,
@@ -983,9 +935,6 @@ class _CancelledWarningBanner extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Outlined Action Button (copied from consultations_screen.dart)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _OutlinedActionButton extends StatelessWidget {
   final String text;
@@ -1025,9 +974,6 @@ class _OutlinedActionButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Upcoming Session Button (updated to match consultations_screen.dart)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _UpcomingSessionButton extends StatefulWidget {
   final ConsultationModel consultation;
@@ -1097,8 +1043,8 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
       context: context,
       barrierDismissible: false,
       builder: (_) => CustomConfirmationDialog(
-        title: 'تأكيد الإلغاء',
-        description: 'هل أنت متأكد من رغبتك في إلغاء الموعد ؟',
+        title: Loc.confirmCancellation(),
+        description: Loc.cancelAppointmentConfirmation(),
         icon: Container(
           width: 62,
           height: 62,
@@ -1115,8 +1061,8 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
             size: 34,
           ),
         ),
-        confirmText: 'نعم',
-        cancelText: 'لا',
+        confirmText: Loc.yes(),
+        cancelText: Loc.no(),
         onConfirm: () {
           context.read<ConsultationsCubit>().cancelConsultation(
             consultationId: widget.consultation.id,
@@ -1132,7 +1078,7 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
     if (_sessionStarted) {
       return SizedBox(
         width: double.infinity,
-        child: GradiantButton(text: 'أدخل الجلسه', onTap: widget.onEnter),
+        child: GradiantButton(text: Loc.enterSession(), onTap: widget.onEnter),
       );
     }
 
@@ -1146,7 +1092,6 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
       ),
       child: Column(
         children: [
-          // ── Countdown ticker ────────────────────────────────────────
           Container(
             width: double.infinity,
             padding: EdgeInsets.symmetric(vertical: 13.h),
@@ -1155,7 +1100,7 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'تبدأ الجلسة خلال',
+                  Loc.sessionStartsIn(),
                   style: TextStyle(
                     color: Colors.grey.shade500,
                     fontSize: 11.sp,
@@ -1185,11 +1130,9 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
             ),
           ),
 
-          // ── Reschedule + Cancel pill buttons ───────────────────────────
           if (widget.onReschedule != null)
             Row(
               children: [
-                // Reschedule
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -1206,7 +1149,7 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           child: Center(
                             child: Text(
-                              'إعادة الجدولة',
+                              Loc.reschedule(),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 13.sp,
@@ -1220,7 +1163,6 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
                   ),
                 ),
 
-                // Cancel
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -1237,7 +1179,7 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           child: Center(
                             child: Text(
-                              'إلغاء',
+                              Loc.cancel(),
                               style: TextStyle(
                                 color: primaryColor,
                                 fontSize: 13.sp,
@@ -1258,9 +1200,6 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared Action Spinner (used for both rescheduling & cancelling)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ActionSpinner extends StatelessWidget {
   final Color color;
@@ -1311,9 +1250,6 @@ class _ActionSpinner extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Lawyer Info Row (updated to match consultations_screen.dart style)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _LawyerInfoRow extends StatelessWidget {
   final ConsultationLawyer lawyer;
@@ -1385,9 +1321,6 @@ class _LawyerInfoRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status Badge (copied from consultations_screen.dart)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _StatusBadge extends StatelessWidget {
   final ConsultationStatus status;
@@ -1454,9 +1387,6 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Time / Date / Duration Row (copied from consultations_screen.dart)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _TimePriceRow extends StatelessWidget {
   final String date;
@@ -1478,12 +1408,12 @@ class _TimePriceRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _InfoCell(label: 'التاريخ', value: date, valueColor: textColor),
+        _InfoCell(label: Loc.date(), value: date, valueColor: textColor),
         _Divider(),
-        _InfoCell(label: 'وقت البدء', value: time, valueColor: textColor),
+        _InfoCell(label: Loc.startTime(), value: time, valueColor: textColor),
         _Divider(),
         _InfoCell(
-          label: 'مدة الجلسه',
+          label: Loc.sessionDurationAlt(),
           value: period,
           valueColor: theme.colorScheme.primary,
         ),
@@ -1542,9 +1472,6 @@ class _Divider extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rating Bottom Sheet (copied from consultations_screen.dart)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _RatingBottomSheet extends StatefulWidget {
   final ConsultationModel consultation;
@@ -1631,7 +1558,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                 ),
                 SizedBox(height: 14.h),
                 Text(
-                  'قيّم تجربتك معنا',
+                  Loc.rateYourExperience(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -1640,7 +1567,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                 ),
                 SizedBox(height: 6.h),
                 Text(
-                  'تقييمك يعكس مدى رضاك ويساعدنا على التحسين.',
+                  Loc.ratingReflectsSatisfaction(),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 13.sp),
                 ),
@@ -1669,7 +1596,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'كيف كانت تجربتك؟ احكي لنا',
+                    Loc.howWasYourExperienceTellUs(),
                     style: TextStyle(color: Colors.grey.shade500, fontSize: 13.sp),
                   ),
                 ),
@@ -1680,7 +1607,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                   maxLines: 4,
                   textAlign: TextAlign.right,
                   decoration: InputDecoration(
-                    hintText: 'أكتب هنا ...',
+                    hintText: Loc.writeHereAlt(),
                     hintTextDirection: TextDirection.rtl,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.w),
@@ -1709,7 +1636,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                     ),
                   )
                       : GradiantButton(
-                    text: 'إرسال الآن',
+                    text: Loc.sendNow(),
                     onTap: () => _submit(context),
                   ),
                 ),
@@ -1722,9 +1649,6 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dispute Details Popup (copied from consultations_screen.dart)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _DisputeDetailsPopup extends StatelessWidget {
   final ConsultationModel consultation;
@@ -1765,12 +1689,12 @@ class _DisputeDetailsPopup extends StatelessWidget {
                 Gap(16.w),
                 Text(
                   consultation.type == "instant"
-                      ? "إستشاره فوريه"
+                      ? Loc.instantConsultationAlt()
                       : consultation.type == "written"
-                      ? "إستشاره كتابيه"
+                      ? Loc.writtenConsultationAlt()
                       : consultation.type == "scheduled"
-                      ? "إستشاره مجدوله"
-                      : "غير معوف",
+                      ? Loc.scheduledConsultationAlt()
+                      : Loc.unknownAlt(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 17.sp,
@@ -1786,7 +1710,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'رقم النزاع: ${consultation.dispute!.disputeNumber}',
+                  Loc.disputeNumberLabel(consultation.dispute!.disputeNumber),
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 12.sp),
                 ),
               ),
@@ -1796,7 +1720,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                'سبب النزاع',
+                Loc.disputeReason(),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   fontSize: 15.sp,
@@ -1807,7 +1731,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                consultation.dispute!.reason ?? 'تأخير في موعد الحضور',
+                consultation.dispute!.reason ?? Loc.attendanceDelay(),
                 textAlign: TextAlign.right,
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
               ),
@@ -1816,7 +1740,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
             Align(
               alignment: Alignment.centerRight,
               child: Text(
-                'تفاصيل النزاع',
+                Loc.disputeDetails(),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   fontSize: 15.sp,
@@ -1828,7 +1752,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 consultation.dispute!.description ??
-                    'المحامي دخل الجلسة متأخر حوالي 10 دقائق مما أثّر على وقت الاستشارة.',
+                    Loc.sampleDisputeDetails(),
                 textAlign: TextAlign.right,
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 14.sp),
               ),
@@ -1839,7 +1763,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'حالة النزاع',
+                  Loc.disputeStatus(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 15.sp,
@@ -1861,7 +1785,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'القرار المتخذ',
+                  Loc.decisionTaken(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 15.sp,
@@ -1887,7 +1811,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
             SizedBox(height: 10.h),
             GeneralDivider(),
             SizedBox(height: 10.h),
-            GradiantButton(text: 'تم', onTap: () => Navigator.pop(context)),
+            GradiantButton(text: Loc.done(), onTap: () => Navigator.pop(context)),
           ],
         ),
       ),
@@ -1897,11 +1821,11 @@ class _DisputeDetailsPopup extends StatelessWidget {
   String _translateDisputeStatus(String status) {
     switch (status.toLowerCase()) {
       case 'open':
-        return 'مفتوح';
+        return Loc.statusOpen();
       case 'under review':
-        return 'قيد المراجعة';
+        return Loc.underReview();
       case 'closed':
-        return 'مغلق';
+        return Loc.statusClosed();
       default:
         return status;
     }
@@ -1910,18 +1834,15 @@ class _DisputeDetailsPopup extends StatelessWidget {
   String _translateDisputeDecision(String decision) {
     switch (decision.toLowerCase()) {
       case 'lawyer':
-        return 'تم حسم النزاع لصالح المحامي';
+        return Loc.disputeResolvedForLawyer();
       case 'client':
-        return 'تم حسم النزاع لصالح العميل';
+        return Loc.disputeResolvedForClient();
       default:
         return decision;
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Custom Confirmation Dialog
-// ─────────────────────────────────────────────────────────────────────────────
 
 class CustomConfirmationDialog extends StatelessWidget {
   final String title;
@@ -1932,16 +1853,17 @@ class CustomConfirmationDialog extends StatelessWidget {
   final VoidCallback? onConfirm;
   final VoidCallback? onCancel;
 
-  const CustomConfirmationDialog({
+  CustomConfirmationDialog({
     super.key,
     required this.title,
     required this.description,
     required this.icon,
-    this.confirmText = 'نعم',
-    this.cancelText = 'لا',
+    String? confirmText,
+    String? cancelText,
     this.onConfirm,
     this.onCancel,
-  });
+  })  : confirmText = confirmText ?? Loc.yes(),
+        cancelText = cancelText ?? Loc.no();
 
   static const double _circleSize = 70.0;
   static const double _circleRadius = _circleSize / 2;

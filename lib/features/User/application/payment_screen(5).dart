@@ -1,8 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// payment_screen.dart  (Step 5 / Final)
-// UI unchanged — "ادفع الآن" now calls cubit.createConsultation()
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -18,13 +15,14 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../config/navigation/nav.dart';
 import '../../../core/theme/sizes.dart';
 import '../../../core/utils/get_asset_path.dart';
-import '../../../core/widgets/auth_stepper.dart';
 import '../../../core/widgets/general_app_bar.dart';
 import '../../../core/widgets/general_divider.dart';
 
 import 'bloc/consulation_application_cubit.dart';
 import 'bloc/consulation_application_state.dart';
 import 'models/consultation_model.dart';
+import 'repo/consulation_application_repo.dart';
+import 'widgets/consultation_flow_widgets.dart';
 
 class PaymentScreen extends StatefulWidget {
   const PaymentScreen({super.key});
@@ -54,13 +52,11 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     
-    // Check payment status when app resumes after opening payment URL
     if (state == AppLifecycleState.resumed && _hasOpenedPaymentUrl && !_isCheckingPayment) {
       _checkPaymentAfterReturn();
     }
   }
 
-  // ── Dialogs ───────────────────────────────────────────────────────────────
 
   Future<void> _showOrderConfirmedInstant(BuildContext context) async {
     final theme = Theme.of(context);
@@ -101,7 +97,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                   ),
                   SizedBox(height: 12.h),
                   Text(
-                    "تم تأكيد طلبك",
+                    Loc.requestConfirmed(),
                     style: theme.textTheme.titleMedium?.copyWith(
                       color: const Color(0xFFAE895D),
                       fontWeight: FontWeight.bold,
@@ -111,7 +107,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                   ),
                   SizedBox(height: 8.h),
                   Text(
-                    "تم تأكيد طلبك... سنربطك الآن بأفضل محامي متاح (حتى $secondsLeft ثانية).",
+                    Loc.requestConfirmedConnectingLawyer(secondsLeft),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: theme.hintColor,
                       fontSize: 14.sp,
@@ -155,7 +151,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  "تم تأكيد طلبك",
+                  Loc.requestConfirmed(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFFAE895D),
@@ -165,7 +161,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "تم حجز موعدك بنجاح",
+                  Loc.appointmentBookedSuccessfully(),
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: Colors.grey[700], fontSize: 14),
                   textAlign: TextAlign.center,
@@ -185,7 +181,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                       Navigator.pop(dialogContext);
                       Nav.layout(context);
                     },
-                    child: const Text("العودة للرئيسية",
+                    child: Text(Loc.backToHomeAlt(),
                         style: TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600)),
                   ),
@@ -205,76 +201,75 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12)),
-        title: Text('فشل إنشاء الاستشارة',
+        title: Text(Loc.createConsultationFailed(),
             style: theme.textTheme.titleMedium
                 ?.copyWith(fontWeight: FontWeight.bold)),
         content: Text(error, style: theme.textTheme.bodyMedium),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('حسناً'),
+            child: Text(Loc.okAction()),
           ),
         ],
       ),
     );
   }
 
-  // ── Pay handler ───────────────────────────────────────────────────────────
 
   Future<void> _handlePay(BuildContext context, ConsultationState state) async {
     final cubit = context.read<ConsultationApplicationCubit>();
 
-    // Check if consultation is already created
-    if (state.createdConsultation == null) {
-      _showErrorDialog(context, 'يجب إنشاء الاستشارة أولاً');
+    // Re-entrancy guard: button is disabled while loading, this covers
+    // fast double-taps before the state rebuilds.
+    if (state.paymentStatus == ConsultationStatus.loading ||
+        _isCheckingPayment) {
       return;
     }
 
-    // Process payment based on selected method
+    if (state.createdConsultation == null) {
+      _showErrorDialog(context, Loc.consultationMustBeCreatedFirst());
+      return;
+    }
+
     if (currentSelectedIndex == 1) {
-      // Wallet payment
       await cubit.payWithWallet();
     } else {
-      // MyFatoorah payment
       await cubit.initiatePayment();
     }
 
-    // Re-read state after payment
     if (!mounted) return;
     final newState = cubit.state;
 
     if (newState.paymentStatus == ConsultationStatus.failure) {
-      _showErrorDialog(context, newState.paymentError ?? 'حدث خطأ أثناء الدفع');
+      _showErrorDialog(context, newState.paymentError ?? Loc.errorDuringPayment());
       return;
     }
 
     if (newState.paymentStatus == ConsultationStatus.success) {
       if (currentSelectedIndex == 1) {
-        // Wallet payment success
         if (state.selectedConsultationType == ConsultationType.scheduled) {
           _showOrderConfirmedScheduled(context);
         } else {
           _showOrderConfirmedInstant(context);
         }
       } else {
-        // MyFatoorah payment - open payment URL
-        final paymentUrl = newState.paymentData?['payment']?['PaymentURL'];
+        final paymentUrl =
+            ConsultationRepo.extractPaymentUrl(newState.paymentData);
         if (paymentUrl != null) {
           final uri = Uri.parse(paymentUrl);
           if (await canLaunchUrl(uri)) {
             setState(() => _hasOpenedPaymentUrl = true);
             await launchUrl(uri, mode: LaunchMode.externalApplication);
           } else {
-            _showErrorDialog(context, 'لا يمكن فتح رابط الدفع');
+            _showErrorDialog(context, Loc.unableToOpenPaymentLink());
           }
         } else {
-          _showErrorDialog(context, 'لم يتم الحصول على رابط الدفع');
+          _showErrorDialog(context, Loc.paymentLinkNotReceived());
         }
       }
     }
   }
 
-  // ── Check payment status after returning from payment page ─────────────────
 
   Future<void> _checkPaymentAfterReturn() async {
     if (_isCheckingPayment) return;
@@ -283,7 +278,6 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
     final cubit = context.read<ConsultationApplicationCubit>();
     final state = cubit.state;
 
-    // Show loading dialog
     if (!mounted) return;
     showDialog(
       context: context,
@@ -293,22 +287,24 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
           children: [
             const CircularProgressIndicator(),
             SizedBox(width: 16.w),
-            const Text('جاري التحقق من حالة الدفع...'),
+            Text(Loc.checkingPaymentStatus()),
           ],
         ),
       )
     );
 
-    // Poll payment status
     final paymentStatus = await cubit.checkPaymentStatus();
 
-    // Close loading dialog
     if (!mounted) return;
     Navigator.pop(context);
 
-    setState(() => _isCheckingPayment = false);
+    setState(() {
+      _isCheckingPayment = false;
+      // Consume the flag so a second resume doesn't re-trigger a check
+      // for the same return; it is re-armed on the next launchUrl.
+      _hasOpenedPaymentUrl = false;
+    });
 
-    // Handle payment result
     switch (paymentStatus) {
       case 'paid':
         if (state.selectedConsultationType == ConsultationType.scheduled) {
@@ -318,39 +314,46 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
         }
         break;
       case 'failed':
-        _showErrorDialog(context, 'فشلت عملية الدفع. يرجى المحاولة مرة أخرى.');
+        _showErrorDialog(context, Loc.paymentFailedTryAgain());
         break;
       case 'pending':
         _showPendingDialog(context);
         break;
       case 'error':
-        _showErrorDialog(context, 'حدث خطأ أثناء التحقق من حالة الدفع.');
+        _showErrorDialog(context, Loc.errorCheckingPaymentStatus());
         break;
     }
   }
 
   Future<void> _showPendingDialog(BuildContext context) async {
-    final theme = Theme.of(context);
     await showDialog(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('جاري معالجة الدفع'),
-        content: const Text('نحن نتحقق من حالة الدفع. قد يستغرق هذا بضع دقائق.'),
+        title: Text(Loc.processingPayment()),
+        content: Text(Loc.checkingPaymentStatusMayTakeMinutes()),
         actions: [
+          TextButton(
+            // Let the user re-check instead of losing a paid consultation
+            // by going home immediately.
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _checkPaymentAfterReturn();
+            },
+            child: Text(Loc.retryAgain()),
+          ),
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               Nav.layout(context);
             },
-            child: const Text('العودة للرئيسية'),
+            child: Text(Loc.backToHomeAlt()),
           ),
         ],
       ),
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -369,8 +372,10 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
         },
         child: Scaffold(
           appBar: GeneralAppBar(
-            title: "الدفع",
+            title: Loc.payment(),
             onTapArrow: () => Nav.layout(context),
+            backIcon: Icons.arrow_back,
+            backIconSize: 22,
           ),
         body: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
@@ -385,17 +390,19 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
               children: [
                 Padding(
                   padding: EdgeInsets.symmetric(
-                      vertical: 24.h, horizontal: 16.w),
-                  child: const AuthStepperWidget(
-                      activeStep: 5, totalSteps: 5),
+                    horizontal: ConsultationFlowSpacing.horizontal,
+                  ),
+                  child: ConsultationFlowStepper(
+                      activeStep: isScheduled ? 6 : 5),
                 ),
                 Expanded(
                   child: SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(horizontal: 16.w),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: ConsultationFlowSpacing.horizontal,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Notice banner ──────────────────────────
                         Container(
                           width: double.infinity,
                           padding: const EdgeInsets.symmetric(
@@ -407,8 +414,8 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                           ),
                           child: Text(
                             isScheduled
-                                ? "قم بالدفع الآن لتأكيد موعدك مع المحامي."
-                                : "قم بالدفع الآن وسيتم تحويلك مباشرة إلى المحادثة مع المحامي المختص.",
+                                ? Loc.payNowToConfirmAppointment()
+                                : Loc.payNowToStartChat(),
                             style: textTheme.titleSmall?.copyWith(
                               color: Colors.green,
                               fontSize: 11.sp,
@@ -416,78 +423,71 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                           ),
                         ),
 
-                        // ── Consultation summary card ──────────────
                         buildAnimatedCard(
-                          title: 'تفاصيل الاستشارة',
+                          title: Loc.consultationDetails(),
                           titleIconPath: 'chat.svg',
                           index: 0,
                           children: [
-                            rowItem('نوع الاستشارة',
+                            rowItem(Loc.consultationType(),
                                 state.selectedConsultationType.arabicLabel),
-                            rowItem('عنوان الاستشارة',
+                            rowItem(Loc.consultationTitle(),
                                 state.consultationTitle),
                             rowItem(
-                              'التخصص',
+                              Loc.specialization(),
                               state.selectedSpecialization?.name ?? '—',
                             ),
                             if (state.selectedSubSpecializations.isNotEmpty)
                               rowItem(
-                                'التخصص الفرعي',
+                                Loc.subSpecialization(),
                                 state.selectedSubSpecializations
                                     .map((s) => s.name)
-                                    .join('، '),
+                                    .join(Loc.listSeparator()),
                               ),
-                            if (state.selectedLawsuitTypeIds.isNotEmpty)
+                            if (state.selectedLawsuitType != null)
                               rowItem(
                                 'الدعاوى',
-                                state.availableLawsuitTypes
-                                    .where((l) => state.selectedLawsuitTypeIds
-                                        .contains(l.id))
-                                    .map((l) => l.name)
-                                    .join('، '),
+                                state.selectedLawsuitType!.name,
                               ),
                             if (isScheduled && state.startTime != null)
                               rowItem(
-                                'تاريخ الجلسة',
+                                Loc.sessionDate(),
                                 _formatDateTime(state.startTime!),
                               ),
                             rowItem(
-                              'المدة',
+                              Loc.duration(),
                               pricing?.durationLabel ?? '—',
                               hasDivider: false,
                             ),
                           ],
                         ),
 
-                        // ── Lawyer card ────────────────────────────
                         if (lawyer != null)
                           buildAnimatedCard(
-                            title: 'بيانات المحامي',
+                            title: Loc.lawyerData(),
                             titleIconPath: 'user.svg',
                             index: 1,
                             children: [
-                              rowItem('الاسم', lawyer.fullName),
-                              rowItem('المدينة', lawyer.city ?? '—'),
+                              rowItem(Loc.nameLabel(), lawyer.fullName),
+                              rowItem(Loc.city(), lawyer.city ?? '—'),
                               if (lawyer.experienceYears != null)
-                                rowItem('سنوات الخبرة',
+                                rowItem(Loc.yearsOfExperience(),
                                     '${lawyer.experienceYears}'),
                               rowItem(
-                                'التقييم',
+                                Loc.rating(),
                                 '${lawyer.rating.toStringAsFixed(1)} ⭐',
                                 hasDivider: false,
                               ),
                             ],
                           ),
 
-                        // ── Pricing card ───────────────────────────
                         if (pricing != null)
                           buildAnimatedCard(
-                            title: 'ملخص الدفع',
+                            title: Loc.paymentSummary(),
                             titleIconPath: 'sr.svg',
                             index: 2,
                             children: [
                               rowItem(
-                                'سعر الاستشارة',
+                                Loc.consultationPrice(),
                                 pricing.priceLabel,
                                 isPrice: true,
                                 valueColor: colorScheme.primary,
@@ -496,14 +496,13 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                             ],
                           ),
 
-                        // ── Payment method ─────────────────────────
                         buildAnimatedCard(
-                          title: 'طريقة الدفع',
+                          title: Loc.paymentMethod(),
                           titleIconPath: 'card.svg',
                           index: 3,
                           children: [
                             _PaymentOption(
-                              title: 'ماي فاتوره',
+                              title: Loc.myFatoorah(),
                               assetPath: 'myfatoorah.jpeg',
                               selected: currentSelectedIndex == 0,
                               onTap: () =>
@@ -511,7 +510,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                             ),
                             SizedBox(height: 8.h),
                             _PaymentOption(
-                              title: 'محفظتي',
+                              title: Loc.myWallet(),
                               assetPath: 'wallet.png',
                               selected: currentSelectedIndex == 1,
                               onTap: () =>
@@ -524,39 +523,14 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
                   ),
                 ),
 
-                // ── Pay button ─────────────────────────────────────
                 Padding(
                   padding: EdgeInsets.symmetric(
-                      horizontal: 16.w, vertical: 16.h),
-                  child: SizedBox(
-                    height: 48.h,
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: isLoading
-                          ? null
-                          : () => _handlePay(context, state),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: isLoading
-                          ? SizedBox(
-                        width: 24.w,
-                        height: 24.w,
-                        child: CircularProgressIndicator(
-                          color: colorScheme.onPrimary,
-                          strokeWidth: 2,
-                        ),
-                      )
-                          : Text(
-                        "ادفع الآن",
-                        style: textTheme.titleMedium?.copyWith(
-                          color: colorScheme.onPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    horizontal: ConsultationFlowSpacing.horizontal,
+                  ),
+                  child: ConsultationBottomButton(
+                    text: Loc.payNow(),
+                    isLoading: isLoading,
+                    onPressed: () => _handlePay(context, state),
                   ),
                 ),
               ],
@@ -569,33 +543,24 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
   }
 
   String _formatDateTime(DateTime dt) {
-    // `dt` (state.startTime) originates from the bookable-slots API as a
-    // UTC instant (parsed from a 'Z'-suffixed ISO string). It MUST be
-    // converted to the device's local time before reading hour/day/weekday
-    // — otherwise this screen shows a different time than the one the user
-    // actually picked on the booking screen (which does call .toLocal()).
     final local = dt .toLocal();
 
-    const arabicDays = [
-      'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس',
-      'الجمعة', 'السبت', 'الأحد',
+    final arabicDays = [
+      Loc.mondayAlt(), Loc.tuesdayAlt(), Loc.wednesday(), Loc.thursday(),
+      Loc.friday(), Loc.saturday(), Loc.sunday(),
     ];
-    const arabicMonths = [
-      'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-      'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+    final arabicMonths = [
+      Loc.january(), Loc.february(), Loc.march(), Loc.april(), Loc.may(), Loc.june(),
+      Loc.july(), Loc.august(), Loc.september(), Loc.october(), Loc.november(), Loc.december(),
     ];
     final dayName = arabicDays[local.weekday == 7 ? 6 : local.weekday - 1];
-    // 12-hour clock, handled correctly for midnight (0 → 12) and noon (12 → 12).
     final displayHour = local.hour % 12 == 0 ? 12 : local.hour % 12;
     final minute = local.minute.toString().padLeft(2, '0');
-    final period = local.hour >= 12 ? 'م' : 'ص';
+    final period = local.hour >= 12 ? Loc.pmShort() : Loc.amShort();
     return '$dayName ${local.day} ${arabicMonths[local.month - 1]} – $displayHour:$minute $period';
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reusable card builder — identical to original
-// ─────────────────────────────────────────────────────────────────────────────
 
 Widget buildAnimatedCard({
   required String title,
@@ -681,9 +646,6 @@ Widget buildAnimatedCard({
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// rowItem — identical to original
-// ─────────────────────────────────────────────────────────────────────────────
 
 Widget rowItem(
     String label,
@@ -752,9 +714,6 @@ Widget rowItem(
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _PaymentOption — identical to original
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PaymentOption extends StatelessWidget {
   final String title;

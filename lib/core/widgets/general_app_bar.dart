@@ -10,12 +10,16 @@ class GeneralAppBar extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onTapArrow;
 
   final  bool ?  isBack;
+  final IconData? backIcon;
+  final double? backIconSize;
 
   const GeneralAppBar({
     super.key,
     required this.title,
     this.onTapArrow,
  this.isBack =  true ,
+    this.backIcon,
+    this.backIconSize,
   });
 
   @override
@@ -46,8 +50,9 @@ class GeneralAppBar extends StatelessWidget implements PreferredSizeWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
-                      isRtl ? Icons.arrow_back_ios_new : Icons.arrow_forward_ios,
-                      size: 16,
+                      backIcon ??
+                          (isRtl ? Icons.arrow_back_ios_new : Icons.arrow_forward_ios),
+                      size: backIconSize ?? 16,
                       color: Colors.black,
                     ),
                   ),
@@ -64,8 +69,6 @@ class GeneralAppBar extends StatelessWidget implements PreferredSizeWidget {
                   ),
                 ),
               ),
-
-              // كبسولة السهم
 
             ],
           ),

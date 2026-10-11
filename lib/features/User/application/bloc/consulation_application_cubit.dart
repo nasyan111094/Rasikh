@@ -1,21 +1,9 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// consulation_application_cubit.dart
-//
-// Flow summary:
-//  • instant / written  → createConsultation() called from ChooseLawyerScreen
-//                         after selectLawyer(). Payment screen navigated to on
-//                         success via BlocListener in ChooseLawyerScreen.
-//  • scheduled          → selectLawyer() only from ChooseLawyerScreen.
-//                         AppointmentBookingScreen lets user pick time.
-//                         createConsultation() called from AppointmentBookingScreen
-//                         after confirming. Payment screen navigated to on
-//                         success via BlocListener in AppointmentBookingScreen.
-// ─────────────────────────────────────────────────────────────────────────────
 
 import 'dart:io';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../../core/get_it_service/get_it_service.dart';
 import '../models/consultation_model.dart';
@@ -28,7 +16,10 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
 
   final ConsultationRepo _repo = getIt.get<ConsultationRepo>();
 
-  // ── Step-1: Specializations ───────────────────────────────────────────────
+  /// Stable idempotency key for the in-flight create request.
+  /// Generated once per attempt so a retry reuses it.
+  String? _createIdempotencyKey;
+
 
   Future<void> loadSpecializations({String? search}) async {
     emit(state.copyWith(
@@ -45,55 +36,55 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       )),
           (data) => emit(state.copyWith(
         specializationsStatus: ConsultationStatus.success,
-        specializations: data,
+        specializations: data.specializations,
+        lawsuitTypesBySubSpecialization: data.lawsuitTypes,
       )),
     );
   }
 
   void selectSpecialization(SpecializationModel specialization) {
-    // New flow: exactly one main → clears sub + lawsuits.
-    if (state.selectedSpecialization?.id == specialization.id) return;
     emit(state.copyWith(
       selectedSpecialization: specialization,
       selectedSubSpecializations: [],
-      selectedLawsuitTypeIds: [],
+      clearSelectedLawsuitType: true,
     ));
   }
 
-  /// New flow: exactly one sub → replaces previous sub + clears lawsuits.
   void selectSubSpecialization(SubSpecializationModel sub) {
     emit(state.copyWith(
       selectedSubSpecializations: [sub],
-      selectedLawsuitTypeIds: [],
+      clearSelectedLawsuitType: true,
     ));
   }
 
+  void selectLawsuitType(SubSpecializationModel lawsuitType) {
+    emit(state.copyWith(selectedLawsuitType: lawsuitType));
+  }
+
+  /// Sub-specialization is optional → allow clearing it (also clears lawsuit).
+  void clearSubSpecialization() {
+    emit(state.copyWith(
+      selectedSubSpecializations: const [],
+      clearSelectedLawsuitType: true,
+    ));
+  }
+
+  /// Lawsuit type is optional → allow clearing it.
+  void clearLawsuitType() {
+    emit(state.copyWith(clearSelectedLawsuitType: true));
+  }
+
   void toggleSubSpecialization(SubSpecializationModel sub) {
-    // Backward-compatible single-select: tapping the chosen sub deselects it,
-    // tapping another sub switches to it (and clears lawsuits).
-    final current = state.selectedSubSpecialization;
-    if (current != null && current.id == sub.id) {
-      emit(state.copyWith(
-        selectedSubSpecializations: [],
-        selectedLawsuitTypeIds: [],
-      ));
+    final current =
+    List<SubSpecializationModel>.from(state.selectedSubSpecializations);
+    if (current.any((s) => s.id == sub.id)) {
+      current.removeWhere((s) => s.id == sub.id);
     } else {
-      selectSubSpecialization(sub);
+      current.add(sub);
     }
+    emit(state.copyWith(selectedSubSpecializations: current));
   }
 
-  /// Multi-select lawsuit types under the chosen sub.
-  void toggleLawsuitType(String lawsuitId) {
-    final current = List<String>.from(state.selectedLawsuitTypeIds);
-    if (current.contains(lawsuitId)) {
-      current.remove(lawsuitId);
-    } else {
-      current.add(lawsuitId);
-    }
-    emit(state.copyWith(selectedLawsuitTypeIds: current));
-  }
-
-  // ── Enums ─────────────────────────────────────────────────────────────────
 
   Future<void> loadConsultationTypes() async {
     emit(state.copyWith(
@@ -134,10 +125,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  // ── Step-2: Consultation type ─────────────────────────────────────────────
 
-  // Also stored outside state so ConnectingToLawyerScreen can read it
-  // synchronously without needing a BlocBuilder.
   ConsultationType? selectedConsultationType = ConsultationType.instant;
 
   void selectConsultationType(ConsultationType type) {
@@ -145,7 +133,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(selectedConsultationType: type));
   }
 
-  // ── Step-3: Pricing + Details ─────────────────────────────────────────────
 
   Future<void> loadPricingPlans() async {
     emit(state.copyWith(
@@ -161,6 +148,13 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
         pricingError: error,
       )),
           (data) {
+            if (data.isEmpty) {
+              emit(state.copyWith(
+                pricingStatus: ConsultationStatus.failure,
+                pricingError: 'لا توجد باقات سعر متاحة',
+              ));
+              return;
+            }
             selectPricing(data.first) ;
             emit(state.copyWith(
         pricingStatus: ConsultationStatus.success,
@@ -203,7 +197,8 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       specializationsError: s.specializationsError,
       selectedSpecialization: s.selectedSpecialization,
       selectedSubSpecializations: s.selectedSubSpecializations,
-      selectedLawsuitTypeIds: s.selectedLawsuitTypeIds,
+      lawsuitTypesBySubSpecialization: s.lawsuitTypesBySubSpecialization,
+      selectedLawsuitType: s.selectedLawsuitType,
       consultationTypesStatus: s.consultationTypesStatus,
       consultationTypes: s.consultationTypes,
       consultationTypesError: s.consultationTypesError,
@@ -252,7 +247,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(attachments: updated));
   }
 
-  // ── Step-4: Lawyer selection ──────────────────────────────────────────────
 
   Future<void> loadLawyers({
     String? search,
@@ -269,15 +263,11 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       subSpecializationIds: state.selectedSubSpecializations.isNotEmpty
           ? state.selectedSubSpecializations.map((s) => s.id).join(',')
           : null,
-      lawsuitTypeIds: state.selectedLawsuitTypeIds.isNotEmpty
-          ? state.selectedLawsuitTypeIds.join(',')
-          : null,
-      pricingId: state.selectedPricing?.id,
       search: search,
       city: city,
       sortBy: sortBy,
       sortOrder: sortOrder,
-      availability: getIt<ConsultationApplicationCubit>().selectedConsultationType ==ConsultationType.scheduled ? false : true ,
+      availability: state.selectedConsultationType != ConsultationType.scheduled,
     );
     result.fold(
           (error) => emit(state.copyWith(
@@ -343,11 +333,18 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     }
   }
 
-  // ── Step-5: Appointment scheduling (scheduled only) ───────────────────────
 
   void selectDay(int index) {
-    emit(state.copyWith(selectedDayIndex: index));
-    _resolveScheduledTimes();
+    // Day change invalidates the previously picked slot to avoid
+    // booking a stale slot from another date (race + UX bug).
+    // start/end stay null until the user picks a real bookable slot.
+    emit(state.copyWith(
+      selectedDayIndex: index,
+      clearSelectedBookableSlot: true,
+      clearTimes: true,
+    ));
+    // NOTE: do NOT call _resolveScheduledTimes() here — that legacy
+    // hardcoded 9AM grid would fabricate a time before slot selection.
   }
 
   void selectTime(int index) {
@@ -375,9 +372,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(startTime: start, endTime: end));
   }
 
-  // ── Bookable slots fetching ───────────────────────────────────────────────
-  // Fetch available slots for a lawyer within a date range
-  // typically from today to today+7 days
 
   Future<void> fetchBookableSlots({
     required String lawyerId,
@@ -393,7 +387,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     final fromDate = from ?? DateTime.now();
     final toDate = to ?? DateTime.now().add(const Duration(days: 7));
 
-    // Round to start of day (use logical time, not UTC)
     final fromRounded = DateTime(fromDate.year, fromDate.month, fromDate.day);
     final toRounded = DateTime(toDate.year, toDate.month, toDate.day, 23, 59, 59);
 
@@ -411,15 +404,27 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
         bookableSlotsStatus: ConsultationStatus.failure,
         bookableSlotsError: error,
       )),
-          (slots) => emit(state.copyWith(
-        bookableSlotsStatus: ConsultationStatus.success,
-        bookableSlots: slots,
-      )),
+          (slots) {
+        // Drop a previously selected slot if it vanished from the
+        // fresh server list (booked by someone else meanwhile).
+        final selected = state.selectedBookableSlot;
+        final stillThere = selected == null ||
+            slots.slots.any((s) =>
+                s.startTime.isAtSameMomentAs(selected.startTime) &&
+                s.endTime.isAtSameMomentAs(selected.endTime));
+        emit(state.copyWith(
+          bookableSlotsStatus: ConsultationStatus.success,
+          bookableSlots: slots,
+          clearSelectedBookableSlot: !stillThere,
+          clearTimes: !stillThere,
+        ));
+      },
     );
   }
 
-  // Select a bookable slot and derive startTime/endTime
   void selectBookableSlot(BookableSlotModel slot) {
+    // Guard against tapping an already-past slot (stale list race).
+    if (slot.startTime.isBefore(DateTime.now())) return;
     emit(state.copyWith(
       selectedBookableSlot: slot,
       startTime: slot.startTime,
@@ -427,29 +432,87 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     ));
   }
 
-  // ── Step-6: Create consultation ───────────────────────────────────────────
-  //
-  // Called from:
-  //  • ChooseLawyerScreen (_onConsult) for instant / written
-  //  • AppointmentBookingScreen (Next button) for scheduled
-  //
-  // On success the calling screen's BlocListener handles navigation:
-  //  • instant / written  → paymentScreen
-  //  • scheduled          → paymentScreen (same listener pattern)
 
   Future<void> createConsultation() async {
+    // Re-entrancy guard: the bottom button is already disabled while
+    // loading, this covers programmatic double-calls.
+    if (state.createStatus == ConsultationStatus.loading) return;
+
     final lawyer =
         state.selectedLawyer ?? _lawyerFromRecommended(state.recommendedLawyer);
 
-    if (lawyer == null ||
-        state.selectedSpecialization == null ||
-        state.selectedPricing == null) return;
+    // Explicit validation instead of a silent `return` (previous bug:
+    // UI hung with no feedback when data was missing).
+    if (lawyer == null) {
+      emit(state.copyWith(
+        createStatus: ConsultationStatus.failure,
+        createError: 'يرجى اختيار المحامي أولاً',
+      ));
+      return;
+    }
+    if (state.selectedSpecialization == null) {
+      emit(state.copyWith(
+        createStatus: ConsultationStatus.failure,
+        createError: 'يرجى اختيار التخصص أولاً',
+      ));
+      return;
+    }
+    if (state.selectedPricing == null) {
+      emit(state.copyWith(
+        createStatus: ConsultationStatus.failure,
+        createError: 'يرجى اختيار باقة السعر أولاً',
+      ));
+      return;
+    }
+    if (state.consultationTitle.trim().isEmpty ||
+        state.consultationDetails.trim().isEmpty) {
+      emit(state.copyWith(
+        createStatus: ConsultationStatus.failure,
+        createError: 'يرجى إدخال عنوان وتفاصيل الاستشارة',
+      ));
+      return;
+    }
+    if (state.isScheduled) {
+      final slot = state.selectedBookableSlot;
+      final start = state.startTime;
+      if (slot == null || start == null) {
+        emit(state.copyWith(
+          createStatus: ConsultationStatus.failure,
+          createError: 'يرجى اختيار موعد الجلسة أولاً',
+        ));
+        return;
+      }
+      if (start.isBefore(DateTime.now())) {
+        emit(state.copyWith(
+          createStatus: ConsultationStatus.failure,
+          createError: 'الموعد المختار انتهى، يرجى اختيار موعد آخر',
+          clearSelectedBookableSlot: true,
+          clearTimes: true,
+        ));
+        return;
+      }
+      // Stale-slot race: picked slot must still exist in the last fetch.
+      final stillAvailable = state.bookableSlots?.slots.any((s) =>
+              s.startTime.isAtSameMomentAs(slot.startTime) &&
+              s.endTime.isAtSameMomentAs(slot.endTime)) ??
+          true;
+      if (!stillAvailable) {
+        emit(state.copyWith(
+          createStatus: ConsultationStatus.failure,
+          createError: 'هذا الموعد تم حجزه، يرجى اختيار موعد آخر',
+          clearSelectedBookableSlot: true,
+          clearTimes: true,
+        ));
+        return;
+      }
+    }
 
-    // Reset previous result so listeners fire even on retry
     emit(state.copyWith(
       createStatus: ConsultationStatus.loading,
       createError: null,
     ));
+
+    _createIdempotencyKey ??= const Uuid().v4();
 
     final params = CreateConsultationParams(
       pricingId: state.selectedPricing!.id,
@@ -457,7 +520,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       specializationId: state.selectedSpecialization!.id,
       subSpecializationIds:
       state.selectedSubSpecializations.map((s) => s.id).toList(),
-      lawsuitTypeIds: List.of(state.selectedLawsuitTypeIds),
       title: state.consultationTitle.trim(),
       details: state.consultationDetails.trim(),
       type: state.selectedConsultationType,
@@ -469,17 +531,26 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       voiceNoteDurationSeconds: state.voiceNoteDurationSeconds,
     );
 
-    final result = await _repo.createConsultation(params);
+    final result = await _repo.createConsultation(
+      params,
+      lawsuitTypeId: state.selectedLawsuitType?.id,
+      idempotencyKey: _createIdempotencyKey,
+    );
 
     result.fold(
           (error) => emit(state.copyWith(
         createStatus: ConsultationStatus.failure,
         createError: error,
       )),
-          (data) => emit(state.copyWith(
-        createStatus: ConsultationStatus.success,
-        createdConsultation: data,
-      )),
+          (data) {
+        // Fresh key for the next consultation; retry of THIS one
+        // would have reused the same key above.
+        _createIdempotencyKey = null;
+        emit(state.copyWith(
+          createStatus: ConsultationStatus.success,
+          createdConsultation: data,
+        ));
+      },
     );
   }
 
@@ -493,21 +564,19 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       experienceYears: detail.experienceYears,
       rating: detail.rating,
       mainSpecializations: detail.mainSpecializations,
-      lawsuitTypes: detail.lawsuitTypes,
       consultationFee: detail.consultationFee,
       isCompany: detail.isCompany,
       bio: detail.bio,
     );
   }
 
-  // ── Reset ─────────────────────────────────────────────────────────────────
 
   void resetFlow() {
     selectedConsultationType = null;
+    _createIdempotencyKey = null;
     emit(const ConsultationState());
   }
 
-  // ── Load existing consultation for payment ───────────────────────────────
 
   Future<void> loadExistingConsultationForPayment(
       CreatedConsultationModel consultation) async {
@@ -517,11 +586,17 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     ));
   }
 
-  // ── Step-7: Payment ───────────────────────────────────────────────────────
 
   Future<void> payWithWallet() async {
     final consultationId = state.createdConsultation?.id;
-    if (consultationId == null) return;
+    if (consultationId == null) {
+      emit(state.copyWith(
+        paymentStatus: ConsultationStatus.failure,
+        paymentError: 'يرجى إنشاء الاستشارة أولاً',
+      ));
+      return;
+    }
+    if (state.paymentStatus == ConsultationStatus.loading) return;
 
     emit(state.copyWith(
       paymentStatus: ConsultationStatus.loading,
@@ -544,7 +619,14 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
 
   Future<void> initiatePayment() async {
     final consultationId = state.createdConsultation?.id;
-    if (consultationId == null) return;
+    if (consultationId == null) {
+      emit(state.copyWith(
+        paymentStatus: ConsultationStatus.failure,
+        paymentError: 'يرجى إنشاء الاستشارة أولاً',
+      ));
+      return;
+    }
+    if (state.paymentStatus == ConsultationStatus.loading) return;
 
     emit(state.copyWith(
       paymentStatus: ConsultationStatus.loading,
@@ -565,44 +647,28 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     );
   }
 
-  // ── Check payment status with polling ───────────────────────────────────────
-  // Polls the payment status endpoint to determine if payment was successful
-  // Returns: 'paid', 'failed', 'pending', or 'error'
 
   Future<String> checkPaymentStatus() async {
     final consultationId = state.createdConsultation?.id;
     if (consultationId == null) return 'error';
 
-    // Poll for up to 30 seconds (15 attempts * 2 seconds each)
-    for (int i = 0; i < 15; i++) {
+    // 30 × 2s ≈ 60s to tolerate slow MyFatoorah webhooks.
+    for (int i = 0; i < 30; i++) {
       final result = await _repo.checkPaymentStatus(
         consultationId: consultationId,
       );
 
       final resultStatus = await result.fold(
         (error) async {
-          // If we get an error, wait and retry
           await Future.delayed(const Duration(seconds: 2));
           return null;
         },
         (paymentData) async {
-          final invoiceStatus = paymentData['invoiceStatus'] as String?;
-
-          if (invoiceStatus == 'Paid') {
-            return 'paid';
+          final normalized =
+              ConsultationRepo.normalizePaymentStatus(paymentData);
+          if (normalized == 'paid' || normalized == 'failed') {
+            return normalized;
           }
-
-          if (invoiceStatus == 'Failed' || invoiceStatus == 'Cancelled' || invoiceStatus == 'Rejected') {
-            return 'failed';
-          }
-
-          if (invoiceStatus == 'Pending' || invoiceStatus == 'Processing') {
-            // Still pending, wait and retry
-            await Future.delayed(const Duration(seconds: 2));
-            return null;
-          }
-
-          // Unknown status, wait and retry
           await Future.delayed(const Duration(seconds: 2));
           return null;
         },
@@ -613,7 +679,6 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       }
     }
 
-    // After all polling attempts, return pending (webhook might not have arrived yet)
     return 'pending';
   }
 }

@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/config/theme/colors.dart';
@@ -6,8 +7,6 @@ import 'package:size_config/size_config.dart';
 
 import '../../../../core/widgets/picture.dart';
 
-/// A tappable field that opens Flutter's built-in [showTimePicker] and exposes
-/// the selected time as a [DateTime] (date portion is today; only h/m matter).
 class DatePickerField extends StatelessWidget {
   final String label;
   final DateTime? value;
@@ -52,11 +51,10 @@ class DatePickerField extends StatelessWidget {
     }
   }
 
-  /// e.g. 09:05 AM  /  02:30 PM  — uses 12-h display for friendliness
   String _formatTime(DateTime dt) {
     final h = dt.hour;
     final m = dt.minute;
-    final period = h >= 12 ? 'م' : 'ص';
+    final period = h >= 12 ? Loc.pmShort() : Loc.amShort();
     final displayH = h % 12 == 0 ? 12 : h % 12;
     return '${displayH.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $period';
   }
@@ -68,7 +66,6 @@ class DatePickerField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Label ────────────────────────────────────────────────────────
         if (label.isNotEmpty) ...[
           Text(
             label,
@@ -79,7 +76,6 @@ class DatePickerField extends StatelessWidget {
           Gap(10.h),
         ],
 
-        // ── Time field ───────────────────────────────────────────────────
         GestureDetector(
           onTap: () => _pickTime(context),
           child: Container(

@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:flutter/material.dart';
 import 'package:size_config/size_config.dart';
@@ -11,29 +12,27 @@ class MainWidget extends StatelessWidget {
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          // Custom square with a hole at the top
           ClipPath(
             clipper: SquareWithHoleClipper(),
             child: Container(
               width: 200.w,
               height: 200.h,
               color: primary,
-              child: const Center(
+              child: Center(
                 child: Text(
-                  'Square Text', // Text inside the square
+                  Loc.squareText(),
                   style: TextStyle(color: Colors.white, fontSize: 18),
                 ),
               ),
             ),
           ),
-          // Circle positioned inside the "hole" at the top center
           const Positioned(
-            top: -40, // Move the circle to the top
+            top: -40,
             child: CircleAvatar(
               radius: 30,
               backgroundColor: Colors.red,
               child: Icon(
-                Icons.rocket, // Boost icon inside the circle
+                Icons.rocket,
                 size: 24,
                 color: Colors.white,
               ),
@@ -45,19 +44,16 @@ class MainWidget extends StatelessWidget {
   }
 }
 
-// Custom Clipper to create the square with a "hole" at the top center
 class SquareWithHoleClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
-    double radius = 40.0; // Radius of the hole
+    double radius = 40.0;
     Path path = Path();
 
-    // Draw the square
     path.addRect(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // Create the cut-out at the top center
     path.addOval(Rect.fromCircle(
-      center: Offset(size.width / 2, 0), // Top center of the square
+      center: Offset(size.width / 2, 0),
       radius: radius,
     ));
 

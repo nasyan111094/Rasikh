@@ -1,5 +1,5 @@
-// features/Lawyer/lawyer-appointments/presentation/widgets/appointments_screen_title.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:size_config/size_config.dart';
@@ -31,7 +31,7 @@ class AppointmentsScreenTitle extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
                 child: Text(
-                  'مواعيد العمل',
+                  Loc.workAppointments(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -40,7 +40,7 @@ class AppointmentsScreenTitle extends StatelessWidget {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
                 child: Text(
-                  'اضبط أوقات العمل والتحكم فيها.',
+                  Loc.workAppointmentsSubtitle(),
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.hintColor,
                   ),

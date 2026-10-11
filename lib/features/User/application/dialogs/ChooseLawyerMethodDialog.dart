@@ -1,8 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// choose_lawyer_method_dialog.dart
-// UI unchanged — now triggers cubit to load recommended/all lawyers
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
@@ -24,7 +21,7 @@ class ChooseLawyerMethodDialog extends StatefulWidget {
 
 class _ChooseLawyerMethodDialogState
     extends State<ChooseLawyerMethodDialog> {
-  String selectedOption = 'recommend'; // 'recommend' | 'choose'
+  String selectedOption = 'recommend';
 
   @override
   Widget build(BuildContext context) {
@@ -41,12 +38,11 @@ class _ChooseLawyerMethodDialogState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Header ──────────────────────────────────────────────
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'اختيار أسلوب تعيين المحامي',
+                  Loc.chooseLawyerAssignmentMethod(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: colorScheme.onSurface,
@@ -72,13 +68,12 @@ class _ChooseLawyerMethodDialogState
 
             SizedBox(height: 20.h),
 
-            // ── Options row ──────────────────────────────────────────
             Row(
               children: [
                 Expanded(
                   child: _buildOptionCard(
                     context,
-                    title: 'رشحوا لي الأفضل',
+                    title: Loc.recommendTheBest(),
                     icon: "user.svg",
                     value: 'recommend',
                   ),
@@ -87,7 +82,7 @@ class _ChooseLawyerMethodDialogState
                 Expanded(
                   child: _buildOptionCard(
                     context,
-                    title: 'أنا أختار المحامي',
+                    title: Loc.iChooseTheLawyer(),
                     icon: "recommendation.svg",
                     value: 'choose',
                   ),
@@ -97,7 +92,6 @@ class _ChooseLawyerMethodDialogState
 
             SizedBox(height: 24.h),
 
-            // ── Next button ──────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               height: 48.h,
@@ -116,18 +110,15 @@ class _ChooseLawyerMethodDialogState
                   final cubit = context.read<ConsultationApplicationCubit>();
 
                   if (selectedOption == 'recommend') {
-                    // Fetch recommended and navigate; choose screen shows
-                    // recommended tab by default
                     cubit.loadRecommendedLawyer();
                   } else {
-                    // Load full lawyers list
                     cubit.loadLawyers();
                   }
 
                   Nav.chooseLawyerScreen(context , recommended: selectedOption == 'recommend' ? true : false  );
                 },
                 child: Text(
-                  'التالي',
+                  Loc.next(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: colorScheme.onPrimary,
                     fontWeight: FontWeight.bold,
@@ -141,7 +132,6 @@ class _ChooseLawyerMethodDialogState
     );
   }
 
-  // ── Option card ────────────────────────────────────────────────────────────
 
   Widget _buildOptionCard(
       BuildContext context, {

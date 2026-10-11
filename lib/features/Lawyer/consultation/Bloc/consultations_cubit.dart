@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/consultations/logic/cubit/consultations_cubit.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
@@ -16,7 +14,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
   final ConsultationsRepo repo;
 
-  // ── Internal state ────────────────────────────────────────────────────────
 
   ConsultationStatus currentSelectedStatus = ConsultationStatus.none;
   List<ConsultationModel> _consultations = [];
@@ -24,14 +21,12 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
   bool _hasMorePages = false;
   bool _isPaginating = false;
 
-  // ── Public getters ────────────────────────────────────────────────────────
 
   ConsultationStatus get selectedStatus => currentSelectedStatus;
   List<ConsultationModel> get consultations => List.unmodifiable(_consultations);
   bool get hasMorePages => _hasMorePages;
   int get currentPage => _currentPage;
 
-  // ── Initial fetch / filter change ─────────────────────────────────────────
 
   Future<void> fetchConsultations({ConsultationStatus? status}) async {
     if (status != null) currentSelectedStatus = status;
@@ -54,7 +49,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     );
   }
 
-  // ── Pull-to-refresh ───────────────────────────────────────────────────────
 
   Future<void> refreshConsultations() async {
     emit(ConsultationsRefreshing(
@@ -71,7 +65,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
     result.fold(
           (error) {
-        // Restore the previous loaded state so the user doesn't lose their list.
         if (_consultations.isNotEmpty) {
           emit(ConsultationsLoaded(
             consultations: _consultations,
@@ -90,7 +83,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     );
   }
 
-  // ── Pagination ────────────────────────────────────────────────────────────
 
   Future<void> loadMoreConsultations() async {
     if (_isPaginating || !_hasMorePages) return;
@@ -110,7 +102,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
     result.fold(
           (error) {
-        _currentPage--; // Roll back on failure.
+        _currentPage--;
         emit(ConsultationsLoaded(
           consultations: _consultations,
           selectedStatus: currentSelectedStatus,
@@ -133,28 +125,41 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     _isPaginating = false;
   }
 
-  // ── Apply filter ──────────────────────────────────────────────────────────
 
   Future<void> applyFilter(ConsultationStatus status) async {
     if (currentSelectedStatus == status) return;
     await fetchConsultations(status: status);
   }
 
-  // ── Reschedule ────────────────────────────────────────────────────────────
-  //
-  // Sends POST /api/v1/client/consultations/{id}/reschedule.
-  // On success the updated consultation replaces its counterpart in the local
-  // list so the card refreshes immediately without a full re-fetch.
 
   Future<void> rescheduleConsultation({
     required String consultationId,
     required DateTime newStartTime,
   }) async {
-    // Guard: only valid for upcoming scheduled consultations.
-    _consultations.firstWhere(
-          (c) => c.id == consultationId,
-      orElse: () => throw StateError('Consultation $consultationId not found'),
-    );
+    // Past-date guard (client clock / stale slot).
+    if (newStartTime.isBefore(DateTime.now())) {
+      emit(ConsultationRescheduleError(
+        message: Loc.consultationTimeEnded(),
+        currentConsultations: _consultations,
+        selectedStatus: currentSelectedStatus,
+        hasMorePages: _hasMorePages,
+        currentPage: _currentPage,
+      ));
+      return;
+    }
+
+    // Safe lookup: item may live on another page/filter — don't crash.
+    final exists = _consultations.any((c) => c.id == consultationId);
+    if (!exists) {
+      emit(ConsultationRescheduleError(
+        message: Loc.unexpectedError(),
+        currentConsultations: _consultations,
+        selectedStatus: currentSelectedStatus,
+        hasMorePages: _hasMorePages,
+        currentPage: _currentPage,
+      ));
+      return;
+    }
 
     emit(ConsultationRescheduling(
       consultationId: consultationId,
@@ -169,7 +174,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
     result.fold(
           (error) {
-        // Keep the current list intact; surface error to the UI.
         emit(ConsultationRescheduleError(
           message: error,
           currentConsultations: _consultations,
@@ -179,7 +183,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         ));
       },
           (updated) {
-        // Optimistic update: replace the old card with the updated one.
         _consultations = _consultations
             .map((c) => c.id == consultationId ? updated : c)
             .toList();
@@ -195,20 +198,23 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     );
   }
 
-  // ── Cancel ────────────────────────────────────────────────────────────────
-  //
-  // Sends PATCH /api/v1/client/consultations/{id}/cancel.
-  // On success the consultation is removed from the local list so the UI
-  // updates immediately without a full re-fetch.
 
   Future<void> cancelConsultation({
     required String consultationId,
   }) async {
-    // Guard: ensure the consultation exists locally.
-    _consultations.firstWhere(
-          (c) => c.id == consultationId,
-      orElse: () => throw StateError('Consultation $consultationId not found'),
-    );
+    // Safe lookup instead of throwing when the item isn't in the
+    // currently loaded page/filter.
+    final exists = _consultations.any((c) => c.id == consultationId);
+    if (!exists) {
+      emit(ConsultationCancelError(
+        message: Loc.unexpectedError(),
+        currentConsultations: _consultations,
+        selectedStatus: currentSelectedStatus,
+        hasMorePages: _hasMorePages,
+        currentPage: _currentPage,
+      ));
+      return;
+    }
 
     emit(ConsultationCancelling(
       consultationId: consultationId,
@@ -220,7 +226,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
     result.fold(
           (error) {
-        // Keep the current list intact; surface error to the UI.
         emit(ConsultationCancelError(
           message: error,
           currentConsultations: _consultations,
@@ -230,7 +235,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         ));
       },
           (_) {
-        // Remove the cancelled consultation from the local list.
         _consultations =
             _consultations.where((c) => c.id != consultationId).toList();
 
@@ -249,12 +253,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     );
   }
 
-  // ── Rate ──────────────────────────────────────────────────────────────────
-  //
-  // Sends POST /api/v1/client/ratings.
-  // Only valid for completed consultations. [lawyerId] and [clientId] are
-  // pulled off the local consultation (already in memory) rather than
-  // requiring the caller to pass them in.
 
   Future<void> rateConsultation({
     required ConsultationModel consultation,
@@ -274,7 +272,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
       Logger().d(clientId) ;
 
       emit(ConsultationRatingError(
-        message: 'تعذر إرسال التقييم: بيانات الاستشارة غير مكتملة',
+        message: Loc.ratingSendFailedIncompleteData(),
         consultationId: consultationId,
         currentConsultations: _consultations,
         selectedStatus: currentSelectedStatus,
@@ -300,7 +298,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
     result.fold(
           (error) {
-        // Keep the current list intact; surface error to the UI.
         emit(ConsultationRatingError(
           message: error,
           consultationId: consultationId,
@@ -322,7 +319,6 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
     );
   }
 
-  // ── Private helpers ───────────────────────────────────────────────────────
 
   void _emitLoadedOrEmpty(
       List<ConsultationModel> consultations,

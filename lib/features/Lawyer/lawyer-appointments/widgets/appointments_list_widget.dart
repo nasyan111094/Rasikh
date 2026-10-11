@@ -1,5 +1,5 @@
-// features/Lawyer/lawyer-appointments/presentation/widgets/appointments_list_widget.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -11,10 +11,7 @@ import '../models/availability_slot_model.dart';
 import 'day_appointments_shimmer.dart';
 import 'day_appointments_widget.dart';
 
-// ── Shimmer list (initial / hard loading) ────────────────────────────────────
 
-/// Shown during the very first fetch (no cached data available).
-/// Renders 3 skeleton day-cards so the screen is never blank.
 class AppointmentsListShimmer extends StatelessWidget {
   const AppointmentsListShimmer({super.key});
 
@@ -36,7 +33,6 @@ class AppointmentsListShimmer extends StatelessWidget {
   }
 }
 
-// ── Real data list with pull-to-refresh ──────────────────────────────────────
 
 class AppointmentsList extends StatelessWidget {
   const AppointmentsList({
@@ -45,7 +41,6 @@ class AppointmentsList extends StatelessWidget {
     required this.theme,
   });
 
-  /// All seven days from the API — only days with slots are rendered.
   final List<AvailabilityDay> days;
   final ThemeData theme;
 
@@ -53,22 +48,20 @@ class AppointmentsList extends StatelessWidget {
   Widget build(BuildContext context) {
     final activeDays = days.where((d) => d.slots.isNotEmpty).toList();
 
-    // ── Empty state ───────────────────────────────────────────────────────
     if (activeDays.isEmpty) {
       return Expanded(
         child: RefreshIndicator(
           onRefresh: () =>
               context.read<LawyerAppointmentsCubit>().fetchWeeklyAvailability(),
           child: ListView(
-            // ListView needed so RefreshIndicator has scrollable content
             padding: EdgeInsets.symmetric(horizontal: 16.w),
             children: [
               SizedBox(
                 height: MediaQuery.of(context).size.height * 0.35,
                 child: Center(
                   child: NoDataWidget(
-                      title: "لا توجد مواعيد عمل بعد",
-                      message: "اضغط على زر إضافة موعد عمل لبدء إضافة مواعيدك"),
+                      title: Loc.noWorkAppointmentsYet(),
+                      message: Loc.addWorkAppointmentHint()),
                 ),
               ),
             ],
@@ -77,7 +70,6 @@ class AppointmentsList extends StatelessWidget {
       );
     }
 
-    // ── Populated list ────────────────────────────────────────────────────
     return Expanded(
       child: RefreshIndicator(
         onRefresh: () =>

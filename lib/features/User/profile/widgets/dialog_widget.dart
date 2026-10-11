@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -12,15 +13,14 @@ import '../../../Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import '../../../Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_state.dart';
 
 
-/// 🔹 External interface to show the confirmation dialog.
 Future<bool?> showLogoutAndDeletAccountConfirmDialog(
     BuildContext context, {
       required String title,
       required String message,
       required String svgAsset,
       bool isLogout = false,
-      String confirmText = 'نعم',
-      String cancelText = 'لا',
+      String? confirmText,
+      String? cancelText,
     }) {
   return showDialog<bool>(
     context: context,
@@ -39,7 +39,6 @@ Future<bool?> showLogoutAndDeletAccountConfirmDialog(
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ConfirmDialog extends StatefulWidget {
   final String title;
@@ -49,15 +48,16 @@ class _ConfirmDialog extends StatefulWidget {
   final bool isLogout;
   final String cancelText;
 
-  const _ConfirmDialog({
+  _ConfirmDialog({
     super.key,
     this.isLogout = true,
     required this.title,
     required this.message,
     required this.svgAsset,
-    this.confirmText = 'نعم',
-    this.cancelText = 'لا',
-  });
+    String? confirmText,
+    String? cancelText,
+  })  : confirmText = confirmText ?? Loc.yes(),
+        cancelText = cancelText ?? Loc.no();
 
   @override
   State<_ConfirmDialog> createState() => _ConfirmDialogState();
@@ -69,9 +69,6 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
   late final Animation<Offset> _offsetAnimation;
   late final Animation<double> _scaleAnimation;
 
-  /// Mirrors the OTP text typed inside OtpDialog.
-  /// We use a ValueNotifier<String> (not a TextEditingController) so there
-  /// is nothing to dispose that could be shared across widget lifetimes.
   final ValueNotifier<String> _otpNotifier = ValueNotifier('');
 
   @override
@@ -98,25 +95,16 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
     super.dispose();
   }
 
-  // ── Deletion flow ─────────────────────────────────────────────────────────
 
   void _startDeletionFlow(BuildContext context) {
     context.read<LawyerProfileCubit>().sendDeletionOtp();
   }
 
-  /// Opens the OTP dialog.
-  ///
-  /// KEY FIX: the cubit is captured here — while [outerContext] is still
-  /// active — into a plain Dart variable [cubit]. Every subsequent call
-  /// (onSubmit, onResend) uses [cubit] directly instead of calling
-  /// context.read() on a context that may have been deactivated.
   void _showOtpDialog(BuildContext outerContext, String maskedPhone) {
     _otpNotifier.value = '';
 
-    // ✅ Capture the cubit NOW, before _ConfirmDialog is popped.
     final cubit = outerContext.read<LawyerProfileCubit>();
 
-    // Fresh controller owned and disposed by OtpDialog itself.
     final localController = TextEditingController();
     localController.addListener(() {
       _otpNotifier.value = localController.text;
@@ -126,7 +114,7 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
       context: outerContext,
       barrierDismissible: false,
       builder: (_) => BlocProvider.value(
-        value: cubit, // use captured cubit, not context.read()
+        value: cubit,
         child: BlocConsumer<LawyerProfileCubit, LawyerProfileState>(
           buildWhen: (_, s) =>
           s is DeleteAccountRequestLoading ||
@@ -163,7 +151,6 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
               otpController: localController,
               isLoading: state is DeleteAccountRequestLoading,
               onSubmit: () {
-                // ✅ Use captured cubit — no context.read() on dead context.
                 final otp = _otpNotifier.value.trim();
                 if (otp.isEmpty) return;
                 cubit.requestAccountDeletion(otp: otp);
@@ -171,7 +158,7 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
               onResend: () {
                 _otpNotifier.value = '';
                 localController.clear();
-                cubit.sendDeletionOtp(); // ✅ same here
+                cubit.sendDeletionOtp();
               },
               onChangeNumber: () => Navigator.pop(ctx),
             );
@@ -181,7 +168,6 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
     );
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -218,7 +204,6 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
                 child: Stack(
                   alignment: Alignment.topCenter,
                   children: [
-                    // 🩶 Main Card
                     Container(
                       width: 380.w,
                       margin: EdgeInsets.only(top: 36.h),
@@ -260,7 +245,6 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
                           SizedBox(height: 20.h),
                           Row(
                             children: [
-                              // ✅ Confirm Button
                               Expanded(
                                 child: BlocBuilder<LawyerProfileCubit,
                                     LawyerProfileState>(
@@ -322,7 +306,6 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
                                 ),
                               ),
                               SizedBox(width: 10.w),
-                              // ❌ Cancel Button
                               Expanded(
                                 child: OutlinedButton(
                                   onPressed: () =>
@@ -356,7 +339,6 @@ class _ConfirmDialogState extends State<_ConfirmDialog>
                       ),
                     ),
 
-                    // 🔴 Icon Circle
                     Container(
                       decoration: BoxDecoration(
                         color: cs.onPrimary,

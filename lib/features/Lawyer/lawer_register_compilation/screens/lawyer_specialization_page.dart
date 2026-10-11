@@ -3,11 +3,11 @@
 //
 // Step 4 (final) – Specializations (التخصصات)
 //
-// Behaviour (LawyerSpecializationsSelector):
-//  • إضافة أكثر من تخصص رئيسي عبر SearchableDropdown (مطلوب)
-//  • أكثر من تخصص فرعي داخل كل رئيسي (chips — اختياري)
-//  • أكثر من دعوة داخل كل فرعي مختار (chips — اختياري)
-//  • "إرسال للمراجعة" مفعّل عند اختيار رئيسي واحد على الأقل.
+// مطابقة تماماً لشاشة تعديل التخصصات عبر SpecializationBookingForm المشترك:
+//  • تخصص رئيسي واحد فقط (مطلوب)
+//  • تخصص فرعي (اختياري — متعدد)
+//  • نوع دعوى (اختياري — متعدد)
+//  • "إرسال للمراجعة" مفعّل عند اختيار الرئيسي.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/gestures.dart';
@@ -25,8 +25,11 @@ import 'package:size_config/size_config.dart';
 
 import '../../../../Shared/bottom_sheets/terms_conditions_button_sheet.dart';
 import '../../../../Shared/widgets/lawyer_specializations_selector.dart';
+import '../../../../Shared/widgets/specialization_booking_form.dart';
 import '../cubit/lawyer_registeration_complation_cubit.dart';
 import '../cubit/lawyer_registeration_complation_state.dart';
+import '../models/lawyer_registeration_complation_model.dart'
+    show SpecializationModel;
 
 class LawyerSpecializationPage extends StatefulWidget {
   const LawyerSpecializationPage({super.key});
@@ -44,6 +47,40 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
   void initState() {
     super.initState();
     _cubit = getIt<LawyerCompletionCubit>()..fetchSpecializations();
+  }
+
+  List<LawyerSpecMain> _toCatalog(
+      List<SpecializationModel> specializations) {
+    return specializations.map((s) {
+      final subs = s.subSpecializations.map((sub) {
+        final lawsuits = sub.lawsuitTypes
+            .map((l) => LawyerSpecLawsuit(id: l.id, name: l.name))
+            .toList();
+        return LawyerSpecSub(
+            id: sub.id, name: sub.name, lawsuits: lawsuits);
+      }).toList();
+      return LawyerSpecMain(id: s.id, name: s.name, subs: subs);
+    }).toList();
+  }
+
+  Map<String, Set<String>> _lawsuitsBySub(
+      List<LawyerSpecMain> catalog, List<String> lawsuitIds) {
+    final subOfLawsuit = <String, String>{};
+    for (final m in catalog) {
+      for (final s in m.subs) {
+        for (final l in s.lawsuits) {
+          subOfLawsuit[l.id] = s.id;
+        }
+      }
+    }
+    final map = <String, Set<String>>{};
+    for (final id in lawsuitIds) {
+      final subId = subOfLawsuit[id];
+      if (subId != null) {
+        map.putIfAbsent(subId, () => <String>{}).add(id);
+      }
+    }
+    return map;
   }
 
   @override
@@ -128,24 +165,7 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                           );
                         }
                         if (state is LawyerSpecializationLoaded) {
-                          final mains = state.specializations
-                              .map((s) => LawyerSpecMain(
-                                    id: s.id,
-                                    name: s.name,
-                                    subs: s.subSpecializations
-                                        .map((sub) => LawyerSpecSub(
-                                              id: sub.id,
-                                              name: sub.name,
-                                              lawsuits: sub.lawsuitTypes
-                                                  .map((l) =>
-                                                      LawyerSpecLawsuit(
-                                                          id: l.id,
-                                                          name: l.name))
-                                                  .toList(),
-                                            ))
-                                        .toList(),
-                                  ))
-                              .toList();
+                          final mains = _toCatalog(state.specializations);
                           if (mains.isEmpty) {
                             return Center(
                               child: Text(
@@ -155,36 +175,28 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                               ),
                             );
                           }
+                          final savedMains =
+                              _cubit.formData.mainSpecializationIds;
                           return ListView(
                             physics: const BouncingScrollPhysics(),
                             padding: EdgeInsets.fromLTRB(
                                 20.w, 0, 20.w, 8.h),
                             children: [
-                              LawyerSpecializationsSelector(
+                              SpecializationBookingForm(
                                 catalog: mains,
+                                initialMainId: savedMains.isEmpty
+                                    ? null
+                                    : savedMains.first,
+                                initialSubIds: _cubit
+                                    .formData.subSpecializationIds
+                                    .toSet(),
+                                initialLawsuitsBySub: _lawsuitsBySub(
+                                  mains,
+                                  _cubit.formData.lawsuitTypeIds,
+                                ),
                                 onChanged: (sel) =>
                                     setState(() => _selection = sel),
                               ),
-                              if (_selection?.validationMessage != null) ...[
-                                Gap(8.h),
-                                Row(
-                                  children: [
-                                    Icon(Icons.info_outline_rounded,
-                                        size: 15,
-                                        color: colorScheme.error),
-                                    Gap(6.w),
-                                    Expanded(
-                                      child: Text(
-                                        _selection!.validationMessage!,
-                                        style: theme.textTheme.bodySmall
-                                            ?.copyWith(
-                                          color: colorScheme.error,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
                             ],
                           );
                         }
@@ -277,21 +289,6 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
     );
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// _SpecializationCard
-//
-// RTL layout (what you SEE left→right on screen):
-//   [Radio/Check circle]  [Title + Description]  [Square icon]
-//
-// Tapping the header expands/collapses the sub-spec section independently
-// from other cards.  The card is highlighted (selected style) only when ≥1
-// sub has been chosen from it.
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // _SubmitButton — "إرسال للمراجعة"

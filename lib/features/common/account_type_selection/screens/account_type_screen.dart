@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
@@ -32,7 +33,6 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     getIt<CacheHelper>().cachedVendorType = VendorType.user ;
     getIt<CacheHelper>().setCurrentVendorType(VendorType.user) ;
 
@@ -40,27 +40,21 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
   }
 
 
-  final List<AccountTypeModel> accountTypes = const [
+  final List<AccountTypeModel> accountTypes = [
     AccountTypeModel(
       type: VendorType.user,
-      title: "التسجيل كمستخدم",
-      subtitle: "احصل على استشارة قانونية سريعة وموثوقة.",
+      title: Loc.registerAsUser(),
+      subtitle: Loc.registerAsUserSubtitle(),
       icon: "user.svg",
     ),
 
     AccountTypeModel(
       type: VendorType.lawyer,
-      title: "التسجيل كمحامي",
-      subtitle: "قدّم استشاراتك القانونية بأمان وسهولة.",
+      title: Loc.registerAsLawyer(),
+      subtitle: Loc.registerAsLawyerSubtitle(),
       icon: "lawyer.svg",
     ),
 
-   /* AccountTypeModel(
-      type: VendorType.company,
-      title: "التسجيل كشركة محاماه",
-      subtitle: "احصل على استشارة قانونية سريعة وموثوقة.",
-      icon: "City.svg",
-    ),*/
   ];
 
   @override
@@ -94,7 +88,6 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
                     children: [
                       SizedBox(height: 24.h),
 
-                      /// Logo + Title + Subtitle
                       Picture(
                         getAssetIcon("no_bg_logo.svg"),
                         width: 100.w,
@@ -104,7 +97,7 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
                       SizedBox(height: 24.h),
 
                       Text(
-                        "اختر نوع الحساب",
+                        Loc.chooseAccountType(),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: colorScheme.primary,
@@ -114,7 +107,7 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
                       SizedBox(height: 6.h),
 
                       Text(
-                        "مستخدم أو محامي أو شركة محاماه؟ حدد حسابك لتجربة آمنة وسلسة.",
+                        Loc.chooseAccountTypeSubtitle(),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.hintColor,
                           fontWeight: FontWeight.w500,
@@ -126,7 +119,6 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
                       SizedBox(height: 32.h),
 
-                      /// Account Types
                       Expanded(
                         child: ListView.builder(
                           physics: const BouncingScrollPhysics(),
@@ -152,9 +144,8 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
                       SizedBox(height: 16.h),
 
-                      /// Next Button
                       AppButton(
-                        title: "التالي",
+                        title: Loc.next(),
                         onPressed: () {
                           Nav.login(context);
                         },

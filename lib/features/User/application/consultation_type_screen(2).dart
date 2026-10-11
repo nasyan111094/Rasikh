@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -7,11 +8,11 @@ import 'package:rasikh/core/widgets/general_app_bar.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 import 'package:size_config/size_config.dart';
 
-import '../../../core/widgets/auth_stepper.dart';
 import '../../../core/widgets/general_option_card.dart';
 import 'bloc/consulation_application_cubit.dart';
 import 'bloc/consulation_application_state.dart';
 import 'models/consultation_model.dart';
+import 'widgets/consultation_flow_widgets.dart';
 
 class ConsultationTypeScreen extends StatefulWidget {
   const ConsultationTypeScreen({super.key});
@@ -24,8 +25,6 @@ class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
   @override
   void initState() {
     super.initState();
-    // ✅ Default to "instant" the first time this screen is shown,
-    // without overriding a selection the user already made.
     final cubit = context.read<ConsultationApplicationCubit>();
     cubit.selectConsultationType(ConsultationType.instant);
 
@@ -38,20 +37,23 @@ class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: GeneralAppBar(title: "إختر نوع الإستشارة"),
+      appBar: GeneralAppBar(
+        title: Loc.chooseConsultationType(),
+        backIcon: Icons.arrow_back,
+        backIconSize: 22,
+      ),
       body: SafeArea(
         child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
             final selectedType = state.selectedConsultationType;
 
             return Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16.w),
+              padding: EdgeInsets.symmetric(
+                horizontal: ConsultationFlowSpacing.horizontal,
+              ),
               child: Column(
                 children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24.h),
-                    child: AuthStepperWidget(activeStep: 2, totalSteps: 5),
-                  ),
+                  const ConsultationFlowStepper(activeStep: 2),
                   Expanded(
                     child: ListView(
                       children: [
@@ -65,9 +67,10 @@ class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
                                 ? colorScheme.primary
                                 : theme.dividerColor,
                           ),
-                          title: 'استشارات فورية',
+                          title: Loc.instantConsultations(),
                           subtitle:
-                          'ادفع الآن وسيتم توصيلك بأقرب محامٍ متاح في تخصصك.',
+                          Loc.instantConsultationsDescription(),
+                          subtitleMaxLines: null,
                           isSelected: selectedType == ConsultationType.instant,
                           onTap: () => context
                               .read<ConsultationApplicationCubit>()
@@ -83,9 +86,10 @@ class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
                                 ? colorScheme.primary
                                 : theme.dividerColor,
                           ),
-                          title: 'استشارات كتابية',
+                          title: Loc.writtenConsultations(),
                           subtitle:
-                          'اكتب تفاصيلك وأرفق مستنداتك، ويتواصل معك المحامي في المحادثة.',
+                          Loc.writtenConsultationsDescription(),
+                          subtitleMaxLines: null,
                           isSelected: selectedType == ConsultationType.written,
                           onTap: () => context
                               .read<ConsultationApplicationCubit>()
@@ -101,8 +105,9 @@ class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
                                 ? colorScheme.primary
                                 : theme.dividerColor,
                           ),
-                          title: 'استشارات مجدولة',
-                          subtitle: 'اختر موعدًا محددًا للتواصل صوتيًا أو بالفيديو.',
+                          title: Loc.scheduledConsultations(),
+                          subtitle: Loc.scheduledConsultationsDescription(),
+                          subtitleMaxLines: null,
                           isSelected: selectedType == ConsultationType.scheduled,
                           onTap: () => context
                               .read<ConsultationApplicationCubit>()
@@ -111,33 +116,14 @@ class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16.0.w),
-                    child: SizedBox(
-                      height: 48.h,
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12.h),
-                          ),
-                        ),
-                        onPressed: () {
-                          context
-                              .read<ConsultationApplicationCubit>()
-                              .loadPricingPlans();
-                          Nav.consultationDetailsScreen(context);
-                        },
-                        child: Text(
-                          'التالي',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: colorScheme.onPrimary,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
+                  ConsultationBottomButton(
+                    text: Loc.next(),
+                    onPressed: () {
+                      context
+                          .read<ConsultationApplicationCubit>()
+                          .loadPricingPlans();
+                      Nav.consultationDetailsScreen(context);
+                    },
                   ),
                 ],
               ),

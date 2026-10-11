@@ -1,14 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/User/ratings/presentation/screens/client_rating_detail_screen.dart
-//
-// Client rating details (read-only).
-//   GET /api/v1/client/ratings/{id}
-//
-// Notes:
-//   - lawyerReply is shown ONLY when lawyerReplyPublished == true.
-//   - "عرض الاستشارة" navigates to consultation details via consultation.id.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -29,45 +20,41 @@ import 'package:rasikh/features/Lawyer/consultation/repo/consultations_repo.dart
 import 'package:rasikh/features/Lawyer/lawyer_Settings/models/lawyer_ratings_model.dart';
 import 'package:rasikh/features/User/ratings/bloc/client_ratings_cubit.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared design tokens (kept local so the screen stays self-contained)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const _kBorderColor = Color(0xFFF3F3F3);
 const _kCardColor = Colors.white;
 
-// ── Consultation type / status → Arabic ─────────────────────────────────────
 
 String _consultationTypeLabel(String type) {
   switch (type) {
     case 'instant':
-      return 'إستشارة فورية';
+      return Loc.instantConsultation();
     case 'written':
-      return 'إستشارة كتابية';
+      return Loc.writtenConsultationLabel();
     case 'scheduled':
-      return 'إستشارة مجدولة';
+      return Loc.scheduledConsultation();
     default:
-      return 'غير معروف';
+      return Loc.unknown();
   }
 }
 
 String _consultationStatusLabel(String status) {
   switch (status) {
     case 'active':
-      return 'نشطة';
+      return Loc.statusActive();
     case 'upcoming':
-      return 'قادمة';
+      return Loc.statusUpcoming();
     case 'completed':
-      return 'مكتملة';
+      return Loc.statusCompleted();
     case 'cancelled':
-      return 'ملغاة';
+      return Loc.statusCancelled();
     case 'disputes':
-      return 'نزاعات';
+      return Loc.statusDisputes();
     case 'pending':
     case '':
-      return 'قيد الانتظار';
+      return Loc.pending();
     default:
-      return 'غير معروف';
+      return Loc.unknown();
   }
 }
 
@@ -111,7 +98,6 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
   Future<void> _onRefresh() =>
       context.read<ClientRatingsCubit>().fetchRatingDetail(widget.ratingId);
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +105,7 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: const GeneralAppBar(title: 'تفاصيل التقييم'),
+      appBar: GeneralAppBar(title: Loc.ratingDetails()),
       body: BlocBuilder<ClientRatingsCubit, ClientRatingsState>(
         builder: (context, state) {
           if (state is ClientRatingDetailLoading) {
@@ -140,7 +126,6 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
     );
   }
 
-  // ── Error ─────────────────────────────────────────────────────────────────
 
   Widget _buildError(
       ThemeData theme, ColorScheme colorScheme, String message) {
@@ -171,7 +156,7 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
                   onPressed: () => context
                       .read<ClientRatingsCubit>()
                       .fetchRatingDetail(widget.ratingId),
-                  child: const Text('إعادة المحاولة'),
+                  child: Text(Loc.retryAgain()),
                 ),
               ],
             ),
@@ -181,11 +166,9 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
     );
   }
 
-  // ── Content ───────────────────────────────────────────────────────────────
 
   Widget _buildContent(
       ThemeData theme, ColorScheme colorScheme, RatingDetailModel detail) {
-    // ملحوظة 1: لا يظهر رد المحامي إلا إذا كان منشوراً.
     final showLawyerReply = detail.lawyerReplyPublished &&
         detail.lawyerReply.trim().isNotEmpty;
 
@@ -198,7 +181,6 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Hero: lawyer + score ─────────────────────────────────────
             _buildHeroCard(theme, colorScheme, detail)
                 .animate()
                 .fadeIn(duration: 600.ms)
@@ -206,7 +188,6 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
 
             Gap(16.h),
 
-            // ── My comment ───────────────────────────────────────────────
             _buildCommentCard(theme, colorScheme, detail)
                 .animate(delay: 120.ms)
                 .fadeIn(duration: 500.ms)
@@ -214,13 +195,11 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
 
             Gap(16.h),
 
-            // ── Consultation + عرض الاستشارة ─────────────────────────────
             _buildConsultationCard(theme, colorScheme, detail.consultation)
                 .animate(delay: 240.ms)
                 .fadeIn(duration: 500.ms)
                 .slideY(begin: 0.2, end: 0, curve: Curves.easeOut),
 
-            // ── Lawyer reply (published only) ────────────────────────────
             if (showLawyerReply) ...[
               Gap(16.h),
               _buildLawyerReply(theme, detail.lawyerReply)
@@ -234,7 +213,6 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
     );
   }
 
-  // ── Hero card (lawyer) ────────────────────────────────────────────────────
 
   Widget _buildHeroCard(
       ThemeData theme, ColorScheme colorScheme, RatingDetailModel detail) {
@@ -379,26 +357,25 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
   }
 
   String _ratingLabel(double stars) {
-    if (stars >= 4.5) return 'تقييم ممتاز';
-    if (stars >= 3.5) return 'تقييم جيد جداً';
-    if (stars >= 2.5) return 'تقييم جيد';
-    if (stars >= 1.5) return 'تقييم مقبول';
-    return 'تقييم ضعيف';
+    if (stars >= 4.5) return Loc.excellentRating();
+    if (stars >= 3.5) return Loc.veryGoodRating();
+    if (stars >= 2.5) return Loc.goodRating();
+    if (stars >= 1.5) return Loc.acceptableRating();
+    return Loc.poorRating();
   }
 
-  // ── Comment card ──────────────────────────────────────────────────────────
 
   Widget _buildCommentCard(
       ThemeData theme, ColorScheme colorScheme, RatingDetailModel detail) {
     final hasComment = detail.comment.trim().isNotEmpty;
 
     return _SectionCard(
-      title: 'تعليقي',
+      title: Loc.myComment(),
       iconData: Icons.format_quote_rounded,
       colorScheme: colorScheme,
       theme: theme,
       child: Text(
-        hasComment ? detail.comment : 'لم تترك تعليقاً',
+        hasComment ? detail.comment : Loc.youLeftNoComment(),
         textAlign: TextAlign.right,
         style: theme.textTheme.bodyMedium?.copyWith(
           fontSize: 13.sp,
@@ -411,12 +388,11 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
     );
   }
 
-  // ── Consultation card + عرض الاستشارة ─────────────────────────────────────
 
   Widget _buildConsultationCard(
       ThemeData theme, ColorScheme colorScheme, RatingConsultation c) {
     return _SectionCard(
-      title: 'معلومات الاستشارة',
+      title: Loc.consultationInfo(),
       iconData: Icons.description_outlined,
       colorScheme: colorScheme,
       theme: theme,
@@ -424,7 +400,7 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (c.consultationNumber.isNotEmpty) ...[
-            _buildInfoRow(theme, 'رقم الاستشارة', c.consultationNumber),
+            _buildInfoRow(theme, Loc.consultationNumber(), c.consultationNumber),
             Gap(10.h),
           ],
           Row(
@@ -433,7 +409,7 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
               SizedBox(
                 width: 110.w,
                 child: Text(
-                  'النوع',
+                  Loc.type(),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.grey,
                     fontFamily: 'cairo',
@@ -459,7 +435,7 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
               SizedBox(
                 width: 110.w,
                 child: Text(
-                  'الحالة',
+                  Loc.status(),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: Colors.grey,
                     fontFamily: 'cairo',
@@ -471,7 +447,6 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
             ],
           ),
           Gap(16.h),
-          // ملحوظة 2: زر عرض الاستشارة → تفاصيل الاستشارة عبر consultation.id
           SizedBox(
             width: double.infinity,
             height: 46.h,
@@ -495,7 +470,7 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
               icon: Icon(Icons.arrow_back_rounded,
                   size: 18.w, color: colorScheme.primary),
               label: Text(
-                'عرض الاستشارة',
+                Loc.viewConsultation(),
                 style: TextStyle(
                   fontFamily: 'cairo',
                   fontSize: 13.sp,
@@ -545,7 +520,6 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
     );
   }
 
-  // ── Published lawyer reply only ───────────────────────────────────────────
 
   Widget _buildLawyerReply(ThemeData theme, String reply) {
     const accent = Color(0xFF2E9E5B);
@@ -577,7 +551,7 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
               Gap(8.w),
               Expanded(
                 child: Text(
-                  'رد المحامي',
+                  Loc.lawyerReply(),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     fontSize: 13.sp,
                     fontWeight: FontWeight.w700,
@@ -602,9 +576,6 @@ class _ClientRatingDetailScreenState extends State<ClientRatingDetailScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reusable section card
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
@@ -663,9 +634,6 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Avatar
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _Avatar extends StatelessWidget {
   const _Avatar({
@@ -714,9 +682,6 @@ class _Avatar extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status chip
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status, required this.colorScheme});
@@ -760,9 +725,6 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer skeleton
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _DetailShimmer extends StatelessWidget {
   const _DetailShimmer({required this.theme});

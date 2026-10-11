@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/consultations/presentation/screens/consultations_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 import 'dart:ui';
 
@@ -34,9 +32,6 @@ import 'consultation_details_screen.dart';
 import 'models/consultation_model.dart';
 import 'package:rasikh/core/widgets/picture.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class LawerConsultationsScreen extends StatefulWidget {
   const LawerConsultationsScreen({super.key});
@@ -65,7 +60,6 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
     super.dispose();
   }
 
-  // ── Scroll listener: trigger pagination near the bottom ──────────────────
   void _onScroll() {
     final pos = _scrollController.position;
     if (pos.pixels >= pos.maxScrollExtent - 200) {
@@ -105,7 +99,6 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
     );
   }
 
-  // ── State helpers ─────────────────────────────────────────────────────────
   ConsultationStatus _resolveStatus(ConsultationsState state) {
     if (state is ConsultationsLoaded) return state.selectedStatus;
     if (state is ConsultationsRefreshing) return state.selectedStatus;
@@ -147,7 +140,6 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
     return null;
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -163,15 +155,15 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
             curr is ConsultationRatingError,
         listener: (context, state) {
           if (state is ConsultationRescheduled) {
-            _showSnack(context, 'تم إعادة جدولة الاستشارة بنجاح', Colors.green);
+            _showSnack(context, Loc.consultationRescheduledSuccessfully(), Colors.green);
           } else if (state is ConsultationRescheduleError) {
             _showSnack(context, state.message, Colors.red);
           } else if (state is ConsultationCancelled) {
-            _showSnack(context, 'تم إلغاء الاستشارة بنجاح', Colors.green);
+            _showSnack(context, Loc.consultationCancelledSuccessfully(), Colors.green);
           } else if (state is ConsultationCancelError) {
             _showSnack(context, state.message, Colors.red);
           } else if (state is ConsultationRatingSubmitted) {
-            _showSnack(context, 'تم إرسال تقييمك بنجاح', Colors.green);
+            _showSnack(context, Loc.ratingSentSuccessfully(), Colors.green);
           } else if (state is ConsultationRatingError) {
             _showSnack(context, state.message, Colors.red);
           }
@@ -181,9 +173,8 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppBarWithoutBackIconButton(theme: theme, title: 'إستشاراتي'),
+              AppBarWithoutBackIconButton(theme: theme, title: Loc.myConsultations()),
 
-              // Filter header always reflects the active status chip.
               BlocBuilder<ConsultationsCubit, ConsultationsState>(
                 builder: (context, state) {
                   final status = _resolveStatus(state);
@@ -225,36 +216,30 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
     return false;
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // UPDATED: Full state handling with NoDataWidget & ErrorStateWidget
-  // ═══════════════════════════════════════════════════════════════════════════
   Widget _buildBody(
       BuildContext context,
       ConsultationsState state,
       ThemeData theme,
       ) {
-    // ── Loading (initial) ─────────────────────────────────────────────────
     if (state is ConsultationsLoading) {
       return const ConsultationsListShimmer();
     }
 
-    // ── Error ───────────────────────────────────────────────────────────────
     if (state is ConsultationsError) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: 80.h),
           ErrorStateWidget(
-            title: 'تعذر تحميل الاستشارات',
+            title: Loc.unableToLoadConsultations(),
             message: state.message,
-            actionLabel: 'إعادة المحاولة',
+            actionLabel: Loc.retryAgain(),
             onAction: () => context.read<ConsultationsCubit>().fetchConsultations(),
           ),
         ],
       );
     }
 
-    // ── Empty ───────────────────────────────────────────────────────────────
     if (state is ConsultationsEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -262,19 +247,17 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
           SizedBox(height: 200.h),
           NoDataWidget(
             icon: Icons.inbox_outlined,
-            title: 'لا توجد استشارات ${state.selectedStatus.label}',
-            message: 'لم يتم العثور على استشارات في هذا التصنيف',
+            title: Loc.noConsultationsWithStatus(state.selectedStatus.label),
+            message: Loc.noConsultationsInCategory(),
           ),
         ],
       );
     }
 
-    // ── Success (has data) ────────────────────────────────────────────────
     final consultations = _resolveConsultations(state);
     final isPaginating = state is ConsultationsPaginating;
     final busyId = _resolveBusyId(state);
 
-    // Double-check: if resolved list is empty, show empty state
     if (consultations.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -282,8 +265,8 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
           SizedBox(height: 80.h),
           NoDataWidget(
             icon: Icons.inbox_outlined,
-            title: 'لا توجد استشارات',
-            message: 'لم يتم العثور على استشارات في هذا التصنيف',
+            title: Loc.noConsultations(),
+            message: Loc.noConsultationsInCategory(),
           ),
         ],
       );
@@ -298,7 +281,6 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: consultations.length + (isPaginating ? 1 : 0),
         itemBuilder: (context, index) {
-          // Last slot: pagination shimmer card
           if (index == consultations.length) {
             return const ConsultationCardShimmer();
           }
@@ -337,9 +319,6 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Filter Header
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _FilterHeader extends StatelessWidget {
   final ConsultationStatus selectedStatus;
@@ -368,7 +347,7 @@ class _FilterHeader extends StatelessWidget {
                 fontSize: 16.sp,
               ),
               children: [
-                const TextSpan(text: 'تصفية حسب : '),
+                TextSpan(text: Loc.filterByWithColon()),
                 TextSpan(
                   text: selectedStatus.label,
                   style: TextStyle(
@@ -406,9 +385,6 @@ class _FilterHeader extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Consultation Card
-// ─────────────────────────────────────────────────────────────────────────────
 
 DateTime? _correctServerTime(DateTime? dt) {
   if (dt == null) return null;
@@ -429,11 +405,11 @@ class _ConsultationCard extends StatelessWidget {
   String _typeLabel(String type) {
     switch (type) {
       case 'instant':
-        return 'إستشارة فورية';
+        return Loc.instantConsultation();
       case 'scheduled':
-        return 'إستشارة مجدولة';
+        return Loc.scheduledConsultation();
       case 'written':
-        return 'إستشارة كتابيه';
+        return Loc.writtenConsultation();
       default:
         return type;
     }
@@ -449,7 +425,7 @@ class _ConsultationCard extends StatelessWidget {
     final local = dt.toLocal();
     final hour = local.hour;
     final minute = local.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'مساءً' : 'صباحًا';
+    final period = hour >= 12 ? Loc.pmLong() : Loc.amLong();
     final displayHour = hour % 12 == 0 ? 12 : hour % 12;
     return '$displayHour:$minute $period';
   }
@@ -462,7 +438,7 @@ class _ConsultationCard extends StatelessWidget {
     final textColor = theme.textTheme.bodyMedium?.color ?? Colors.black;
     final startDt = _correctServerTime(consultation.effectiveStartDateTime);
     final periodLabel = consultation.durationMin != null
-        ? '${consultation.durationMin} دقيقه'
+        ? Loc.durationMinutesShort(consultation.durationMin)
         : '—';
 
     return GestureDetector(
@@ -485,7 +461,6 @@ class _ConsultationCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ── Header: type label + status badge ─────────────
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -508,7 +483,6 @@ class _ConsultationCard extends StatelessWidget {
 
                       GeneralDivider(height: 20.h),
 
-                      // ── Client info ───────────────────────────────────
                       if (consultation.client != null &&
                           !consultation.hideClientFromLawyer)
                         _ClientInfoRow(
@@ -520,20 +494,17 @@ class _ConsultationCard extends StatelessWidget {
 
                       GeneralDivider(height: 20.h),
 
-                      // ── Cancelled warning banner ─────────────────────
                       if (consultation.status == ConsultationStatus.cancelled) ...[
                         const _CancelledWarningBanner(),
                         SizedBox(height: 14.h),
                       ],
 
-                      // ── Pending payment banner ───────────────────────
                       if (consultation.status == ConsultationStatus.pending &&
                           consultation.isPaymentPending) ...[
                         const _PendingPaymentBanner(),
                         SizedBox(height: 14.h),
                       ],
 
-                      // ── Date / time / duration row ─────────────────────
                       _TimePriceRow(
                         date: _formatDate(startDt),
                         time: _formatTime(startDt),
@@ -547,7 +518,6 @@ class _ConsultationCard extends StatelessWidget {
                   ),
                 ),
 
-                // ── Bottom action (status-driven) ─────────────────────
                 _buildBottomAction(context),
               ],
             ),
@@ -560,12 +530,10 @@ class _ConsultationCard extends StatelessWidget {
   Widget _buildBottomAction(BuildContext context) {
     switch (consultation.status) {
       case ConsultationStatus.pending:
-      // Awaiting payment / confirmation — route into the details screen,
-      // which already owns the "إتمام الدفع" payment flow.
         return SizedBox(
           width: double.infinity,
           child: GradiantButton(
-            text: consultation.isPaymentPending ? 'إتمام الدفع' : 'عرض التفاصيل',
+            text: consultation.isPaymentPending ? Loc.completePayment() : Loc.viewDetails(),
             onTap: onTap,
           ),
         );
@@ -573,7 +541,7 @@ class _ConsultationCard extends StatelessWidget {
       case ConsultationStatus.active:
         return SizedBox(
           width: double.infinity,
-          child: GradiantButton(text: 'أدخل الجلسه', onTap: onTap),
+          child: GradiantButton(text: Loc.enterSession(), onTap: onTap),
         );
 
       case ConsultationStatus.upcoming:
@@ -598,13 +566,12 @@ class _ConsultationCard extends StatelessWidget {
         );
 
       case ConsultationStatus.completed:
-      // Rating button is only shown for users, not lawyers
         final isLawyer = getIt<CacheHelper>().cachedVendorType == VendorType.lawyer;
         if (isLawyer) {
           return Row(
             children: [
               Expanded(
-                child: GradiantButton(text: 'عرض الملخص', onTap: onTap),
+                child: GradiantButton(text: Loc.viewSummary(), onTap: onTap),
               ),
             ],
           );
@@ -612,11 +579,11 @@ class _ConsultationCard extends StatelessWidget {
         return Row(
           children: [
             Expanded(
-              child: GradiantButton(text: 'عرض الملخص', onTap: onTap),
+              child: GradiantButton(text: Loc.viewSummary(), onTap: onTap),
             ),
             Expanded(
               child: _OutlinedActionButton(
-                text: 'إضافة تقييم',
+                text: Loc.addRating(),
                 onTap: () => _showRatingSheet(context),
               ),
             ),
@@ -630,7 +597,7 @@ class _ConsultationCard extends StatelessWidget {
         return SizedBox(
           width: double.infinity,
           child: GradiantButton(
-            text: 'عرض النزاع',
+            text: Loc.viewDispute(),
             onTap: () => _showDisputePopup(context),
           ),
         );
@@ -638,7 +605,7 @@ class _ConsultationCard extends StatelessWidget {
       case ConsultationStatus.none:
         return SizedBox(
           width: double.infinity,
-          child: GradiantButton(text: 'عرض التفاصيل', onTap: onTap),
+          child: GradiantButton(text: Loc.viewDetails(), onTap: onTap),
         );
     }
   }
@@ -681,9 +648,6 @@ class _ConsultationCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Upcoming Session Countdown Button (card variant)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _UpcomingSessionButton extends StatefulWidget {
   final ConsultationModel consultation;
@@ -708,11 +672,6 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
   @override
   void initState() {
     super.initState();
-    // Defensive guard: this widget is only ever switched-in by
-    // _buildBottomAction for ConsultationStatus.upcoming, but we keep the
-    // check here too so the countdown timer can never start (or keep
-    // running) for any other status, even if this widget is reused
-    // elsewhere later.
     if (widget.consultation.status != ConsultationStatus.upcoming) {
       _remaining = Duration.zero;
       return;
@@ -765,8 +724,8 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
       context: context,
       barrierDismissible: false,
       builder: (_) => CustomConfirmationDialog(
-        title: 'تأكيد الإلغاء',
-        description: 'هل أنت متأكد من رغبتك في إلغاء الموعد ؟',
+        title: Loc.confirmCancellation(),
+        description: Loc.cancelAppointmentConfirmation(),
         icon: Container(
           width: 62,
           height: 62,
@@ -783,8 +742,8 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
             size: 34,
           ),
         ),
-        confirmText: 'نعم',
-        cancelText: 'لا',
+        confirmText: Loc.yes(),
+        cancelText: Loc.no(),
         onConfirm: () {
           context.read<ConsultationsCubit>().cancelConsultation(
             consultationId: widget.consultation.id,
@@ -800,7 +759,7 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
     if (_sessionStarted) {
       return SizedBox(
         width: double.infinity,
-        child: GradiantButton(text: 'أدخل الجلسه', onTap: widget.onEnter),
+        child: GradiantButton(text: Loc.enterSession(), onTap: widget.onEnter),
       );
     }
 
@@ -822,7 +781,7 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'تبدأ الجلسة خلال',
+                  Loc.sessionStartsIn(),
                   style: TextStyle(
                     color: Colors.grey.shade500,
                     fontSize: 11.sp,
@@ -871,7 +830,7 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           child: Center(
                             child: Text(
-                              'إعادة الجدولة',
+                              Loc.reschedule(),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 13.sp,
@@ -900,7 +859,7 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
                           padding: EdgeInsets.symmetric(vertical: 12.h),
                           child: Center(
                             child: Text(
-                              'إلغاء',
+                              Loc.cancel(),
                               style: TextStyle(
                                 color: primaryColor,
                                 fontSize: 13.sp,
@@ -921,9 +880,6 @@ class _UpcomingSessionButtonState extends State<_UpcomingSessionButton> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Cancelled Warning Banner
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CancelledWarningBanner extends StatelessWidget {
   const _CancelledWarningBanner();
@@ -945,7 +901,7 @@ class _CancelledWarningBanner extends StatelessWidget {
           SizedBox(width: 8.w),
           Expanded(
             child: Text(
-              'انتهت مهلة الدفع. يرجى إعادة الحجز بدلاً من الدفع.',
+              Loc.paymentDeadlineExpired(),
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: Colors.red.shade400,
@@ -960,9 +916,6 @@ class _CancelledWarningBanner extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Pending Payment Banner
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PendingPaymentBanner extends StatelessWidget {
   const _PendingPaymentBanner();
@@ -985,7 +938,7 @@ class _PendingPaymentBanner extends StatelessWidget {
           SizedBox(width: 8.w),
           Expanded(
             child: Text(
-              'بانتظار إتمام الدفع لتأكيد هذه الاستشارة.',
+              Loc.awaitingPaymentToConfirm(),
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: Colors.amber.shade800,
@@ -1000,9 +953,6 @@ class _PendingPaymentBanner extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Outlined Action Button (secondary action paired with GradiantButton)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _OutlinedActionButton extends StatelessWidget {
   final String text;
@@ -1042,9 +992,6 @@ class _OutlinedActionButton extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Reschedule Bottom Sheet
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _RescheduleBottomSheet extends StatefulWidget {
   final DateTime? initialDateTime;
@@ -1102,7 +1049,7 @@ class _RescheduleBottomSheetState extends State<_RescheduleBottomSheet> {
     final minute = t.minute.toString().padLeft(2, '0');
     final isAm = hour < 12;
     final hour12 = hour % 12 == 0 ? 12 : hour % 12;
-    return '$hour12:$minute ${isAm ? 'صباحاً' : 'مساءً'}';
+    return '$hour12:$minute ${isAm ? Loc.amAlt() : Loc.pmLong()}';
   }
 
   void _confirm() {
@@ -1154,7 +1101,7 @@ class _RescheduleBottomSheetState extends State<_RescheduleBottomSheet> {
                   ),
                 ),
                 Text(
-                  'إعادة الجدولة',
+                  Loc.reschedule(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 18.sp,
@@ -1165,27 +1112,27 @@ class _RescheduleBottomSheetState extends State<_RescheduleBottomSheet> {
             ),
             SizedBox(height: 8.h),
             Text(
-              'اختر التاريخ والوقت الجديد للاستشارة',
+              Loc.chooseNewDateTimeForConsultation(),
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: Colors.grey.shade500),
             ),
             SizedBox(height: 24.h),
             _PickerTile(
               icon: Icons.calendar_today_outlined,
-              label: 'التاريخ',
+              label: Loc.date(),
               value: _selectedDate != null
                   ? _formatDate(_selectedDate!)
-                  : 'اختر التاريخ',
+                  : Loc.chooseDate(),
               hasValue: _selectedDate != null,
               onTap: _pickDate,
             ),
             SizedBox(height: 12.h),
             _PickerTile(
               icon: Icons.access_time_outlined,
-              label: 'الوقت',
+              label: Loc.timeLabel(),
               value: _selectedTime != null
                   ? _formatTime(_selectedTime!)
-                  : 'اختر الوقت',
+                  : Loc.chooseTime(),
               hasValue: _selectedTime != null,
               onTap: _pickTime,
             ),
@@ -1193,7 +1140,7 @@ class _RescheduleBottomSheetState extends State<_RescheduleBottomSheet> {
             SizedBox(
               width: double.infinity,
               child: GradiantButton(
-                text: 'تأكيد إعادة الجدولة',
+                text: Loc.confirmReschedule(),
                 onTap: _isValid ? _confirm : null,
               ),
             ),
@@ -1268,9 +1215,6 @@ class _PickerTile extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Rating Bottom Sheet
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _RatingBottomSheet extends StatefulWidget {
   final ConsultationModel consultation;
@@ -1357,7 +1301,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                 ),
                 SizedBox(height: 14.h),
                 Text(
-                  'قيّم تجربتك معنا',
+                  Loc.rateYourExperience(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -1366,7 +1310,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                 ),
                 SizedBox(height: 6.h),
                 Text(
-                  'تقييمك يعكس مدى رضاك ويساعدنا على التحسين.',
+                  Loc.ratingReflectsSatisfaction(),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey.shade500, fontSize: 13.sp),
                 ),
@@ -1395,7 +1339,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'كيف كانت تجربتك؟ احكي لنا',
+                    Loc.howWasYourExperienceTellUs(),
                     style: TextStyle(color: Colors.grey.shade500, fontSize: 13.sp),
                   ),
                 ),
@@ -1406,7 +1350,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                   maxLines: 4,
                   textAlign: TextAlign.right,
                   decoration: InputDecoration(
-                    hintText: 'أكتب هنا ...',
+                    hintText: Loc.writeHereAlt(),
                     hintTextDirection: TextDirection.rtl,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12.w),
@@ -1435,7 +1379,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
                     ),
                   )
                       : GradiantButton(
-                    text: 'إرسال الآن',
+                    text: Loc.sendNow(),
                     onTap: () => _submit(context),
                   ),
                 ),
@@ -1448,13 +1392,7 @@ class _RatingBottomSheetState extends State<_RatingBottomSheet> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dispute Details Popup
-// ─────────────────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dispute Details Popup
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _DisputeDetailsPopup extends StatelessWidget {
   final ConsultationModel consultation;
@@ -1480,7 +1418,6 @@ class _DisputeDetailsPopup extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ── Header ─────────────────────────────────────────────
               Row(
                 children: [
                   GestureDetector(
@@ -1498,12 +1435,12 @@ class _DisputeDetailsPopup extends StatelessWidget {
                   Gap(16.w),
                   Text(
                     consultation.type == "instant"
-                        ? "إستشاره فوريه"
+                        ? Loc.instantConsultationAlt()
                         : consultation.type == "written"
-                        ? "إستشاره كتابيه"
+                        ? Loc.writtenConsultationAlt()
                         : consultation.type == "scheduled"
-                        ? "إستشاره مجدوله"
-                        : "غير معروف",
+                        ? Loc.scheduledConsultationAlt()
+                        : Loc.unknown(),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 17.sp,
@@ -1515,13 +1452,12 @@ class _DisputeDetailsPopup extends StatelessWidget {
               GeneralDivider(),
               SizedBox(height: 10.h),
 
-              // ── رقم النزاع ─────────────────────────────────────────
               if (dispute?.disputeNumber != null &&
                   dispute!.disputeNumber!.isNotEmpty) ...[
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'رقم النزاع: ${dispute.disputeNumber}',
+                    Loc.disputeNumberLabel(dispute.disputeNumber),
                     style: TextStyle(
                       color: Colors.grey.shade500,
                       fontSize: 12.sp,
@@ -1531,11 +1467,10 @@ class _DisputeDetailsPopup extends StatelessWidget {
                 SizedBox(height: 12.h),
               ],
 
-              // ── سبب النزاع ─────────────────────────────────────────
               Align(
                 alignment: Alignment.centerRight,
                 child: Text(
-                  'سبب النزاع',
+                  Loc.disputeReason(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     fontSize: 15.sp,
@@ -1555,13 +1490,12 @@ class _DisputeDetailsPopup extends StatelessWidget {
                 ),
               ),
 
-              // ── تفاصيل النزاع ──────────────────────────────────────
               if (dispute?.description != null) ...[
                 SizedBox(height: 20.h),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'تفاصيل النزاع',
+                    Loc.disputeDetails(),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 15.sp,
@@ -1582,13 +1516,12 @@ class _DisputeDetailsPopup extends StatelessWidget {
                 ),
               ],
 
-              // ── حالة النزاع ────────────────────────────────────────
               if (dispute?.status != null) ...[
                 SizedBox(height: 16.h),
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'حالة النزاع',
+                    Loc.disputeStatus(),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 15.sp,
@@ -1608,7 +1541,6 @@ class _DisputeDetailsPopup extends StatelessWidget {
                 ),
               ],
 
-              // ── القرار المتخذ (يظهر فقط عند Closed) ────────────────
               if (dispute?.status != null &&
                   dispute!.status!.toLowerCase() == 'closed' &&
                   dispute.decision != null &&
@@ -1617,7 +1549,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
                 Align(
                   alignment: Alignment.centerRight,
                   child: Text(
-                    'القرار المتخذ',
+                    Loc.decisionTaken(),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 15.sp,
@@ -1645,7 +1577,7 @@ class _DisputeDetailsPopup extends StatelessWidget {
               SizedBox(height: 10.h),
 
               GradiantButton(
-                text: 'تم',
+                text: Loc.done(),
                 onTap: () => Navigator.pop(context),
               ),
             ],
@@ -1655,36 +1587,31 @@ class _DisputeDetailsPopup extends StatelessWidget {
     );
   }
 
-  // ── ترجمة حالة النزاع ─────────────────────────────────────────────
   String _translateDisputeStatus(String status) {
     switch (status.toLowerCase()) {
       case 'open':
-        return 'مفتوح';
+        return Loc.statusOpen();
       case 'under review':
-        return 'قيد المراجعة';
+        return Loc.underReview();
       case 'closed':
-        return 'مغلق';
+        return Loc.statusClosed();
       default:
         return status;
     }
   }
 
-  // ── ترجمة القرار المتخذ ──────────────────────────────────────────
   String _translateDisputeDecision(String decision) {
     switch (decision.toLowerCase()) {
       case 'lawyer':
-        return 'تم حسم النزاع لصالح المحامي';
+        return Loc.disputeResolvedForLawyer();
       case 'client':
-        return 'تم حسم النزاع لصالح العميل';
+        return Loc.disputeResolvedForClient();
       default:
         return decision;
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Client Info Row
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ClientInfoRow extends StatelessWidget {
   final currentUser;
@@ -1750,9 +1677,6 @@ class _ClientInfoRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Status Badge
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _StatusBadge extends StatelessWidget {
   final ConsultationStatus status;
@@ -1797,13 +1721,6 @@ class _StatusBadge extends StatelessWidget {
     }
   }
 
-  // NOTE: previously the API's "pending" status collapsed into the local
-  // ConsultationStatus.none sentinel (whose label is "الكل" / "All"), so this
-  // badge patched the label at render time to show "قيد الإنتظار" instead.
-  // ConsultationStatus now has a real `pending` value with its own correct
-  // label, so that patch is gone — the badge just shows whatever the status
-  // actually is, and "none" (the local "no filter" sentinel) is never a
-  // status a real consultation carries.
   String get _label => status.label;
 
   @override
@@ -1826,9 +1743,6 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Time / Date / Duration Row
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _TimePriceRow extends StatelessWidget {
   final String date;
@@ -1850,12 +1764,12 @@ class _TimePriceRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _InfoCell(label: 'التاريخ', value: date, valueColor: textColor),
+        _InfoCell(label: Loc.date(), value: date, valueColor: textColor),
         _Divider(),
-        _InfoCell(label: 'وقت البدء', value: time, valueColor: textColor),
+        _InfoCell(label: Loc.startTime(), value: time, valueColor: textColor),
         _Divider(),
         _InfoCell(
-          label: 'مدة الجلسه',
+          label: Loc.sessionDurationAlt(),
           value: period,
           valueColor: theme.colorScheme.primary,
         ),
@@ -1914,9 +1828,6 @@ class _Divider extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Filter Bottom Sheet
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _FilterBottomSheet extends StatefulWidget {
   final ConsultationStatus selected;
@@ -1979,7 +1890,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
                 ),
               ),
               Text(
-                'تصفية حسب',
+                Loc.filterBy(),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   fontSize: 18.sp,
@@ -1997,7 +1908,7 @@ class _FilterBottomSheetState extends State<_FilterBottomSheet> {
           SizedBox(
             width: double.infinity,
             child: GradiantButton(
-              text: 'تطبيق التصفية',
+              text: Loc.applyFilter(),
               onTap: () => widget.onApply(_selected),
             ),
           ),
@@ -2076,13 +1987,7 @@ class _StatusOption extends StatelessWidget {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// REMOVED: _ErrorView and _EmptyView — replaced by ErrorStateWidget & NoDataWidget
-// ═══════════════════════════════════════════════════════════════════════════
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Custom Confirmation Dialog
-// ─────────────────────────────────────────────────────────────────────────────
 
 class CustomConfirmationDialog extends StatelessWidget {
   final String title;
@@ -2093,16 +1998,17 @@ class CustomConfirmationDialog extends StatelessWidget {
   final VoidCallback? onConfirm;
   final VoidCallback? onCancel;
 
-  const CustomConfirmationDialog({
+  CustomConfirmationDialog({
     super.key,
     required this.title,
     required this.description,
     required this.icon,
-    this.confirmText = 'نعم',
-    this.cancelText = 'لا',
+    String? confirmText,
+    String? cancelText,
     this.onConfirm,
     this.onCancel,
-  });
+  })  : confirmText = confirmText ?? Loc.yes(),
+        cancelText = cancelText ?? Loc.no();
 
   static const double _circleSize = 70.0;
   static const double _circleRadius = _circleSize / 2;

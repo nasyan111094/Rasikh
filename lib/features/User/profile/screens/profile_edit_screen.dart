@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -16,9 +17,6 @@ import '../cubit/profile_cubit.dart';
 import '../models/update_profile_parameters.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
 
-// ProfileEditScreen does NOT create its own cubit.
-// It is always pushed via BlocProvider.value from ProfileScreen,
-// inheriting the singleton ProfileCubit.
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -37,7 +35,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   static const Color kGrey60 = Color(0xFF9E9E9E);
 
-  // ── Pre-fill fields once (runs at most once when data is available) ────────
   void _prefill() {
 
     _nameCtrl.text  = getIt<ProfileCubit>().profile?.fullName ?? '';
@@ -68,7 +65,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     );
   }
 
-  // ── Label styles (unchanged from original) ────────────────────────────────
   TextStyle _labelStyle(BuildContext context) {
     final theme = Theme.of(context);
     return theme.textTheme.bodyMedium!.copyWith(
@@ -97,7 +93,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _prefill() ;
   }
@@ -127,7 +122,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'تم تحديث البيانات بنجاح',
+                Loc.dataUpdatedSuccessfully(),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onPrimary,
                 ),
@@ -146,7 +141,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: Scaffold(
-            appBar: const GeneralAppBar(title: 'تعديل الملف الشخصي'),
+            appBar: GeneralAppBar(title: Loc.editProfile()),
             body: SafeArea(
               child: Form(
                 key: _formKey,
@@ -157,7 +152,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     children: [
                       Gap(40.h),
 
-                      // ── Avatar ──────────────────────────────────────────
                       Center(
                         child: GestureDetector(
                           onTap: _pickImage,
@@ -205,9 +199,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
                       SizedBox(height: 28.h),
 
-                      // ── Name ────────────────────────────────────────────
                       _FieldLabel(
-                        'الاسم كامل',
+                        Loc.fullNameShort(),
                         labelStyle: _labelStyle(context),
                         starStyle: _labelStarStyle,
                         requiredMark: true,
@@ -217,9 +210,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
                       SizedBox(height: 30.h),
 
-                      // ── Email ───────────────────────────────────────────
                       _FieldLabel(
-                        'البريد الإلكتروني',
+                        Loc.email(),
                         labelStyle: _labelStyle(context),
                         starStyle: _labelStarStyle,
                       ),
@@ -228,9 +220,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
                       SizedBox(height: 30.h),
 
-                      // ── City ────────────────────────────────────────────
                       _FieldLabel(
-                        'اختر المدينة',
+                        Loc.chooseCityLabel(),
                         labelStyle: _labelStyle(context),
                         starStyle: _labelStarStyle,
                         requiredMark: true,
@@ -248,7 +239,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
             ),
 
-            // ── Save button ─────────────────────────────────────────────
             bottomNavigationBar: SafeArea(
               minimum: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
               child: SizedBox(
@@ -275,7 +265,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       color: theme.colorScheme.onPrimary,
                     ),
                   )
-                      : const Text('تحديث البيانات'),
+                      : Text(Loc.updateData()),
                 ),
               ),
             ),
@@ -286,9 +276,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _FieldLabel — unchanged from original
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String text;
@@ -324,9 +311,6 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CityDropdownField — unchanged from original
-// ─────────────────────────────────────────────────────────────────────────────
 
 class CityDropdownField extends StatefulWidget {
   final String? value;
@@ -383,7 +367,7 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
         ),
         style: theme.textTheme.bodyMedium?.copyWith(fontSize: 15.sp),
         decoration: InputDecoration(
-          hintText: 'اختر المدينة',
+          hintText: Loc.chooseCityLabel(),
           hintStyle: theme.inputDecorationTheme.hintStyle ??
               theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
@@ -421,16 +405,16 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
             vertical: 18.h,
           ),
         ),
-        items: const [
-          DropdownMenuItem(value: 'الرياض',  child: Text('الرياض')),
-          DropdownMenuItem(value: 'جدة',     child: Text('جدة')),
-          DropdownMenuItem(value: 'الدمام',  child: Text('الدمام')),
-          DropdownMenuItem(value: 'مكة',     child: Text('مكة')),
-          DropdownMenuItem(value: 'المدينة', child: Text('المدينة')),
+        items: [
+          DropdownMenuItem(value: 'الرياض',  child: Text(Loc.riyadh())),
+          DropdownMenuItem(value: 'جدة',     child: Text(Loc.jeddah())),
+          DropdownMenuItem(value: 'الدمام',  child: Text(Loc.dammam())),
+          DropdownMenuItem(value: 'مكة',     child: Text(Loc.mecca())),
+          DropdownMenuItem(value: 'المدينة', child: Text(Loc.madinah())),
         ],
         onChanged: widget.onChanged,
         validator: widget.validator ??
-                (v) => (v == null) ? 'من فضلك اختر المدينة' : null,
+                (v) => (v == null) ? Loc.pleaseSelectCity() : null,
       ),
     );
   }

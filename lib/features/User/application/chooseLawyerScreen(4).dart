@@ -1,18 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// choose_lawyer_screen.dart  (Step 4)
-// Changes:
-//  • Shimmer loading skeleton for lawyer cards
-//  • Pull-to-refresh on the lawyers list
-//  • City bottom sheet now loads cities from /api/v1/enums/cities
-//    with shimmer while loading and retry on failure
-//  • "استشر الآن" button on LawyerCard:
-//    - Scheduled  → selectLawyer then navigate to appointmentBookingScreen (NO createConsultation)
-//    - Instant/Written → selectLawyer then createConsultation → navigate to paymentScreen on success
-//  • BlocListener handles loading dialog, success navigation, and error snackbar
-//  • LawyerCard onTap navigates to LawyerDetailsScreen AND passes lawyerId
-//    to cubit so the details screen can show "استشر الآن" correctly
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -25,13 +12,13 @@ import 'package:rasikh/core/widgets/general_app_bar.dart';
 
 import '../../../config/navigation/nav.dart';
 import '../../../config/theme/colors.dart';
-import '../../../core/widgets/auth_stepper.dart';
 
 import '../../../core/widgets/error_state_widget.dart';
-import '../../../core/widgets/no_data_widget.dart';
 import 'bloc/consulation_application_cubit.dart';
 import 'bloc/consulation_application_state.dart';
 import 'models/consultation_model.dart';
+import 'widgets/consultation_flow_widgets.dart';
+import 'widgets/selection_bottom_sheet.dart';
 
 class ChooseLawyerScreen extends StatefulWidget {
   const ChooseLawyerScreen({super.key , required this.recommended});
@@ -45,25 +32,32 @@ class ChooseLawyerScreen extends StatefulWidget {
 
 class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
   final TextEditingController searchController = TextEditingController();
+  String? _cityKey;
+  _LawyerSortOption? _sort;
+
+  List<_LawyerSortOption> get _sortOptions => [
+        _LawyerSortOption(Loc.highestRated(), 'rating', 'desc'),
+        _LawyerSortOption(Loc.lowestRated(), 'rating', 'asc'),
+        _LawyerSortOption(Loc.mostExperienced(), 'experienceYears', 'desc'),
+        _LawyerSortOption(Loc.leastExperienced(), 'experienceYears', 'asc'),
+        _LawyerSortOption(Loc.nameAToZ(), 'fullName', 'asc'),
+        _LawyerSortOption(Loc.nameZToA(), 'fullName', 'desc'),
+        _LawyerSortOption(Loc.newest(), 'createdAt', 'desc'),
+        _LawyerSortOption(Loc.oldest(), 'createdAt', 'asc'),
+      ];
 
   @override
   void initState() {
     super.initState();
-    // ✅ Previously nothing triggered these — the screen depended entirely
-    // on a search/filter/refresh action to populate anything at all.
-    // Load the regular lawyers list AND the AI-recommended lawyer for the
-    // chosen specialization the moment this screen opens.
     final cubit = context.read<ConsultationApplicationCubit>();
-
-
-    cubit.loadLawyers();
+    if (cubit.state.citiesStatus != ConsultationStatus.success) {
+      cubit.loadCities();
+    }
     if (widget.recommended) {
       cubit.loadRecommendedLawyer();
+    } else {
+      _reloadLawyers();
     }
-    else
-      {
-        cubit.loadLawyers();
-      }
   }
 
   @override
@@ -72,403 +66,91 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     super.dispose();
   }
 
+  Future<void> _reloadLawyers() {
+    final search = searchController.text.trim();
+    return context.read<ConsultationApplicationCubit>().loadLawyers(
+          search: search.isEmpty ? null : search,
+          city: _cityKey,
+          sortBy: _sort?.sortBy,
+          sortOrder: _sort?.sortOrder,
+        );
+  }
+
   Future<void> _onRefresh() async {
     final cubit = context.read<ConsultationApplicationCubit>();
-    final futures = [
-      cubit.loadLawyers(
-        search: searchController.text.isEmpty ? null : searchController.text,
-      ),
-    ];
-    if (widget.recommended) {
-      futures.add(cubit.loadRecommendedLawyer());
-    }
-    await Future.wait(futures);
+    await Future.wait([
+      _reloadLawyers(),
+      if (widget.recommended) cubit.loadRecommendedLawyer(),
+    ]);
   }
 
-  // ── Sort bottom sheet ─────────────────────────────────────────────────────
+  String _cityName(ConsultationState state, String? city) {
+    if (city == null || city.isEmpty) return '—';
+    for (final c in state.cities) {
+      if (c.key == city) return c.value;
+    }
+    return city;
+  }
 
-  Future<void> _showSortBottomSheet(BuildContext context) async {
-    final theme = Theme.of(context);
-    String? selectedOption = 'الأعلى تقييماً';
-
-    final options = [
-      'الأعلى تقييماً',
-      'الأقل تقييماً',
-      'الأكثر خبرة',
-      'الأقل خبرة',
-      'الاسم أ-ي',
-      'الاسم ي-أ',
-      'الأحدث',
-      'الأقدم',
-    ];
-
-    final sortMap = {
-      'الأعلى تقييماً': ('rating', 'desc'),
-      'الأقل تقييماً': ('rating', 'asc'),
-      'الأكثر خبرة': ('experienceYears', 'desc'),
-      'الأقل خبرة': ('experienceYears', 'asc'),
-      'الاسم أ-ي': ('fullName', 'asc'),
-      'الاسم ي-أ': ('fullName', 'desc'),
-      'الأحدث': ('createdAt', 'desc'),
-      'الأقدم': ('createdAt', 'asc'),
-    };
-
-    await showModalBottomSheet(
+  void _showSortBottomSheet(BuildContext context) {
+    showSelectionBottomSheet(
       context: context,
-      backgroundColor: theme.colorScheme.onSecondary,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      builder: (_) => SelectionBottomSheet<_LawyerSortOption>(
+        title: Loc.sortBy(),
+        searchHint: Loc.searchHint(),
+        showSearch: false,
+        items: _sortOptions,
+        selectedId: _sort?.id,
+        itemId: (o) => o.id,
+        itemName: (o) => o.label,
+        emptyTitle: Loc.noResults(),
+        confirmText: Loc.applyFilter(),
+        onConfirm: (option) {
+          setState(() => _sort = option);
+          _reloadLawyers();
+        },
       ),
-      builder: (context) {
-        return StatefulBuilder(builder: (context, setModalState) {
-          return Directionality(
-            textDirection: TextDirection.rtl,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('الترتيب حسب',
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.bold)),
-                      Container(
-                        decoration:
-                        BoxDecoration(color: greyFA, shape: BoxShape.circle),
-                        child: IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.pop(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                  GeneralDivider(height: 20.h),
-                  ...options.map(
-                        (opt) => InkWell(
-                      onTap: () => setModalState(() => selectedOption = opt),
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 5.h),
-                        child: Container(
-                          height: 60.h,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: theme.dividerColor),
-                          ),
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(
-                                vertical: 4.0, horizontal: 10.w),
-                            child: Row(
-                              children: [
-                                Text(
-                                  opt,
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    color: selectedOption == opt
-                                        ? theme.colorScheme.primary
-                                        : null,
-                                    fontWeight: selectedOption == opt
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Checkbox(
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6)),
-                                  side: BorderSide(
-                                      color: theme.colorScheme.outline
-                                          .withOpacity(0.5)),
-                                  activeColor: theme.colorScheme.primary,
-                                  value: selectedOption == opt,
-                                  onChanged: (_) =>
-                                      setModalState(() => selectedOption = opt),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.primary,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        final sort = sortMap[selectedOption];
-                        context.read<ConsultationApplicationCubit>().loadLawyers(
-                          sortBy: sort?.$1,
-                          sortOrder: sort?.$2,
-                        );
-                      },
-                      child: Text('تطبيق التصفية',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          )),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          );
-        });
-      },
     );
   }
 
-  // ── City bottom sheet – cities from /api/v1/enums/cities ─────────────────
-
-  Future<void> _showCityBottomSheet(BuildContext context) async {
-    final theme = Theme.of(context);
-    String? selectedOption;
-    final citySearchController = TextEditingController();
-
-    // Trigger city load from API
-    context.read<ConsultationApplicationCubit>().loadCities();
-
-    await showModalBottomSheet(
+  void _showCityBottomSheet(BuildContext context) {
+    final cubit = context.read<ConsultationApplicationCubit>();
+    if (cubit.state.citiesStatus != ConsultationStatus.success) {
+      cubit.loadCities();
+    }
+    showSelectionBottomSheet(
       context: context,
-      backgroundColor: theme.colorScheme.onSecondary,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
-          builder: (ctx, state) {
-            final allCities =
-            state.cityNames.isNotEmpty ? state.cityNames : <String>[];
-            return StatefulBuilder(builder: (ctx, setModalState) {
-              final filtered = citySearchController.text.isEmpty
-                  ? allCities
-                  : allCities
-                  .where((c) => c.contains(citySearchController.text))
-                  .toList();
-
-              return Directionality(
-                textDirection: TextDirection.rtl,
-                child: Padding(
-                  padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('اختر المدينة',
-                              style: theme.textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.bold)),
-                          Container(
-                            decoration: BoxDecoration(
-                                color: greyFA, shape: BoxShape.circle),
-                            child: IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: () => Navigator.pop(ctx),
-                            ),
-                          ),
-                        ],
-                      ),
-                      GeneralDivider(height: 20.h),
-                      TextField(
-                        controller: citySearchController,
-                        textAlign: TextAlign.right,
-                        onChanged: (_) => setModalState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'بحث عن مدينة محددة...',
-                          hintStyle: theme.textTheme.bodyMedium
-                              ?.copyWith(color: theme.hintColor),
-                          prefixIcon: Padding(
-                            padding: EdgeInsets.all(15.0.h),
-                            child: Picture(getAssetIcon("search.svg"),
-                                width: 20.h, height: 20.h),
-                          ),
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16.w, vertical: 12.h),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.h),
-                            borderSide: BorderSide(color: theme.dividerColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.h),
-                            borderSide: BorderSide(color: theme.dividerColor),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.h),
-                            borderSide:
-                            BorderSide(color: theme.colorScheme.primary),
-                          ),
-                        ),
-                      ),
-                      Gap(10.h),
-                      // ── Cities list with shimmer / error / data ────
-                      SizedBox(
-                        height: 300.h,
-                        child: _buildCitiesContent(
-                          ctx,
-                          state,
-                          theme,
-                          filtered,
-                          selectedOption,
-                              (opt) => setModalState(() => selectedOption = opt),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            padding:
-                            const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12)),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            context
-                                .read<ConsultationApplicationCubit>()
-                                .loadLawyers(city: selectedOption);
-                          },
-                          child: Text('تطبيق التصفية',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              )),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-              );
-            });
+      builder: (_) => BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
+        builder: (_, state) => SelectionBottomSheet<EnumValueModel>(
+          title: Loc.chooseCityLabel(),
+          searchHint: Loc.searchSpecificCity(),
+          items: state.cities,
+          selectedId: _cityKey,
+          isLoading: state.citiesStatus == ConsultationStatus.loading ||
+              state.citiesStatus == ConsultationStatus.initial,
+          errorMessage: state.citiesStatus == ConsultationStatus.failure
+              ? state.citiesError ?? Loc.unableToLoadCities()
+              : null,
+          onRetry: cubit.loadCities,
+          itemId: (c) => c.key,
+          itemName: (c) => c.value,
+          emptyIcon: Icons.location_city_outlined,
+          emptyTitle: Loc.noResults(),
+          emptyMessage: Loc.noCitiesAvailable(),
+          confirmText: Loc.applyFilter(),
+          onConfirm: (city) {
+            setState(() => _cityKey = city.key);
+            _reloadLawyers();
           },
-        );
-      },
+        ),
+      ),
     );
   }
 
-  Widget _buildCitiesContent(
-      BuildContext ctx,
-      ConsultationState state,
-      ThemeData theme,
-      List<String> filtered,
-      String? selectedOption,
-      void Function(String) onSelect,
-
-      ) {
-    // ── Loading State ───────────────────────────────────────────────────────
-    if (state.citiesStatus == ConsultationStatus.loading) {
-      final base = theme.brightness == Brightness.light
-          ? Colors.grey.shade300
-          : Colors.grey.shade700;
-      final highlight = theme.brightness == Brightness.light
-          ? Colors.grey.shade100
-          : Colors.grey.shade600;
-      return Shimmer.fromColors(
-        baseColor: base,
-        highlightColor: highlight,
-        child: ListView.separated(
-          itemCount: 8,
-          separatorBuilder: (_, __) => SizedBox(height: 8.h),
-          itemBuilder: (_, __) => Container(
-            height: 56.h,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-        ),
-      );
-    }
-
-    // ── Error State ─────────────────────────────────────────────────────────
-    if (state.citiesStatus == ConsultationStatus.failure) {
-      return Center(
-        child: ErrorStateWidget(
-          title: 'تعذر تحميل المدن',
-          message: state.citiesError ?? 'حدث خطأ أثناء الاتصال بالخادم',
-          actionLabel: 'إعادة المحاولة',
-          onAction: () => context.read<ConsultationApplicationCubit>().loadCities(),
-        ),
-      );
-    }
-
-    // ── Empty State ─────────────────────────────────────────────────────────
-    if (filtered.isEmpty) {
-      return Center(
-        child: NoDataWidget(
-          icon: Icons.location_city_outlined,
-          title: 'لا توجد نتائج',
-          message:  'لا توجد مدن متاحة حالياً'
-            ,
-        ),
-      );
-    }
-
-    // ── Success with Data ───────────────────────────────────────────────────
-    return ListView.separated(
-      itemCount: filtered.length,
-      separatorBuilder: (_, __) => SizedBox(height: 10.h),
-      itemBuilder: (ctx, index) {
-        final opt = filtered[index];
-        final selected = selectedOption == opt;
-        return InkWell(
-          onTap: () => onSelect(opt),
-          child: Container(
-            height: 60.h,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.dividerColor),
-            ),
-            padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 10.w),
-            child: Row(
-              children: [
-                Text(
-                  opt,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: selected ? theme.colorScheme.primary : null,
-                    fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                const Spacer(),
-                Checkbox(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6)),
-                  side: BorderSide(
-                      color: theme.colorScheme.outline.withOpacity(0.5)),
-                  activeColor: theme.colorScheme.primary,
-                  value: selected,
-                  onChanged: (_) => onSelect(opt),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // ── Type bottom sheet ─────────────────────────────────────────────────────
 
   Future<void> _showTypeBottomSheet(BuildContext context) async {
     final theme = Theme.of(context);
-    String? selectedOption = 'الكل';
-   /* final types = ['الكل', 'محامي', 'محامية'];*/
+    String? selectedOption = Loc.all();
 
     await showModalBottomSheet(
       context: context,
@@ -490,7 +172,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('الترتيب حسب',
+                      Text(Loc.sortBy(),
                           style: theme.textTheme.titleMedium
                               ?.copyWith(fontWeight: FontWeight.bold)),
                       Container(
@@ -504,62 +186,6 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                     ],
                   ),
                   GeneralDivider(height: 20.h),
-                /*  SizedBox(
-                    height: 60.h,
-                    child: ListView.separated(
-                      itemCount: types.length,
-                      scrollDirection: Axis.horizontal,
-                      separatorBuilder: (_, __) => SizedBox(width: 10.w),
-                      itemBuilder: (ctx, index) {
-                        final opt = types[index];
-                        final selected = selectedOption == opt;
-                        return InkWell(
-                          onTap: () =>
-                              setModalState(() => selectedOption = opt),
-                          child: Container(
-                            height: 30.h,
-                            width: 125.w,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border:
-                              Border.all(color: theme.dividerColor),
-                            ),
-                            padding: EdgeInsets.symmetric(
-                                vertical: 4.0, horizontal: 10.w),
-                            child: Row(
-                              children: [
-                                Text(
-                                  opt,
-                                  style: theme.textTheme.bodyLarge
-                                      ?.copyWith(
-                                    color: selected
-                                        ? theme.colorScheme.primary
-                                        : null,
-                                    fontWeight: selected
-                                        ? FontWeight.bold
-                                        : FontWeight.normal,
-                                  ),
-                                ),
-                                const Spacer(),
-                                Checkbox(
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius:
-                                      BorderRadius.circular(6)),
-                                  side: BorderSide(
-                                      color: theme.colorScheme.outline
-                                          .withOpacity(0.5)),
-                                  activeColor: theme.colorScheme.primary,
-                                  value: selected,
-                                  onChanged: (_) => setModalState(
-                                          () => selectedOption = opt),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                  ),*/
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -572,7 +198,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                             borderRadius: BorderRadius.circular(12)),
                       ),
                       onPressed: () => Navigator.pop(ctx),
-                      child: Text('تطبيق التصفية',
+                      child: Text(Loc.applyFilter(),
                           style: theme.textTheme.titleMedium?.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -589,19 +215,9 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     );
   }
 
-  // ── "استشر الآن" handler ──────────────────────────────────────────────────
-  //
-  // • Scheduled  → selectLawyer only, then go to appointmentBookingScreen.
-  //                createConsultation is NOT called here; the booking screen
-  //                will call it after the user picks a time slot.
-  //
-  // • Instant / Written → selectLawyer, then call createConsultation.
-  //                       Navigation is handled by the BlocListener below
-  //                       once createStatus becomes success.
 
   void _onConsult(
       BuildContext context, ConsultationState state, dynamic lawyer) {
-    // ── 1. Normalise lawyer type and select it in the cubit ──────────────
     if (lawyer is LawyerDetailModel) {
       context.read<ConsultationApplicationCubit>().selectLawyer(lawyer);
     } else if (lawyer is LawyerDetailModel) {
@@ -621,18 +237,13 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
       );
     }
 
-    // ── 2. Branch on consultation type ───────────────────────────────────
     if (state.selectedConsultationType == ConsultationType.scheduled) {
-      // Scheduled: skip createConsultation, go straight to booking screen.
       Nav.appointmentBookingScreen(context);
     } else {
-      // Instant / Written: create the consultation now.
-      // The BlocListener will navigate to paymentScreen on success.
       context.read<ConsultationApplicationCubit>().createConsultation();
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -640,13 +251,15 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: const GeneralAppBar(title: "اختر المحامي"),
+      appBar: GeneralAppBar(
+        title: Loc.chooseLawyer(),
+        backIcon: Icons.arrow_back,
+        backIconSize: 22,
+      ),
       body: BlocListener<ConsultationApplicationCubit, ConsultationState>(
-        // Only react when createStatus actually changes
         listenWhen: (prev, curr) =>
         prev.createStatus != curr.createStatus,
         listener: (context, state) {
-          // ── Loading: show a non-dismissible progress dialog ──────────
           if (state.createStatus == ConsultationStatus.loading) {
             showDialog(
               context: context,
@@ -659,14 +272,10 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
             return;
           }
 
-          // Dismiss the loading dialog for both success and failure
           if (Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
 
-          // ── Success: show snackbar then navigate to payment screen ──────
-          // (Only instant/written reach this point — scheduled never calls
-          // createConsultation from this screen.)
           if (state.createStatus == ConsultationStatus.success) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -715,7 +324,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'تم إنشاء الاستشارة بنجاح',
+                              Loc.consultationCreatedSuccessfully(),
                               textDirection: TextDirection.rtl,
                               style: TextStyle(
                                 color: Colors.white,
@@ -725,7 +334,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                             ),
                             Gap(2.h),
                             Text(
-                              'سيتم تحويلك إلى صفحة الدفع',
+                              Loc.redirectingToPaymentPage(),
                               textDirection: TextDirection.rtl,
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.85),
@@ -741,25 +350,23 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
               ),
             );
 
-            // Navigate after snackbar has time to show
             Future.delayed(const Duration(milliseconds: 500), () {
               if (context.mounted) Nav.paymentScreen(context);
             });
             return;
           }
 
-          // ── Failure: show error snackbar with retry action ────────────
           if (state.createStatus == ConsultationStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  state.createError ?? 'حدث خطأ أثناء إنشاء الاستشارة',
+                  state.createError ?? Loc.errorCreatingConsultation(),
                   textDirection: TextDirection.rtl,
                 ),
                 backgroundColor: theme.colorScheme.error,
                 behavior: SnackBarBehavior.floating,
                 action: SnackBarAction(
-                  label: 'إعادة المحاولة',
+                  label: Loc.retryAgain(),
                   textColor: Colors.white,
                   onPressed: () =>
                       context.read<ConsultationApplicationCubit>().createConsultation(),
@@ -772,24 +379,19 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
           child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
             builder: (context, state) {
               return Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.w),
+                padding: EdgeInsets.symmetric(
+                  horizontal: ConsultationFlowSpacing.horizontal,
+                ),
                 child: Column(
                   children: [
-                    Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24.h),
-                      child: const AuthStepperWidget(
-                          activeStep: 4, totalSteps: 5),
-                    ),
+                    const ConsultationFlowStepper(activeStep: 4),
 
-                    // ── Search ─────────────────────────────────────────
                     TextField(
                       controller: searchController,
                       textAlign: TextAlign.right,
-                      onChanged: (value) => context
-                          .read<ConsultationApplicationCubit>()
-                          .loadLawyers(search: value),
+                      onChanged: (_) => _reloadLawyers(),
                       decoration: InputDecoration(
-                        hintText: 'ابحث عن المحامي المناسب...',
+                        hintText: Loc.searchForSuitableLawyer(),
                         hintStyle: theme.textTheme.bodyMedium
                             ?.copyWith(color: theme.hintColor),
                         prefixIcon:
@@ -797,27 +399,29 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                         filled: true,
                         fillColor: Colors.transparent,
                         contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16.w, vertical: 12.h),
+                            horizontal: 16.w, vertical: 16.h),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.h),
+                          borderRadius: BorderRadius.circular(
+                              ConsultationFlowSpacing.radius),
                           borderSide:
                           BorderSide(color: theme.dividerColor),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.h),
+                          borderRadius: BorderRadius.circular(
+                              ConsultationFlowSpacing.radius),
                           borderSide:
                           BorderSide(color: theme.dividerColor),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12.h),
+                          borderRadius: BorderRadius.circular(
+                              ConsultationFlowSpacing.radius),
                           borderSide:
                           BorderSide(color: colorScheme.primary),
                         ),
                       ),
                     ),
-                    Gap(12.h),
+                    Gap(ConsultationFlowSpacing.fieldGap),
 
-                    // ── Filter chips ───────────────────────────────────
                     SizedBox(
                       height: 45.h,
                       child: Row(
@@ -826,31 +430,24 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                           Expanded(
                             child: _FilterChip(
                               icon: "filter.svg",
-                              title: 'الترتيب حسب',
+                              title: Loc.sortBy(),
                               onTap: () => _showSortBottomSheet(context),
                             ),
                           ),
-                      /*    _FilterChip(
-                            icon: "users.svg",
-                            title: 'محامي أو محامية',
-                            onTap: () => _showTypeBottomSheet(context),
-                          ),*/
                           Expanded(
                             child: _FilterChip(
                               icon: "City.svg",
-                              title: 'المدينة',
+                              title: Loc.city(),
                               onTap: () => _showCityBottomSheet(context),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    Gap(20.h),
+                    Gap(ConsultationFlowSpacing.sectionGap),
 
-                    // ── Recommended lawyer section ──────────────────────
                     if (widget.recommended) _buildRecommendedSection(context, state),
 
-                    // ── Lawyers list with pull-to-refresh ──────────────
                     if (!widget.recommended) Expanded(
                       child: RefreshIndicator(
                         onRefresh: _onRefresh,
@@ -867,17 +464,8 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     );
   }
 
-  // ── Recommended lawyer section ────────────────────────────────────────────
-  //
-  // loading  → shimmer placeholder (keeps layout stable, no abrupt pop-in)
-  // success  → highlighted LawyerCard (isRecommended: true) + header
-  // failure  → render nothing. A failure here is typically a 404 ("no
-  //            eligible lawyer found"), which is a normal outcome, not a
-  //            real error — the regular list below still works on its own.
-  // initial  → render nothing.
 
   Widget _buildRecommendedSection(BuildContext context, ConsultationState state) {
-    // ── Loading State ───────────────────────────────────────────────────────
     if (state.recommendedLawyerStatus == ConsultationStatus.loading) {
       final theme = Theme.of(context);
       final base = theme.brightness == Brightness.light
@@ -887,7 +475,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
           ? Colors.grey.shade100
           : Colors.grey.shade600;
       return Padding(
-        padding: EdgeInsets.only(bottom: 20.h),
+        padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
         child: Shimmer.fromColors(
           baseColor: base,
           highlightColor: highlight,
@@ -902,14 +490,13 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
       );
     }
 
-    // ── Error State ─────────────────────────────────────────────────────────
     if (state.recommendedLawyerStatus == ConsultationStatus.failure) {
       return Padding(
-        padding: EdgeInsets.only(bottom: 20.h),
+        padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
         child: ErrorStateWidget(
-          title: 'تعذر تحميل المحامي المقترح',
-          message: state.recommendedLawyerError ?? 'حدث خطأ أثناء الاتصال بالخادم',
-          actionLabel: 'إعادة المحاولة',
+          title: Loc.unableToLoadRecommendedLawyer(),
+          message: state.recommendedLawyerError ?? Loc.errorConnectingToServer(),
+          actionLabel: Loc.retryAgain(),
           onAction: () => context
               .read<ConsultationApplicationCubit>()
               .loadRecommendedLawyer(),
@@ -917,31 +504,29 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
       );
     }
 
-    // ── Empty State ─────────────────────────────────────────────────────────
     if (state.recommendedLawyerStatus == ConsultationStatus.success &&
         state.recommendedLawyer == null) {
       return Padding(
-        padding: EdgeInsets.only(bottom: 20.h),
-        child: const NoDataWidget(
+        padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
+        child: ConsultationEmptyState(
           icon: Icons.person_search_outlined,
-          title: 'لا يوجد محامي مقترح حالياً',
-          message: 'لم نتمكن من العثور على محامي مناسب لتخصصك في الوقت الحالي',
+          title: Loc.noRecommendedLawyerNow(),
+          message: Loc.noSuitableLawyerForSpecialization(),
         ),
       );
     }
 
-    // ── Success with Data ───────────────────────────────────────────────────
     if (state.recommendedLawyerStatus == ConsultationStatus.success && state.recommendedLawyer != null) {
       final lawyer = state.recommendedLawyer!;
       return Padding(
-        padding: EdgeInsets.only(bottom: 20.h),
+        padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LawyerCard(
               name: lawyer.fullName,
-              city: lawyer.city ?? '—',
-              region: lawyer.city ?? '—',
+              city: _cityName(state, lawyer.city),
+              region: _cityName(state, lawyer.city),
               rating: lawyer.rating,
               specialization: lawyer.mainSpecializations.isNotEmpty
                   ? (lawyer.mainSpecializations.first.name ?? '—')
@@ -956,99 +541,86 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
               onConsult: () => _onConsult(context, state, lawyer),
               onCardTap: () => Nav.lawyerDetailsScreen(context, Id: lawyer.id),
             ),
-            Gap(16.h),
+            Gap(ConsultationFlowSpacing.cardGap),
           ],
         ),
       );
     }
 
-    // ── Initial / Default ───────────────────────────────────────────────────
     return const SizedBox.shrink();
   }
 
-  // ── Lawyers list ──────────────────────────────────────────────────────────
 
   Widget _buildLawyersList(BuildContext context, ConsultationState state) {
-    // ── Loading State ───────────────────────────────────────────────────────
     if (state.lawyersStatus == ConsultationStatus.loading) {
       return _buildLawyersShimmer(context);
     }
 
-    // ── Error State ─────────────────────────────────────────────────────────
     if (state.lawyersStatus == ConsultationStatus.failure) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: 60.h),
           ErrorStateWidget(
-            title: 'تعذر تحميل المحامين',
-            message: state.lawyersError ?? 'حدث خطأ أثناء الاتصال بالخادم',
-            actionLabel: 'إعادة المحاولة',
-            onAction: () => context
-                .read<ConsultationApplicationCubit>()
-                .loadLawyers(),
+            title: Loc.unableToLoadLawyers(),
+            message: state.lawyersError ?? Loc.errorConnectingToServer(),
+            actionLabel: Loc.retryAgain(),
+            onAction: _reloadLawyers,
           ),
         ],
       );
     }
 
-    // ── Empty State ─────────────────────────────────────────────────────────
     if (state.lawyers.isEmpty &&
         state.lawyersStatus == ConsultationStatus.success) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(), // Enable pull-to-refresh
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: 80.h),
-          const NoDataWidget(
+          ConsultationEmptyState(
             icon: Icons.person_search_outlined,
-            title: 'لا يوجد محامون متاحون',
-            message: 'جرّب تغيير معايير البحث أو الفلاتر المستخدمة',
+            title: Loc.noLawyersAvailable(),
+            message: Loc.tryChangingSearchCriteria(),
           ),
         ],
       );
     }
 
-    // ── Success with Data ───────────────────────────────────────────────────
-    // If widget.recommended is true, show only the recommended lawyer.
     if (widget.recommended) {
       if (state.recommendedLawyerStatus == ConsultationStatus.success &&
           state.recommendedLawyer != null) {
         final lawyers = [state.recommendedLawyer!];
         return _buildLawyersListView(lawyers, state);
       } else {
-        // This shouldn't happen if _buildRecommendedSection is shown above,
-        // but handle gracefully
         return ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(height: 80.h),
-            const NoDataWidget(
+            ConsultationEmptyState(
               icon: Icons.person_search_outlined,
-              title: 'لا يوجد محامي مقترح',
-              message: 'لم نتمكن من العثور على محامي مناسب',
+              title: Loc.noRecommendedLawyer(),
+              message: Loc.noSuitableLawyerFound(),
             ),
           ],
         );
       }
     }
 
-    // Show all lawyers, excluding the recommended one from the main list
     final recommendedId =
     state.recommendedLawyerStatus == ConsultationStatus.success
         ? state.recommendedLawyer?.id
         : null;
     final lawyers = state.lawyers;
 
-    // Double-check empty after filtering
     if (lawyers.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           SizedBox(height: 80.h),
-          const NoDataWidget(
+          ConsultationEmptyState(
             icon: Icons.person_search_outlined,
-            title: 'لا يوجد محامون إضافيون',
-            message: 'المحامي المقترح هو الخيار الوحيد المتاح حالياً',
+            title: Loc.noAdditionalLawyers(),
+            message: Loc.recommendedLawyerOnlyOption(),
           ),
         ],
       );
@@ -1056,13 +628,13 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
 
     return ListView.separated(
       itemCount: lawyers.length,
-      separatorBuilder: (_, __) => SizedBox(height: 16.h),
+      separatorBuilder: (_, __) => Gap(ConsultationFlowSpacing.cardGap),
       itemBuilder: (context, index) {
         final lawyer = lawyers[index];
         return LawyerCard(
           name: lawyer.fullName,
-          city: lawyer.city ?? '—',
-          region: lawyer.city ?? '—',
+          city: _cityName(state, lawyer.city),
+          region: _cityName(state, lawyer.city),
           rating: lawyer.rating,
           specialization: lawyer.mainSpecializations.isNotEmpty
               ? (lawyer.mainSpecializations.first.name ?? '—')
@@ -1080,17 +652,16 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     );
   }
 
-  // ── Helper: Build lawyers list view ──────────────────────────────────────────
   Widget _buildLawyersListView(List<LawyerDetailModel> lawyers, ConsultationState state) {
     return ListView.separated(
       itemCount: lawyers.length,
-      separatorBuilder: (_, __) => SizedBox(height: 16.h),
+      separatorBuilder: (_, __) => Gap(ConsultationFlowSpacing.cardGap),
       itemBuilder: (context, index) {
         LawyerDetailModel lawyer = lawyers[index];
         return LawyerCard(
           name: lawyer.fullName,
-          city: lawyer.city ?? '—',
-          region: lawyer.city ?? '—',
+          city: _cityName(state, lawyer.city),
+          region: _cityName(state, lawyer.city),
           rating: lawyer.rating,
           specialization: lawyer.mainSpecializations.isNotEmpty
               ? (lawyer.mainSpecializations.first.name ?? '—')
@@ -1111,7 +682,6 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     );
   }
 
-  // ── Helper: Build loading or empty state for recommended view ──────────────
   Widget _buildLoadingOrEmptyState(ConsultationState state) {
     if (state.recommendedLawyerStatus == ConsultationStatus.loading) {
       return _buildLawyersShimmer(context);
@@ -1127,7 +697,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
           ),
           Gap(12.h),
           Text(
-            'لا يوجد محامي مقترح حالياً',
+            Loc.noRecommendedLawyerNow(),
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
               color: Theme.of(context).hintColor,
             ),
@@ -1137,7 +707,6 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     );
   }
 
-  // ── Shimmer for lawyer cards ──────────────────────────────────────────────
 
   Widget _buildLawyersShimmer(BuildContext context) {
     final theme = Theme.of(context);
@@ -1154,7 +723,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
       child: ListView.separated(
         physics: const NeverScrollableScrollPhysics(),
         itemCount: 4,
-        separatorBuilder: (_, __) => SizedBox(height: 16.h),
+        separatorBuilder: (_, __) => Gap(ConsultationFlowSpacing.cardGap),
         itemBuilder: (_, __) => Container(
           height: 160.h,
           decoration: BoxDecoration(
@@ -1168,21 +737,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LawyerCard
-// ─────────────────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Lawyer status badge
-//
-// Maps the backend's `activityStatus` enum value to a label + color.
-// Only 'available_now' is confirmed from the live API sample — the other
-// cases are best-guess placeholders. If your backend uses different values
-// (or a different field name on LawyerModel / LawyerDetailModel), update the
-// switch below and the `statusValue:` argument passed into LawyerCard.
-// Unknown/null values intentionally return null so no misleading badge is
-// shown rather than guessing.
-// ─────────────────────────────────────────────────────────────────────────────
 
 class LawyerStatusInfo {
   final String label;
@@ -1194,26 +749,19 @@ class LawyerStatusInfo {
 LawyerStatusInfo? resolveLawyerStatus(String? value) {
   switch (value) {
     case 'available_now':
-      return const LawyerStatusInfo('متاح الآن', Color(0xFF2E7D32));
+      return LawyerStatusInfo(Loc.availableNow(), Color(0xFF2E7D32));
     case 'busy':
     case 'in_consultation':
-      return const LawyerStatusInfo('مشغول', Color(0xFFE08C00));
+      return LawyerStatusInfo(Loc.busy(), Color(0xFFE08C00));
     case 'offline':
     case 'unavailable':
     case 'away':
-      return const LawyerStatusInfo('غير متصل', Color(0xFF9E9E9E));
+      return LawyerStatusInfo(Loc.offline(), Color(0xFF9E9E9E));
     default:
       return null;
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LawyerCard
-//
-// Single card used for BOTH the recommended lawyer and the regular list.
-// Pass isRecommended: true to show the "الأنسب لطلبك" badge — everything
-// else about the card stays identical so users recognize the same shape.
-// ─────────────────────────────────────────────────────────────────────────────
 
 class LawyerCard extends StatelessWidget {
   final String name;
@@ -1253,9 +801,6 @@ class LawyerCard extends StatelessWidget {
     final hasPrice = price > 0;
 
     return GestureDetector(
-      // ✅ Fixed: the old `() => onCardTap` never actually invoked the
-      // callback — it just returned the function reference, so tapping
-      // the card silently did nothing when onCardTap was provided this way.
       onTap: onCardTap,
       child: Container(
         padding: EdgeInsets.all(16.w),
@@ -1274,7 +819,6 @@ class LawyerCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Recommendation badge ──────────────────────────────────
             if (isRecommended)
               Padding(
                 padding: EdgeInsets.only(bottom: 12.h),
@@ -1292,7 +836,7 @@ class LawyerCard extends StatelessWidget {
                           color: Colors.white, size: 14.h),
                       Gap(6.w),
                       Text(
-                        'الأنسب لطلبك',
+                        Loc.bestMatchForRequest(),
                         style: textTheme.labelSmall?.copyWith(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -1310,7 +854,7 @@ class LawyerCard extends StatelessWidget {
                     Container(
                       width: 70.w,
                       height: 70.w,
-                      padding: const EdgeInsets.all(2), // border thickness
+                      padding: const EdgeInsets.all(2),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         border: Border.all(
@@ -1338,10 +882,6 @@ class LawyerCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    // ── Status dot ───────────────────────────────────
-                    // Only rendered when the value maps to a known
-                    // status, so an unrecognized/null value never shows
-                    // a misleading green "available" dot.
                     if (status != null)
                       Positioned(
                         top: 2,
@@ -1412,9 +952,6 @@ class LawyerCard extends StatelessWidget {
                           ),
                         ],
                       ),
-                      // ── Status badge ────────────────────────────────
-                      // Text label + dot — clearer than a color-only dot,
-                      // and never shown for an unrecognized/null status.
                       if (status != null) ...[
                         Gap(6.h),
                         Container(
@@ -1457,23 +994,20 @@ class LawyerCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _InfoColumn(title: 'سنوات الخبرة', value: experience),
+                _InfoColumn(title: Loc.yearsOfExperience(), value: experience),
                 Container(
                     height: 40.h, width: 1, color: theme.dividerColor),
-                _InfoColumn(title: 'التخصص', value: specialization),
+                _InfoColumn(title: Loc.specialization(), value: specialization),
                 Container(
                     height: 40.h, width: 1, color: theme.dividerColor),
                 _InfoColumn(
-                  title: 'سعر الإستشارة',
-                  // The /recommended endpoint doesn't return a fee, so a
-                  // missing/zero price shows a friendly label instead of
-                  // a literal "0 ريال".
+                  title: Loc.consultationPriceAlt(),
                   value: hasPrice
-                      ? '${price.toStringAsFixed(0)} ريال'
-                      : '${context
+                      ? Loc.amountRiyal(price.toStringAsFixed(0))
+                      : Loc.amountRiyal(context
                       .read<ConsultationApplicationCubit>()
                       .selectedPricing
-                      ?.basePrice ?? 0} ريال',
+                      ?.basePrice ?? 0),
                   valueColor: theme.colorScheme.primary,
                 ),
               ],
@@ -1489,11 +1023,9 @@ class LawyerCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12.h),
                   ),
                 ),
-                // onConsult already handles the scheduled/non-scheduled
-                // branching and createConsultation call — no extra logic here.
                 onPressed: onConsult,
-                child: const Text(
-                  'استشر الآن',
+                child: Text(
+                  Loc.consultNowAlt(),
                   style: TextStyle(
                       color: Colors.white, fontWeight: FontWeight.w600),
                 ),
@@ -1557,12 +1089,24 @@ class _FilterChip extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Picture(getAssetIcon(icon), color: theme.colorScheme.onSurface),
+              Picture(
+                getAssetIcon(icon),
+                width: 20.w,
+                height: 20.w,
+                color: theme.colorScheme.onSurface,
+              ),
               Gap(4.w),
               Expanded(
-                child: Text(title,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    title,
+                    maxLines: 1,
                     style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurface)),
+                        ?.copyWith(color: theme.colorScheme.onSurface),
+                  ),
+                ),
               ),
               Gap(4.w),
               Container(
@@ -1580,4 +1124,13 @@ class _FilterChip extends StatelessWidget {
       ),
     );
   }
+}
+class _LawyerSortOption {
+  const _LawyerSortOption(this.label, this.sortBy, this.sortOrder);
+
+  final String label;
+  final String sortBy;
+  final String sortOrder;
+
+  String get id => '$sortBy-$sortOrder';
 }

@@ -42,20 +42,17 @@ class _NoInternetScreenState extends State<NoInternetScreen>
   void _onRetryPressed() async {
     final cubit = context.read<ConnectivityCubit>();
 
-    // Show a snackbar that we're retrying
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text("جاري إعادة المحاولة..."),
+        content: Text(Loc.retryingInProgress()),
         backgroundColor: Theme.of(context).colorScheme.primary,
         behavior: SnackBarBehavior.floating,
         duration: const Duration(seconds: 2),
       ),
     );
 
-    // Call the Cubit's checkConnectivity method
     await cubit.checkConnectivity();
 
-    // Check if internet is now available and notify parent
     await Future.delayed(const Duration(milliseconds: 500));
     if (cubit.hasInternet && mounted) {
       widget.onConnected?.call();
@@ -93,7 +90,7 @@ class _NoInternetScreenState extends State<NoInternetScreen>
                 ),
                 const SizedBox(height: 30),
                 Text(
-                  "انقطع الاتصال بالإنترنت",
+                  Loc.internetConnectionLost(),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     color: colorScheme.onBackground,
@@ -109,7 +106,7 @@ class _NoInternetScreenState extends State<NoInternetScreen>
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  "تحقق من الشبكة وحاول مرة أخرى",
+                  Loc.checkNetworkAndRetry(),
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: colorScheme.onBackground,
@@ -122,7 +119,7 @@ class _NoInternetScreenState extends State<NoInternetScreen>
                     onPressed: _onRetryPressed,
                     icon: Icon(Icons.refresh, color: colorScheme.onPrimary),
                     label: Text(
-                      "إعادة المحاولة",
+                      Loc.retryAgain(),
                       style: theme.textTheme.labelLarge?.copyWith(
                         color: colorScheme.onPrimary,
                         fontWeight: FontWeight.w600,

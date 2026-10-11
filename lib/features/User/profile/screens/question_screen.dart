@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rasikh/config/theme/colors.dart';
@@ -26,7 +27,6 @@ class FaqScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _FaqView extends StatelessWidget {
   const _FaqView();
@@ -36,8 +36,8 @@ class _FaqView extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: const GeneralAppBar(
-          title: 'الأسئلة الشائعة',
+        appBar: GeneralAppBar(
+          title: Loc.faq(),
 
         ),
         body: BlocConsumer<ContactCubit, ContactState>(
@@ -58,13 +58,13 @@ class _FaqView extends StatelessWidget {
             if (state is FaqFailure) {
               return ErrorStateWidget(
                 message: state.message,
-                onAction: () => context.read<ContactCubit>().fetchFaqs(), title: "تعذر تحميل الأسئله الشائعه",
+                onAction: () => context.read<ContactCubit>().fetchFaqs(), title: Loc.unableToLoadFaqs(),
               );
             }
 
             if (state is FaqLoaded) {
               if (state.faqs.isEmpty) {
-                return NoDataWidget(title:  'لا توجد أسئلة متاحة حالياً');
+                return NoDataWidget(title:  Loc.noQuestionsAvailable());
               }
 
               return RefreshIndicator(
@@ -88,9 +88,6 @@ class _FaqView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tile
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _FaqTile extends StatefulWidget {
   final FaqModel item;
@@ -135,7 +132,6 @@ class _FaqTileState extends State<_FaqTile> {
           trailing: _CapsulePlusMinus(isExpanded: _expanded),
           title: Row(
             children: [
-              // Q icon bubble
               Container(
                 width: 32.w,
                 height: 32.w,
@@ -219,9 +215,6 @@ class _FaqTileState extends State<_FaqTile> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _FaqShimmer extends StatelessWidget {
   const _FaqShimmer();
@@ -247,9 +240,6 @@ class _FaqShimmer extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Error body
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ErrorBody extends StatelessWidget {
   const _ErrorBody({required this.message, required this.onRetry});
@@ -277,7 +267,7 @@ class _ErrorBody extends StatelessWidget {
             SizedBox(height: 20.w),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('إعادة المحاولة'),
+              child: Text(Loc.retryAgain()),
             ),
           ],
         ),
@@ -286,9 +276,6 @@ class _ErrorBody extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Plus/Minus toggle
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CapsulePlusMinus extends StatelessWidget {
   final bool isExpanded;

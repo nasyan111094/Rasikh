@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -14,15 +15,14 @@ import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../core/utils/get_asset_path.dart';
-import '../../../core/widgets/auth_stepper.dart';
 import '../../../core/widgets/error_state_widget.dart';
 import '../../../core/widgets/general_app_bar.dart';
 import '../../../core/widgets/general_option_card.dart';
-import '../../../core/widgets/no_data_widget.dart';
 import '../../../core/widgets/picture.dart' show Picture;
 import 'bloc/consulation_application_cubit.dart';
 import 'bloc/consulation_application_state.dart';
 import 'dialogs/ChooseLawyerMethodDialog.dart';
+import 'widgets/consultation_flow_widgets.dart';
 
 class ConsultationDetailsScreen extends StatefulWidget {
   const ConsultationDetailsScreen({super.key});
@@ -37,7 +37,6 @@ class _ConsultationDetailsScreenState
   late final TextEditingController _titleController;
   late final TextEditingController _detailsController;
 
-  // ── Audio recording ───────────────────────────────────────────────────────
   final AudioRecorder _recorder = AudioRecorder();
   final AudioPlayer _player = AudioPlayer();
 
@@ -81,7 +80,6 @@ class _ConsultationDetailsScreenState
     super.dispose();
   }
 
-  // ── File picker ───────────────────────────────────────────────────────────
 
   Future<void> _pickAttachment() async {
     final result = await FilePicker.pickFiles(
@@ -97,7 +95,6 @@ class _ConsultationDetailsScreenState
     }
   }
 
-  // ── Audio recording helpers ───────────────────────────────────────────────
 
   Future<void> _startRecording() async {
     final hasPermission = await _recorder.hasPermission();
@@ -173,9 +170,9 @@ class _ConsultationDetailsScreenState
 
   void _showPermissionDenied() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          'يرجى منح صلاحية الميكروفون من إعدادات التطبيق.',
+          Loc.grantMicrophonePermission(),
           textAlign: TextAlign.right,
         ),
       ),
@@ -192,7 +189,6 @@ class _ConsultationDetailsScreenState
     await context.read<ConsultationApplicationCubit>().loadPricingPlans();
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -200,7 +196,11 @@ class _ConsultationDetailsScreenState
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: GeneralAppBar(title: "تفاصيل الإستشارة"),
+      appBar: GeneralAppBar(
+        title: Loc.consultationDetailsAlt(),
+        backIcon: Icons.arrow_back,
+        backIconSize: 22,
+      ),
       body: SafeArea(
         child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
           builder: (context, state) {
@@ -208,41 +208,29 @@ class _ConsultationDetailsScreenState
               children: [
                 Padding(
                   padding: EdgeInsets.symmetric(
-                      vertical: 24.h, horizontal: 16.w),
-                  child: AuthStepperWidget(activeStep: 3, totalSteps: 5),
+                    horizontal: ConsultationFlowSpacing.horizontal,
+                  ),
+                  child: const ConsultationFlowStepper(activeStep: 3),
                 ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: _onRefreshPricing,
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.w),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: ConsultationFlowSpacing.horizontal,
+                      ),
                       child: ListView(
+                        padding: EdgeInsets.zero,
                         children: [
-                          // ── Duration / Pricing ───────────────────────
-                          Text(
-                            'اختر مدة الاستشارة *',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                            textAlign: TextAlign.right,
-                          ),
-                          SizedBox(height: 12.h),
+                          ConsultationFieldLabel(Loc.chooseConsultationDurationRequired()),
+                          Gap(ConsultationFlowSpacing.titleToContent),
 
                           _buildPricingSection(state, theme, colorScheme),
 
-                          SizedBox(height: 24.h),
+                          Gap(ConsultationFlowSpacing.sectionGap),
 
-                          // ── Title ───────────────────────────────────
-                          Text(
-                            'عنوان الاستشارة *',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                            textAlign: TextAlign.right,
-                          ),
-                          SizedBox(height: 8.h),
+                          ConsultationFieldLabel(Loc.consultationTitleRequired()),
+                          Gap(ConsultationFlowSpacing.titleToContent),
                           TextField(
                             controller: _titleController,
                             textAlign: TextAlign.right,
@@ -250,27 +238,20 @@ class _ConsultationDetailsScreenState
                                 .read<ConsultationApplicationCubit>()
                                 .updateTitle,
                             decoration: InputDecoration(
-                              hintText: 'مثال: نزاع عقد إيجار لشقة سكنية',
+                              hintText: Loc.consultationTitleExample(),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.h),
+                                borderRadius: BorderRadius.circular(
+                                    ConsultationFlowSpacing.radius),
                               ),
                               contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12.w, vertical: 14.h),
+                                  horizontal: 12.w, vertical: 16.h),
                             ),
                           ),
 
-                          SizedBox(height: 20.h),
+                          Gap(ConsultationFlowSpacing.fieldGap),
 
-                          // ── Details ──────────────────────────────────
-                          Text(
-                            'تفاصيل الاستشارة *',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                            textAlign: TextAlign.right,
-                          ),
-                          SizedBox(height: 8.h),
+                          ConsultationFieldLabel(Loc.consultationDetailsRequired()),
+                          Gap(ConsultationFlowSpacing.titleToContent),
                           TextField(
                             controller: _detailsController,
                             maxLines: 5,
@@ -279,71 +260,47 @@ class _ConsultationDetailsScreenState
                                 .read<ConsultationApplicationCubit>()
                                 .updateDetails,
                             decoration: InputDecoration(
-                              hintText: 'اكتب هنا ...',
+                              hintText: Loc.writeHere(),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12.h),
+                                borderRadius: BorderRadius.circular(
+                                    ConsultationFlowSpacing.radius),
                               ),
                               contentPadding: EdgeInsets.symmetric(
-                                  horizontal: 12.w, vertical: 14.h),
+                                  horizontal: 12.w, vertical: 16.h),
                             ),
                           ),
 
-                          SizedBox(height: 24.h),
+                          Gap(ConsultationFlowSpacing.sectionGap),
 
-                          // ── Voice note ───────────────────────────────
-                          Text(
-                            'مذكرة صوتية',
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: colorScheme.onSurface,
-                            ),
-                            textAlign: TextAlign.right,
-                          ),
-                          SizedBox(height: 8.h),
+                          ConsultationFieldLabel(Loc.voiceNote()),
+                          Gap(ConsultationFlowSpacing.titleToContent),
                           _buildVoiceNoteSection(theme, colorScheme, state),
 
-                          SizedBox(height: 24.h),
+                          Gap(ConsultationFlowSpacing.sectionGap),
 
-                          // ── Attachments ──────────────────────────────
                           _buildAttachmentsSection(state, theme, colorScheme),
-
-                          SizedBox(height: 20.h),
                         ],
                       ),
                     ),
                   ),
                 ),
 
-                // ── Next button ────────────────────────────────────────
                 Padding(
-                  padding: EdgeInsets.all(16.0.w),
-                  child: SizedBox(
-                    height: 48.h,
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12.h),
-                        ),
-                      ),
-                      onPressed: state.canProceedFromDetails
-                          ? () => showDialog(
-                        context: context,
-                        builder: (_) => BlocProvider.value(
-                          value: context.read<ConsultationApplicationCubit>(),
-                          child: const ChooseLawyerMethodDialog(),
-                        ),
-                      )
-                          : null,
-                      child: Text(
-                        'التالي',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: colorScheme.onPrimary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: ConsultationFlowSpacing.horizontal,
+                  ),
+                  child: ConsultationBottomButton(
+                    text: Loc.next(),
+                    onPressed: state.canProceedFromDetails
+                        ? () => showDialog(
+                              context: context,
+                              builder: (_) => BlocProvider.value(
+                                value:
+                                    context.read<ConsultationApplicationCubit>(),
+                                child: const ChooseLawyerMethodDialog(),
+                              ),
+                            )
+                        : null,
                   ),
                 ),
               ],
@@ -354,26 +311,22 @@ class _ConsultationDetailsScreenState
     );
   }
 
-  // ── Pricing section with shimmer ──────────────────────────────────────────
 
-  // ── Pricing section with full state handling ──────────────────────────────
 
   Widget _buildPricingSection(
       ConsultationState state, ThemeData theme, ColorScheme colorScheme) {
 
-    // ── Loading State ───────────────────────────────────────────────────────
     if (state.pricingStatus == ConsultationStatus.loading) {
       return _buildPricingShimmer(theme);
     }
 
-    // ── Error State ─────────────────────────────────────────────────────────
     if (state.pricingStatus == ConsultationStatus.failure) {
       return Container(
         padding: EdgeInsets.symmetric(vertical: 24.h),
         child: ErrorStateWidget(
-          title: 'تعذر تحميل خطط التسعير',
-          message: state.pricingError ?? 'حدث خطأ أثناء الاتصال بالخادم',
-          actionLabel: 'إعادة المحاولة',
+          title: Loc.unableToLoadPricingPlans(),
+          message: state.pricingError ?? Loc.errorConnectingToServer(),
+          actionLabel: Loc.retryAgain(),
           onAction: () => context
               .read<ConsultationApplicationCubit>()
               .loadPricingPlans(),
@@ -381,19 +334,14 @@ class _ConsultationDetailsScreenState
       );
     }
 
-    // ── Empty State ─────────────────────────────────────────────────────────
     if (state.pricingPlans.isEmpty) {
-      return Container(
-        padding: EdgeInsets.symmetric(vertical: 24.h),
-        child: const NoDataWidget(
-          icon: Icons.access_time_filled_rounded,
-          title: 'لا توجد خطط تسعير متاحة',
-          message: 'لا تتوفر خطط تسعير حالياً، يرجى المحاولة لاحقاً',
-        ),
+      return ConsultationEmptyState(
+        icon: Icons.access_time_filled_rounded,
+        title: Loc.noPricingPlansAvailable(),
+        message: Loc.pricingPlansUnavailableTryLater(),
       );
     }
 
-    // ── Success State (has data) ────────────────────────────────────────────
     return Column(
       children: state.pricingPlans
           .map(
@@ -433,7 +381,7 @@ class _ConsultationDetailsScreenState
         children: List.generate(
           3,
               (_) => Container(
-            margin: EdgeInsets.only(bottom: 10.h),
+            margin: EdgeInsets.only(bottom: ConsultationFlowSpacing.cardGap),
             height: 60.h,
             decoration: BoxDecoration(
               color: Colors.white,
@@ -445,7 +393,6 @@ class _ConsultationDetailsScreenState
     );
   }
 
-  // ── Voice note section ────────────────────────────────────────────────────
 
   Widget _buildVoiceNoteSection(
       ThemeData theme, ColorScheme colorScheme, ConsultationState state) {
@@ -486,7 +433,7 @@ class _ConsultationDetailsScreenState
           children: [
             Expanded(
               child: Text(
-                'اضغط للتسجيل — أقصى مدة 5 دقائق',
+                Loc.tapToRecordMaxFiveMinutes(),
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.hintColor),
                 textAlign: TextAlign.right,
@@ -503,23 +450,16 @@ class _ConsultationDetailsScreenState
     );
   }
 
-  // ── Attachments section ───────────────────────────────────────────────────
 
   Widget _buildAttachmentsSection(
       ConsultationState state, ThemeData theme, ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        // Header row: label + counter
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [           Text(
-            'المرفقات',
-            style: theme.textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: colorScheme.onSurface,
-            ),
-          ),
+          children: [
+            ConsultationFieldLabel(Loc.attachments()),
             Container(
               padding:
               EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
@@ -543,9 +483,8 @@ class _ConsultationDetailsScreenState
           ],
         ),
 
-        SizedBox(height: 12.h),
+        Gap(ConsultationFlowSpacing.titleToContent),
 
-        // Attachment grid
         if (state.attachments.isNotEmpty) ...[
           GridView.builder(
             shrinkWrap: true,
@@ -567,7 +506,6 @@ class _ConsultationDetailsScreenState
           SizedBox(height: 12.h),
         ],
 
-        // Upload area
         if (state.attachments.length < 5)
           GestureDetector(
             onTap: _pickAttachment,
@@ -588,7 +526,7 @@ class _ConsultationDetailsScreenState
                     ),
                     SizedBox(height: 10.h),
                     Text(
-                      'ارفع ملفك من هنا',
+                      Loc.uploadYourFileHere(),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: colorScheme.onSurface,
@@ -596,7 +534,7 @@ class _ConsultationDetailsScreenState
                     ),
                     SizedBox(height: 4.h),
                     Text(
-                      'PDF، PNG، JPEG، DOC — حد أقصى 15 MB',
+                      Loc.allowedFileTypesHint(),
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: theme.hintColor),
                       textAlign: TextAlign.center,
@@ -614,7 +552,7 @@ class _ConsultationDetailsScreenState
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      child: const Text('اختر ملف'),
+                      child: Text(Loc.chooseFile()),
                     )
                   ],
                 ),
@@ -639,7 +577,7 @@ class _ConsultationDetailsScreenState
                     color: colorScheme.primary, size: 18.h),
                 SizedBox(width: 8.w),
                 Text(
-                  'تم الوصول للحد الأقصى (5 ملفات)',
+                  Loc.maxFilesReached(),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: colorScheme.primary,
                     fontWeight: FontWeight.bold,
@@ -653,9 +591,6 @@ class _ConsultationDetailsScreenState
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _RecordingWidget
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _RecordingWidget extends StatefulWidget {
   final Duration duration;
@@ -770,7 +705,7 @@ class _RecordingWidgetState extends State<_RecordingWidget>
           ),
           SizedBox(height: 6.h),
           Text(
-            'جاري التسجيل... اضغط على إيقاف للانتهاء',
+            Loc.recordingTapStopToFinish(),
             style: widget.theme.textTheme.bodySmall
                 ?.copyWith(color: widget.colorScheme.error),
             textAlign: TextAlign.center,
@@ -781,9 +716,6 @@ class _RecordingWidgetState extends State<_RecordingWidget>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _VoiceNotePreview
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _VoiceNotePreview extends StatelessWidget {
   final String filePath;
@@ -846,14 +778,14 @@ class _VoiceNotePreview extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 Text(
-                  '🎙 مذكرة صوتية',
+                  Loc.voiceNoteWithIcon(),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: colorScheme.primary,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  'المدة: ${_formatSeconds(durationSeconds)}',
+                  Loc.durationWithValue(_formatSeconds(durationSeconds)),
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: theme.hintColor),
                 ),
@@ -878,9 +810,6 @@ class _VoiceNotePreview extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _AttachmentCard
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _AttachmentCard extends StatelessWidget {
   final File file;

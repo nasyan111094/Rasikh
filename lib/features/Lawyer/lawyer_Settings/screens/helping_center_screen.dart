@@ -1,5 +1,5 @@
-// features/help_center/presentation/screens/helping_center_screen.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -36,13 +36,12 @@ class HelpingCenterScreen extends StatelessWidget {
       textDirection: TextDirection.rtl,
       child: Scaffold(
         backgroundColor: theme.scaffoldBackgroundColor,
-        appBar: GeneralAppBar(title: 'مركز المساعدة'),
+        appBar: GeneralAppBar(title: Loc.helpCenter()),
         body: SafeArea(
           child: Column(
             children: [
               divider,
               const SizedBox(height: 20),
-              /// الأسئلة الشائعة
              if(getIt<CacheHelper>().cachedVendorType == VendorType.user) SupportActionRow(
                 leading: SvgPicture.asset(
                   'assets/icons/Question_Circle.svg',
@@ -50,7 +49,7 @@ class HelpingCenterScreen extends StatelessWidget {
                   height: 24.h,
                   colorFilter: ColorFilter.mode(Theme.of(context).colorScheme.onSurface, BlendMode.srcIn),
                 ),
-                label: 'الأسئلة الشائعة',
+                label: Loc.faq(),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -70,7 +69,6 @@ class HelpingCenterScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _HelpCenterBody extends StatelessWidget {
   const _HelpCenterBody({required this.divider});
@@ -83,10 +81,9 @@ class _HelpCenterBody extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // ── Contact Us ────────────────────────────────────────────────────
           AccountItem(
             svgAsset: 'assets/icons/edit.svg',
-            label: 'تواصل معنا',
+            label: Loc.contactUs(),
             trailingChevronRight: true,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
@@ -96,15 +93,14 @@ class _HelpCenterBody extends StatelessWidget {
           ),
           divider,
 
-          // ── Terms of Use ──────────────────────────────────────────────────
           AccountItem(
             svgAsset: 'assets/icons/user_id.svg',
-            label: 'سياسة الإستخدام',
+            label: Loc.termsOfUse(),
             trailingChevronRight: true,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const PolicyTextScreen(
-                  pageTitle: 'سياسة الإستخدام',
+                builder: (_) => PolicyTextScreen(
+                  pageTitle: Loc.termsOfUse(),
                   contentType: ContentType.terms,
                 ),
               ),
@@ -112,15 +108,14 @@ class _HelpCenterBody extends StatelessWidget {
           ),
           divider,
 
-          // ── Privacy Policy ────────────────────────────────────────────────
           AccountItem(
             svgAsset: 'assets/icons/mobile.svg',
-            label: 'سياسة الخصوصية',
+            label: Loc.privacyPolicy(),
             trailingChevronRight: true,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const PolicyTextScreen(
-                  pageTitle: 'سياسة الخصوصية',
+                builder: (_) => PolicyTextScreen(
+                  pageTitle: Loc.privacyPolicy(),
                   contentType: ContentType.privacyPolicy,
                 ),
               ),
@@ -132,35 +127,27 @@ class _HelpCenterBody extends StatelessWidget {
   }
 }
 
-// features/User/profile/screens/policy_text_screen.dart
-//
-// Replaces the old static PolicySection-based screen.
-// Pass [contentType] to choose which API endpoint to call.
 
 
 
-// Keep the old model around so existing call-sites that still pass sections
-// won't break while you migrate them.
 class PolicySection {
   final String title;
   final String body;
   const PolicySection({required this.title, required this.body});
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 class PolicyTextScreen extends StatelessWidget {
   const PolicyTextScreen({
     Key? key,
     required this.pageTitle,
     required this.contentType,
-    // Legacy param — ignored when contentType is provided
     this.sections = const [],
   }) : super(key: key);
 
   final String pageTitle;
   final ContentType contentType;
-  final List<PolicySection> sections; // kept for backward-compat only
+  final List<PolicySection> sections;
 
   @override
   Widget build(BuildContext context) {
@@ -172,7 +159,6 @@ class PolicyTextScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PolicyTextView extends StatelessWidget {
   const _PolicyTextView({
@@ -207,12 +193,10 @@ class _PolicyTextView extends StatelessWidget {
             }
           },
           builder: (context, state) {
-            // ── Shimmer ─────────────────────────────────────────────────
             if (state is ContentLoading) {
               return const _ContentShimmer();
             }
 
-            // ── Error ────────────────────────────────────────────────────
             if (state is ContentFailure) {
               return _ErrorBody(
                 message: state.message,
@@ -222,7 +206,6 @@ class _PolicyTextView extends StatelessWidget {
               );
             }
 
-            // ── Loaded ───────────────────────────────────────────────────
             if (state is ContentLoaded) {
               return RefreshIndicator(
                 onRefresh: () => context
@@ -263,9 +246,6 @@ class _PolicyTextView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ContentShimmer extends StatelessWidget {
   const _ContentShimmer();
@@ -301,9 +281,6 @@ class _ContentShimmer extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Error body
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ErrorBody extends StatelessWidget {
   const _ErrorBody({required this.message, required this.onRetry});
@@ -331,7 +308,7 @@ class _ErrorBody extends StatelessWidget {
             SizedBox(height: 20.w),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('إعادة المحاولة'),
+              child: Text(Loc.retryAgain()),
             ),
           ],
         ),

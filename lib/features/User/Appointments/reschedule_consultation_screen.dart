@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/consultations/presentation/screens/reschedule_consultation_screen.dart
-//
-// Reschedule consultation screen — UI matches AddingWorkAppointmentScreen,
-// logic preserved from original RescheduleConsultationScreen.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -16,14 +11,8 @@ import '../../Lawyer/consultation/Bloc/consultations_cubit.dart';
 import '../../Lawyer/consultation/Bloc/consultations_states.dart';
 import '../../Lawyer/consultation/models/consultation_model.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Screen
-// ─────────────────────────────────────────────────────────────────────────────
 
 class RescheduleConsultationScreen extends StatefulWidget {
   const RescheduleConsultationScreen({
@@ -31,7 +20,6 @@ class RescheduleConsultationScreen extends StatefulWidget {
     required this.consultation,
   });
 
-  /// The consultation to be rescheduled.
   final ConsultationModel consultation;
 
   @override
@@ -41,21 +29,17 @@ class RescheduleConsultationScreen extends StatefulWidget {
 
 class _RescheduleConsultationScreenState
     extends State<RescheduleConsultationScreen> {
-  // ── Form state ────────────────────────────────────────────────────────────
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
-  // ── Validation ────────────────────────────────────────────────────────────
 
   bool _showDateError = false;
   bool _showTimeError = false;
 
-  // ── Saving guard ──────────────────────────────────────────────────────────
 
   bool _isSaving = false;
 
-  // ── Prefill from existing consultation ────────────────────────────────────
 
   @override
   void initState() {
@@ -68,7 +52,6 @@ class _RescheduleConsultationScreenState
     }
   }
 
-  // ── Date picker ───────────────────────────────────────────────────────────
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
@@ -93,7 +76,6 @@ class _RescheduleConsultationScreenState
     }
   }
 
-  // ── Time picker ───────────────────────────────────────────────────────────
 
   Future<void> _pickTime() async {
     final picked = await showTimePicker(
@@ -114,7 +96,6 @@ class _RescheduleConsultationScreenState
     }
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────────
 
   Future<void> _onSave() async {
     final hasDate = _selectedDate != null;
@@ -131,8 +112,8 @@ class _RescheduleConsultationScreenState
             SnackBar(
               content: Text(
                 !hasDate
-                    ? 'يرجى اختيار تاريخ الموعد الجديد'
-                    : 'يرجى اختيار وقت الموعد الجديد',
+                    ? Loc.pleaseChooseNewAppointmentDate()
+                    : Loc.pleaseChooseNewAppointmentTime(),
               ),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
@@ -142,7 +123,6 @@ class _RescheduleConsultationScreenState
       return;
     }
 
-    // Build the new start DateTime (local) and convert to UTC for the API.
     final newStartLocal = DateTime(
       _selectedDate!.year,
       _selectedDate!.month,
@@ -151,13 +131,12 @@ class _RescheduleConsultationScreenState
       _selectedTime!.minute,
     );
 
-    // Must be in the future.
     if (!newStartLocal.isAfter(DateTime.now())) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(
-            content: Text('يجب أن يكون الموعد الجديد في المستقبل'),
+          SnackBar(
+            content: Text(Loc.newAppointmentMustBeInFuture()),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -165,13 +144,11 @@ class _RescheduleConsultationScreenState
       return;
     }
 
-    if (_isSaving) return; // prevent double-tap
+    if (_isSaving) return;
     setState(() => _isSaving = true);
 
     final cubit = context.read<ConsultationsCubit>();
 
-    // Listen for the next terminal reschedule state before calling the cubit
-    // so we never miss an emission.
     final futureState = cubit.stream.firstWhere(
           (s) =>
       s is ConsultationRescheduled || s is ConsultationRescheduleError,
@@ -202,7 +179,6 @@ class _RescheduleConsultationScreenState
     }
   }
 
-  // ── Success dialog (matches AddingWorkAppointmentScreen._showSuccessDialog) ─
 
   Future<void> _showSuccessDialog() async {
     final theme = Theme.of(context);
@@ -211,7 +187,6 @@ class _RescheduleConsultationScreenState
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
-        // Auto-close after 2 seconds then pop both dialog and this screen.
         Future.delayed(const Duration(seconds: 2), () {
           if (dialogContext.mounted) Navigator.pop(dialogContext);
           if (mounted) Navigator.pop(context);
@@ -227,7 +202,6 @@ class _RescheduleConsultationScreenState
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // ── Check icon ───────────────────────────────────────────
                 Container(
                   decoration: const BoxDecoration(
                     shape: BoxShape.circle,
@@ -242,7 +216,7 @@ class _RescheduleConsultationScreenState
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  'تم إعادة الجدولة بنجاح',
+                  Loc.rescheduledSuccessfully(),
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: const Color(0xFFAE895D),
@@ -252,7 +226,7 @@ class _RescheduleConsultationScreenState
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'يمكنك مراجعة تفاصيل الاستشارة في أي وقت من صفحة الاستشارات.',
+                  Loc.reviewConsultationDetailsAnytime(),
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: Colors.grey[700],
                     fontSize: 14,
@@ -269,7 +243,6 @@ class _RescheduleConsultationScreenState
     );
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
   String _formatDate(DateTime dt) =>
       '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
@@ -277,7 +250,7 @@ class _RescheduleConsultationScreenState
   String _formatTime(TimeOfDay t) {
     final hour = t.hour;
     final minute = t.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'مساءً' : 'صباحًا';
+    final period = hour >= 12 ? Loc.pmLong() : Loc.amLong();
     final displayHour = hour % 12 == 0 ? 12 : hour % 12;
     return '$displayHour:$minute $period';
   }
@@ -285,11 +258,11 @@ class _RescheduleConsultationScreenState
   String _typeLabel(String type) {
     switch (type) {
       case 'instant':
-        return 'استشارة فورية';
+        return Loc.instantConsultationPlain();
       case 'scheduled':
-        return 'استشارة مجدولة';
+        return Loc.scheduledConsultationPlain();
       case 'written':
-        return 'استشارة كتابية';
+        return Loc.writtenConsultationPlain();
       default:
         return type;
     }
@@ -300,12 +273,11 @@ class _RescheduleConsultationScreenState
     final local = dt.toLocal();
     final hour = local.hour;
     final minute = local.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'مساءً' : 'صباحًا';
+    final period = hour >= 12 ? Loc.pmLong() : Loc.amLong();
     final displayHour = hour % 12 == 0 ? 12 : hour % 12;
     return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}  $displayHour:$minute $period';
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -317,7 +289,7 @@ class _RescheduleConsultationScreenState
     final primaryColor = theme.colorScheme.primary;
 
     return Scaffold(
-      appBar: GeneralAppBar(title: 'إعادة جدولة الاستشارة'),
+      appBar: GeneralAppBar(title: Loc.rescheduleConsultation()),
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 16.w),
@@ -326,23 +298,21 @@ class _RescheduleConsultationScreenState
             children: [
               Gap(24.h),
 
-              // ── Section title (matches AddingWorkAppointmentScreen style) ─
               Text(
-                'اختر موعداً جديداً *',
+                Loc.chooseNewAppointmentRequired(),
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Gap(16.h),
 
-              // ── Date picker tile (styled like AddingWorkAppointmentScreen inputs) ─
               _PickerTile(
                 icon: Icons.calendar_today_outlined,
-                label: 'التاريخ',
+                label: Loc.date(),
                 value: _selectedDate != null
                     ? _formatDate(_selectedDate!)
                     : null,
-                placeholder: 'اختر التاريخ',
+                placeholder: Loc.chooseDate(),
                 hasError: _showDateError,
                 errorColor: errorColor,
                 primaryColor: primaryColor,
@@ -354,14 +324,13 @@ class _RescheduleConsultationScreenState
 
               Gap(12.h),
 
-              // ── Time picker tile ─
               _PickerTile(
                 icon: Icons.access_time_outlined,
-                label: 'الوقت',
+                label: Loc.timeLabel(),
                 value: _selectedTime != null
                     ? _formatTime(_selectedTime!)
                     : null,
-                placeholder: 'اختر الوقت',
+                placeholder: Loc.chooseTime(),
                 hasError: _showTimeError,
                 errorColor: errorColor,
                 primaryColor: primaryColor,
@@ -373,7 +342,6 @@ class _RescheduleConsultationScreenState
 
               Gap(32.h),
 
-              // ── Current appointment info (compact, styled like info section) ─
               _CurrentAppointmentInfo(
                 consultation: widget.consultation,
                 theme: theme,
@@ -383,7 +351,6 @@ class _RescheduleConsultationScreenState
 
               const Spacer(),
 
-              // ── Save button (matches AddingWorkAppointmentScreen exactly) ─
               BlocBuilder<ConsultationsCubit, ConsultationsState>(
                 buildWhen: (_, s) =>
                 s is ConsultationRescheduling ||
@@ -393,7 +360,7 @@ class _RescheduleConsultationScreenState
                   final loading =
                       _isSaving || state is ConsultationRescheduling;
                   return GradiantButton(
-                    text: loading ? 'جاري الحفظ...' : 'تأكيد إعادة الجدولة',
+                    text: loading ? Loc.saving() : Loc.confirmReschedule(),
                     onTap: loading ? () {} : _onSave,
                   );
                 },
@@ -408,9 +375,6 @@ class _RescheduleConsultationScreenState
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Current appointment info — shows what's being rescheduled (compact version)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CurrentAppointmentInfo extends StatelessWidget {
   final ConsultationModel consultation;
@@ -428,11 +392,11 @@ class _CurrentAppointmentInfo extends StatelessWidget {
   String _typeLabel(String type) {
     switch (type) {
       case 'instant':
-        return 'استشارة فورية';
+        return Loc.instantConsultationPlain();
       case 'scheduled':
-        return 'استشارة مجدولة';
+        return Loc.scheduledConsultationPlain();
       case 'written':
-        return 'استشارة كتابية';
+        return Loc.writtenConsultationPlain();
       default:
         return type;
     }
@@ -443,7 +407,7 @@ class _CurrentAppointmentInfo extends StatelessWidget {
     final local = dt.toLocal();
     final hour = local.hour;
     final minute = local.minute.toString().padLeft(2, '0');
-    final period = hour >= 12 ? 'مساءً' : 'صباحًا';
+    final period = hour >= 12 ? Loc.pmLong() : Loc.amLong();
     final displayHour = hour % 12 == 0 ? 12 : hour % 12;
     return '${local.day.toString().padLeft(2, '0')}/${local.month.toString().padLeft(2, '0')}/${local.year}  $displayHour:$minute $period';
   }
@@ -463,7 +427,6 @@ class _CurrentAppointmentInfo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Type label
           Text(
             _typeLabel(consultation.type),
             style: theme.textTheme.bodyMedium?.copyWith(
@@ -483,14 +446,13 @@ class _CurrentAppointmentInfo extends StatelessWidget {
             ),
           ],
           Gap(12.h),
-          // Current date/time row
           Row(
             children: [
               Icon(Icons.calendar_today_outlined,
                   size: 14.sp, color: Colors.grey.shade500),
               Gap(6.w),
               Text(
-                'الموعد الحالي:',
+                Loc.currentAppointment(),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: Colors.grey.shade500,
                   fontSize: 12.sp,
@@ -515,9 +477,6 @@ class _CurrentAppointmentInfo extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Picker tile — reusable date/time selector row (matches AddingWorkAppointmentScreen style)
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PickerTile extends StatelessWidget {
   final IconData icon;

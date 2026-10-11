@@ -1,15 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// lawyer_completion/repo/lawyer_completion_repo.dart
-//
-// Handles:
-//   GET  /api/v1/enums/cities                  – city dropdown data
-//   GET  /api/v1/specializations/active         – specialization list
-//   PUT  /api/v1/lawyers/profile/form           – multipart profile submission
-//
-// The PUT uses raw Dio (bypassing the shared interceptor) because the
-// interceptor's token-refresh logic is wired for the user flow only.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
@@ -26,14 +16,10 @@ class LawyerCompletionRepo {
   final DioAdapterBase _adapter = getIt<ApiHandler>().dioAdapterBase;
   CacheHelper get _cache => getIt<CacheHelper>();
 
-  // ── Endpoint constants ────────────────────────────────────────────────────
   static const String _cities            = 'enums/cities';
   static const String _specializations   = 'specializations/active';
   static const String _profileForm       = 'lawyers/profile/form';
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Cities
-  // ══════════════════════════════════════════════════════════════════════════
 
   Future<Either<String, List<CityEnumModel>>> getCities() async {
     final result = await _adapter.get(_cities);
@@ -48,9 +34,6 @@ class LawyerCompletionRepo {
     return Left(result.left.toString());
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Active specializations
-  // ══════════════════════════════════════════════════════════════════════════
 
   Future<Either<String, List<SpecializationModel>>> getSpecializations({
     int    page  = 1,
@@ -77,9 +60,6 @@ class LawyerCompletionRepo {
     return Left(result.left.toString());
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // Submit profile (multipart) – raw Dio to bypass user interceptor
-  // ══════════════════════════════════════════════════════════════════════════
 
   Future<Either<String, LawyerProfileCompletionModel>> completeProfile({
     required LawyerRegistrationFormData formData,
@@ -88,8 +68,8 @@ class LawyerCompletionRepo {
 
 
     if (token == null || token.isEmpty) {
-      return const Left(
-          'لم يتم العثور على رمز المصادقة، يرجى تسجيل الدخول مجدداً');
+      return Left(
+          Loc.authTokenNotFoundPleaseLogin());
     }
 
 

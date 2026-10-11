@@ -19,6 +19,9 @@ class LawyerConsultationsEndpoints {
   static String acceptWritten(String id) =>
       'lawyer/consultations/$id/accept-written';
 
+  static String acceptScheduled(String id) =>
+      'lawyer/consultations/$id/accept-scheduled';
+
   static const String dashboard = 'lawyers/dashboard';
 }
 
@@ -127,6 +130,49 @@ class LawyerConsultationsRepo {
         return Right(Consultation.fromJson(consultationData));
       },
     );
+  }
+
+  /// POST accept scheduled consultation.
+  ///
+  /// Scheduled consultations are normally pre-assigned, but if the
+  /// backend ever requires explicit acceptance this routes to the
+  /// dedicated endpoint instead of misusing accept-instant/written
+  /// (which return 400 for the wrong type).
+  Future<Either<String, Consultation>> acceptScheduledConsultation(
+      String id) async {
+    final result = await _adapter.post(
+      LawyerConsultationsEndpoints.acceptScheduled(id),
+      body: {},
+    );
+
+    return result.fold(
+      (error) => Left(error),
+      (response) {
+        final data = response.data as Map<String, dynamic>;
+        final inner = data['data'];
+        final Map<String, dynamic> consultationData = inner is Map<String, dynamic> &&
+                inner['consultation'] is Map<String, dynamic>
+            ? inner['consultation'] as Map<String, dynamic>
+            : inner as Map<String, dynamic>;
+        return Right(Consultation.fromJson(consultationData));
+      },
+    );
+  }
+
+  /// Routes to the correct accept endpoint based on consultation [type].
+  /// Returns Left for unknown types instead of calling a wrong endpoint.
+  Future<Either<String, Consultation>> acceptConsultationByType(
+      String id, String type) async {
+    switch (type) {
+      case 'written':
+        return acceptWrittenConsultation(id);
+      case 'scheduled':
+        return acceptScheduledConsultation(id);
+      case 'instant':
+        return acceptInstantConsultation(id);
+      default:
+        return Left('Unsupported consultation type: $type');
+    }
   }
 
 

@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// user_completion/pages/user_completion_page.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -33,12 +31,8 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
 
   late final UserCompletionCubit _cubit;
 
-  /// The Arabic display value chosen in the dropdown (e.g. "الرياض").
-  /// This is sent directly to the API — no key mapping required.
   String? _selectedCityDisplayValue;
 
-  /// Stable controller for the city dropdown so it isn't recreated on every
-  /// build.  Disposed in [dispose].
   final TextEditingController _cityController = TextEditingController();
 
   @override
@@ -53,10 +47,7 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
     super.dispose();
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
 
-  /// Extracts the city list from whichever state is current.
-  /// Returns an empty list for states that carry no cities (e.g. CityLoading).
   List<CityEnumModel> _citiesFrom(UserCompletionState state) {
     if (state is CityLoaded)       return state.cities;
     if (state is ProfileSubmitting) return state.cities;
@@ -71,7 +62,7 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
     if (_selectedCityDisplayValue == null) {
       SnackBarBuilder.showFeedBackMessage(
         context,
-        'يرجى اختيار المدينة',
+        Loc.pleaseChooseCityAlt2(),
         isSuccess: false,
       );
       return;
@@ -80,7 +71,6 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
     _cubit.completeProfile(cityDisplayValue: _selectedCityDisplayValue!);
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +80,6 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
     return BlocProvider.value(
       value: _cubit,
       child: BlocConsumer<UserCompletionCubit, UserCompletionState>(
-        // ── Side-effects ───────────────────────────────────────────────────
         listenWhen: (_, current) =>
         current is ProfileCompleted || current is ProfileError,
         listener: (context, state) {
@@ -104,7 +93,6 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
             );
           }
         },
-        // ── UI ─────────────────────────────────────────────────────────────
         builder: (context, state) {
           final isSubmitting = state is ProfileSubmitting;
 
@@ -120,7 +108,7 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
                         width: 120.w, height: 50.h),
                     Gap(20.h),
                     Text(
-                      'أكمل ملفك الشخصي',
+                      Loc.completeYourProfileTitle(),
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         fontSize:   18.sp,
@@ -129,7 +117,7 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
                     ),
                     Gap(8.h),
                     Text(
-                      'نحتاج بعض البيانات لتفعيل حسابك بالكامل.',
+                      Loc.completeProfileSubtitle(),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontSize: 14.sp,
                         color:    theme.hintColor,
@@ -139,7 +127,6 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
                     const AuthStepperWidget(totalSteps: 3, activeStep: 3),
                     Gap(24.h),
 
-                    // ── Scrollable form ────────────────────────────────────
                     Expanded(
                       child: SingleChildScrollView(
                         child: Form(
@@ -147,9 +134,8 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Full name
                               _FieldLabel(
-                                  label: 'الإسم الكامل',
+                                  label: Loc.fullNameAlt2(),
                                   theme: theme,
                                   isRequired: true),
                               Gap(8.h),
@@ -157,9 +143,8 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
 
                               Gap(16.h),
 
-                              // Email
                               _FieldLabel(
-                                  label: 'البريد الإلكتروني',
+                                  label: Loc.email(),
                                   theme: theme,
                                   isRequired: true),
                               Gap(8.h),
@@ -167,9 +152,8 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
 
                               Gap(16.h),
 
-                              // City dropdown
                               _FieldLabel(
-                                  label: 'اختر المدينة',
+                                  label: Loc.chooseCityLabel(),
                                   theme: theme,
                                   isRequired: true),
                               Gap(6.h),
@@ -195,10 +179,9 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
                       ),
                     ),
 
-                    // ── Submit button ──────────────────────────────────────
                     GradiantButton(
                       processing: isSubmitting,
-                      text:       'إكمال التسجيل',
+                      text:       Loc.completeRegistration(),
                       onTap:      _onSubmit,
                     ),
                     Gap(20.h),
@@ -213,9 +196,6 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// City dropdown — extracted widget for clarity
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CityDropdown extends StatelessWidget {
   final UserCompletionState      state;
@@ -240,7 +220,6 @@ class _CityDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ── Loading spinner ────────────────────────────────────────────────────
     if (state is CityLoading) {
       return SizedBox(
         height: 56.h,
@@ -257,7 +236,6 @@ class _CityDropdown extends StatelessWidget {
       );
     }
 
-    // ── Error with retry ───────────────────────────────────────────────────
     if (state is CityError) {
       return _CityErrorWidget(
         message:     (state as CityError).message,
@@ -267,35 +245,27 @@ class _CityDropdown extends StatelessWidget {
       );
     }
 
-    // ── Dropdown (CityLoaded | ProfileSubmitting | ProfileError) ───────────
-    //
-    // The cubit always injects the cached city list into ProfileSubmitting and
-    // ProfileError, so `cities` is never empty once loading has succeeded.
     final displayValues =
     cities.map((c) => c.value.toString()).toList(growable: false);
 
     return SearchableDropdown(
       items:          displayValues,
-      hint:           'اختر المدينة',
+      hint:           Loc.chooseCityLabel(),
       label:          '',
       enableSearch:   true,
       controller:     cityController,
       prefixIconPath: 'City.svg',
       onChanged: (displayValue) {
-        // The API accepts the Arabic city name directly; no key lookup needed.
         if (displayValue != null && displayValue.isNotEmpty) {
           onCitySelected(displayValue);
         }
       },
       validator: (v) =>
-      (v == null || v.isEmpty) ? 'الرجاء اختيار المدينة' : null,
+      (v == null || v.isEmpty) ? Loc.pleaseChooseCity() : null,
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared helpers
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String    label;
@@ -364,7 +334,7 @@ class _CityErrorWidget extends StatelessWidget {
           Gap(8.w),
           Expanded(
             child: Text(
-              'تعذر تحميل المدن',
+              Loc.unableToLoadCities(),
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: colorScheme.error),
             ),
@@ -372,7 +342,7 @@ class _CityErrorWidget extends StatelessWidget {
           TextButton(
             onPressed: onRetry,
             child: Text(
-              'إعادة المحاولة',
+              Loc.retryAgain(),
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: colorScheme.primary),
             ),

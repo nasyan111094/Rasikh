@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -23,11 +24,8 @@ class ApiHandler {
   DioAdapterBase? _adapterBase;
   DioAdapterBase get dioAdapterBase => _adapterBase!;
 
-  // ── Centralized session/refresh orchestration ─────────────────────────────
-  // Single-flight: concurrent 401s share ONE refresh call instead of firing N.
   static Future<bool>? _refreshFuture;
 
-  // Guards the forced-logout navigation so stacked 401s navigate only once.
   static bool _logoutNavigated = false;
 
   DioAdapterBase _apiConfig() {
@@ -54,7 +52,6 @@ class ApiHandler {
       options.contentType = 'multipart/form-data';
     }
 
-    // Always send Accept-Language: ar for all requests
     if (token == null) {
       options.headers.addAll({'Accept-Language': 'ar'});
     } else {
@@ -70,17 +67,6 @@ class ApiHandler {
     return response;
   }
 
-  // ═════════════════════════════════════════════════════════════════════════
-  // Central error interceptor — single entry point for EVERY request/response.
-  //
-  // 401 → always treated as expired session: single-flight refresh, then the
-  //        original request is retried once with the new token.
-  // 400 → refresh ONLY when the body carries an auth signal (expired/invalid
-  //        token, unauthorized...). Plain validation 400s must NOT trigger a
-  //        refresh, otherwise every form error would log the user out.
-  // Refresh failure (or nothing to refresh with) → wipe all cached data and
-  // navigate to AccountTypeScreen removing every route.
-  // ═════════════════════════════════════════════════════════════════════════
 
   Future<DioException> _customErrorHandler(
     DioException error,
@@ -100,16 +86,10 @@ class ApiHandler {
     return error;
   }
 
-  // ── Should this failure enter the refresh flow? ───────────────────────────
 
   bool _shouldAttemptRefresh(DioException error) {
-    // Never intercept the auth endpoints themselves (login/register/OTP/
-    // refresh) — a 401 there means wrong credentials, not an expired session,
-    // and intercepting refresh would loop forever.
     if (_isAuthEndpoint(error.requestOptions.path)) return false;
 
-    // Only requests that actually sent credentials participate. Public calls
-    // (or logged-out users) are rejected untouched — never wipe their cache.
     final sentAuth =
         error.requestOptions.headers['Authorization']?.toString().isNotEmpty ==
             true;
@@ -140,7 +120,6 @@ class ApiHandler {
     return false;
   }
 
-  /// A 400 counts as auth-related only when its payload says so.
   bool _looksLikeAuthError(dynamic data) {
     final buffer = StringBuffer();
     void collect(dynamic value) {
@@ -166,7 +145,6 @@ class ApiHandler {
       'session',
       'authenticate',
       'login again',
-      // Arabic backend messages
       'انتهت',
       'منتهي',
       'تسجيل الدخول',
@@ -181,7 +159,6 @@ class ApiHandler {
     return false;
   }
 
-  // ── Single-flight refresh + one retry of the failed request ───────────────
 
   Future<Response?> _refreshAndRetry(RequestOptions failedRequest) async {
     final future = _refreshFuture ??= _performRefresh();
@@ -215,7 +192,6 @@ class ApiHandler {
     }
   }
 
-  /// Returns true when fresh tokens were obtained AND persisted.
   Future<bool> _performRefresh() async {
     try {
       final cacheHelper = getIt.get<CacheHelper>();
@@ -252,7 +228,6 @@ class ApiHandler {
     }
   }
 
-  // ── Unrecoverable session: wipe everything + hard reset navigation ────────
 
   Future<void> _forceLogout(
     ErrorInterceptorHandler handler,
@@ -261,7 +236,6 @@ class ApiHandler {
     try {
       await getIt<CacheHelper>().clearAllData();
     } catch (_) {
-      // Storage must never block the logout navigation.
     }
 
     if (!_logoutNavigated) {
@@ -274,9 +248,7 @@ class ApiHandler {
           (route) => false,
         );
       } catch (_) {
-        // Navigator may be unavailable (background isolate, tests).
       }
-      // Re-arm for the next login session.
       Future.delayed(
         const Duration(seconds: 2),
         () => _logoutNavigated = false,
@@ -284,14 +256,13 @@ class ApiHandler {
     }
 
     handler.reject(DioException(
-      message: 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى',
+      message: Loc.sessionExpiredPleaseLogin(),
       requestOptions: error.requestOptions,
       response: error.response,
       type: DioExceptionType.badResponse,
     ));
   }
 
-  // ── Plain (non-auth) failures: clean, user-readable message ───────────────
 
   DioException _cleanError(DioException error) {
     String? errorMessage;
@@ -312,14 +283,12 @@ class ApiHandler {
     );
   }
 
-  // Helper method to retry the original request
   Future<Response> _retryRequest(RequestOptions requestOptions) async {
     final dio = Dio();
     dio.options.baseUrl = AppConfig.baseUrl;
     dio.options.connectTimeout = const Duration(seconds: 30);
     dio.options.receiveTimeout = const Duration(seconds: 30);
 
-    // Create a new request with the updated options
     return await dio.request(
       requestOptions.path,
       data: requestOptions.data,

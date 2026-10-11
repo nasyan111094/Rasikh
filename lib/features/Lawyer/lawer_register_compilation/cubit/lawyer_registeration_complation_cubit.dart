@@ -87,9 +87,8 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
 
   /// Tap on a main-specialization card header:
   ///  - If already expanded → collapse (close) it.
-  ///  - If not expanded → expand it so the user can choose subs.
-  ///  - Expanding does NOT auto-select the main; it only becomes "selected"
-  ///    once the user picks at least one sub from inside it.
+  ///  - If not expanded → expand it so the user can optionally choose subs.
+  ///  Expanding does NOT change selection; selection is done via [toggleMain].
   void toggleExpanded(String mainId) {
     final current = state;
     if (current is! LawyerSpecializationLoaded) return;
@@ -101,10 +100,30 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
     ));
   }
 
+  /// Toggle selection of a main specialization itself.
+  /// Sub-specializations are optional: selecting a main creates an entry with
+  /// an empty sub-set; deselecting removes the entry entirely.
+  void toggleMain(String mainId) {
+    final current = state;
+    if (current is! LawyerSpecializationLoaded) return;
+
+    final updated = Map<String, Set<String>>.fromEntries(
+      current.selectedSubIdsByMain.entries
+          .map((e) => MapEntry(e.key, Set<String>.from(e.value))),
+    );
+
+    if (updated.containsKey(mainId)) {
+      updated.remove(mainId);
+    } else {
+      updated[mainId] = <String>{};
+    }
+
+    emit(current.copyWith(selectedSubIdsByMain: updated));
+  }
+
   /// Toggle a sub-specialization chip under [mainId].
-  ///  - Adds/removes the sub from the map.
-  ///  - If the last sub under a main is deselected, removes that main's entry
-  ///    from the map entirely (so it is no longer considered selected).
+  ///  - Selecting a sub auto-selects its main (if not already selected).
+  ///  - Deselecting the last sub keeps the main selected (subs are optional).
   void toggleSub(String mainId, String subId) {
     final current = state;
     if (current is! LawyerSpecializationLoaded) return;
@@ -118,7 +137,6 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
     final subs = updated.putIfAbsent(mainId, () => <String>{});
     if (subs.contains(subId)) {
       subs.remove(subId);
-      if (subs.isEmpty) updated.remove(mainId);
     } else {
       subs.add(subId);
     }

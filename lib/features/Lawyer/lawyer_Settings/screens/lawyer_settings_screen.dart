@@ -1,7 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// features/Lawyer/profile/presentation/screens/lawyer_settings_screen.dart
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -33,7 +31,6 @@ class _LawyerSettingsScreenState extends State<LawyerSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    // Always fetch profile on init to ensure fresh data after login
     final cubit = context.read<LawyerProfileCubit>();
     cubit.getProfile();
   }
@@ -57,7 +54,7 @@ class _LawyerSettingsScreenState extends State<LawyerSettingsScreen> {
           automaticallyImplyLeading: false,
           titleSpacing: 16.w,
           title: Text(
-            'الإعدادات',
+            Loc.settings(),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: textPrimary,
@@ -71,7 +68,6 @@ class _LawyerSettingsScreenState extends State<LawyerSettingsScreen> {
         body: SafeArea(
           child: Column(
             children: [
-              // ── Profile Header ─────────────────────────────────────────────
               BlocBuilder<LawyerProfileCubit, LawyerProfileState>(
                 buildWhen: (prev, curr) =>
                 curr is LawyerProfileLoaded ||
@@ -106,7 +102,6 @@ class _LawyerSettingsScreenState extends State<LawyerSettingsScreen> {
   }
 }
 
-// ── Settings Menu Body ────────────────────────────────────────────────────────
 
 class _LawyerSettingsBody extends StatelessWidget {
   const _LawyerSettingsBody({required this.divider});
@@ -120,49 +115,49 @@ class _LawyerSettingsBody extends StatelessWidget {
         children: [
           AccountItem(
             svgAsset: 'assets/icons/user_outline.svg',
-            label: 'ملفي الشخصي',
+            label: Loc.myProfile(),
             trailingChevronRight: true,
             onTap: () => Nav.lawyerProfileScreen(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/bag_outline.svg',
-            label: 'تخصصاتي',
+            label: Loc.mySpecializations(),
             trailingChevronRight: true,
             onTap: () => Nav.lawyerSpecializationsScreen(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/wallet_outline.svg',
-            label: 'المحفظه',
+            label: Loc.wallet(),
             trailingChevronRight: true,
             onTap: () => Nav.walletScreen(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/transactions.svg',
-            label: 'المعاملات المالية',
+            label: Loc.financialTransactions(),
             trailingChevronRight: true,
             onTap: () => Nav.financialTransactionsScreen(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/star_outline.svg',
-            label: 'تقييماتي',
+            label: Loc.myRatings(),
             trailingChevronRight: true,
             onTap: () => Nav.lawyerRatesScreen(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/lawyer_help_center.svg',
-            label: 'مركز المساعده',
+            label: Loc.helpCenterAlt(),
             trailingChevronRight: true,
             onTap: () => Nav.helpingCenterScreen(context),
           ),
           divider,
           AccountItem(
             svgAsset: 'assets/icons/Bell_Bing.svg',
-            label: 'الإشعارات',
+            label: Loc.notifications(),
             trailingChevronRight: true,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const NotificationsScreen()),
@@ -172,7 +167,7 @@ class _LawyerSettingsBody extends StatelessWidget {
           const SizedBox(height: 20),
           AccountItem(
             svgAsset: 'assets/icons/Logout_icon.svg',
-            label: 'تسجيل الخروج',
+            label: Loc.logout(),
             trailingChevronRight: false,
             iconbgColor: Colors.red,
 
@@ -180,8 +175,8 @@ class _LawyerSettingsBody extends StatelessWidget {
               final confirmed = showLogoutAndDeletAccountConfirmDialog(
                 context,
                 isLogout: true,
-                title: 'تسجيل الخروج',
-                message: 'هل أنت متأكد من رغبتك في تسجيل الخروج  ؟',
+                title: Loc.logout(),
+                message: Loc.logoutConfirmationAlt(),
                 svgAsset: 'assets/icons/Logout_icon.svg',
               );
               if (confirmed == true) {
@@ -198,7 +193,6 @@ class _LawyerSettingsBody extends StatelessWidget {
   }
 }
 
-// ── Profile Header ────────────────────────────────────────────────────────────
 
 class LawyerProfileHeader extends StatelessWidget {
   const LawyerProfileHeader({
@@ -224,12 +218,11 @@ class LawyerProfileHeader extends StatelessWidget {
   final String? accountStatus;
   final String? createdAt;
 
-  // Parse ISO date to Arabic-formatted string
   String _formatDate(String? isoDate) {
     if (isoDate == null) return '';
     try {
       final dt = DateTime.parse(isoDate);
-      return 'تاريخ الإنضمام : ${dt.day} / ${dt.month} / ${dt.year}';
+      return Loc.joinDateLabel(dt.day, dt.month, dt.year);
     } catch (_) {
       return '';
     }
@@ -244,7 +237,6 @@ class LawyerProfileHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // ── Avatar ───────────────────────────────────────────────────────
           LawyerProfileAvatar(
             photoUrl: photoUrl,
             radius: 30.h,
@@ -253,7 +245,6 @@ class LawyerProfileHeader extends StatelessWidget {
           ),
           SizedBox(width: 12.w),
 
-          // ── Name + date ──────────────────────────────────────────────────
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -281,7 +272,6 @@ class LawyerProfileHeader extends StatelessWidget {
             ),
           ),
 
-          // ── Verified badge ───────────────────────────────────────────────
           if (!isLoading && _isVerified)
             Container(
               decoration: BoxDecoration(
@@ -294,7 +284,7 @@ class LawyerProfileHeader extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'موثّق',
+                    Loc.verified(),
                     style: theme.textTheme.labelMedium?.copyWith(
                       color: Colors.green,
                       fontWeight: FontWeight.w600,
@@ -311,7 +301,6 @@ class LawyerProfileHeader extends StatelessWidget {
   }
 }
 
-// ── Join Date Row ─────────────────────────────────────────────────────────────
 
 class _JoinDateRow extends StatelessWidget {
   final Color? color;
@@ -329,7 +318,7 @@ class _JoinDateRow extends StatelessWidget {
         Gap(5.w),
         Expanded(
           child: Text(
-            dateText.isNotEmpty ? dateText : 'تاريخ الإنضمام : ---',
+            dateText.isNotEmpty ? dateText : Loc.joinDateEmpty(),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.labelLarge?.copyWith(
@@ -343,7 +332,6 @@ class _JoinDateRow extends StatelessWidget {
   }
 }
 
-// ── Shimmer placeholder ───────────────────────────────────────────────────────
 
 class _ShimmerBox extends StatelessWidget {
   final double width;

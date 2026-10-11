@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -28,7 +29,7 @@ class WithdrawRequestScreen extends StatefulWidget {
 class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
   final TextEditingController _amountController = TextEditingController();
   String? _selectedBankAccountId;
-  final double _minWithdrawalAmount = 50.0; // Minimum withdrawal amount
+  final double _minWithdrawalAmount = 50.0;
   bool _hasAutoSelected = false;
 
   /// Ensures success pops exactly once with `true`.
@@ -57,7 +58,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
   void _handleWithdrawal(BuildContext context, WalletState state) {
     if (_selectedBankAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى اختيار حساب بنكي')),
+        SnackBar(content: Text(Loc.pleaseChooseBankAccount())),
       );
       return;
     }
@@ -65,7 +66,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
     final amountText = _amountController.text.trim();
     if (amountText.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال المبلغ')),
+        SnackBar(content: Text(Loc.pleaseEnterAmount())),
       );
       return;
     }
@@ -73,14 +74,14 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
     final amount = double.tryParse(amountText);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('يرجى إدخال مبلغ صحيح')),
+        SnackBar(content: Text(Loc.pleaseEnterValidAmount())),
       );
       return;
     }
 
     if (amount < _minWithdrawalAmount) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('الحد الأدنى للسحب هو $_minWithdrawalAmount ريال')),
+        SnackBar(content: Text(Loc.minimumWithdrawalIs(_minWithdrawalAmount))),
       );
       return;
     }
@@ -88,12 +89,11 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
     final availableBalance = state.wallet?.availableBalance ?? 0;
     if (amount > availableBalance) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('رصيدك غير كافٍ للسحب')),
+        SnackBar(content: Text(Loc.insufficientBalanceForWithdrawal())),
       );
       return;
     }
 
-    // Create withdrawal request
     context.read<WalletCubit>().createWithdrawal(
       amount: amount,
       bankAccountId: _selectedBankAccountId!,
@@ -111,14 +111,13 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
               !_hasHandledWithdrawalResult) {
             _hasHandledWithdrawalResult = true;
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('تم إرسال طلب السحب بنجاح')),
+              SnackBar(content: Text(Loc.withdrawRequestSentSuccessfully())),
             );
             context.read<WalletCubit>().resetWithdrawalRequest();
-            // true = a withdrawal was created → wallet screen refreshes.
             Navigator.pop(context, true);
           } else if (state.withdrawalRequestStatus == WalletStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.withdrawalRequestError ?? 'فشل إرسال طلب السحب')),
+              SnackBar(content: Text(state.withdrawalRequestError ?? Loc.withdrawRequestFailed())),
             );
           }
         },
@@ -129,7 +128,6 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
             final availableBalance = wallet?.availableBalance ?? 0;
             final isLoading = state.withdrawalRequestStatus == WalletStatus.loading;
 
-            // Auto-select first bank account if available and not already selected
             if (!_hasAutoSelected &&
                 state.bankAccountsStatus == WalletStatus.success &&
                 bankAccounts.isNotEmpty &&
@@ -146,19 +144,17 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
 
             return SafeArea(
               child: Scaffold(
-                appBar: const GeneralAppBar(
-                  title: 'طلب سحب',
+                appBar: GeneralAppBar(
+                  title: Loc.withdrawRequest(),
                 ),
                 body: Column(
                   children: [
-                    // 📜 Scrollable form content
                     Expanded(
                       child: SingleChildScrollView(
                         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 💰 الرصيد المتاح للسحب
                             Container(
                               padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
                               decoration: BoxDecoration(
@@ -184,7 +180,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
                                           Text(
-                                            "الرصيد المتاح للسحب",
+                                            Loc.availableBalanceForWithdrawal(),
                                             style: textTheme.bodyMedium?.copyWith(
                                               fontWeight: FontWeight.w600,
                                               color: theme.colorScheme.onSurface,
@@ -192,7 +188,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
                                           ),
                                           Gap(3.h),
                                           Text(
-                                            "${availableBalance.toStringAsFixed(2)} ريال",
+                                            Loc.amountRiyal(availableBalance.toStringAsFixed(2)),
                                             style: textTheme.titleMedium?.copyWith(
                                               fontWeight: FontWeight.bold,
                                               color: const Color(0xFFC7A47B),
@@ -208,9 +204,8 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
 
                             Gap(40.h),
 
-                            // 🏦 اختيار الحساب البنكي
                             Text(
-                              "اختر الحساب البنكي *",
+                              Loc.chooseBankAccountRequired(),
                               style: textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
@@ -255,7 +250,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
                                         Gap(8.w),
                                         Expanded(
                                           child: Text(
-                                            'لا توجد حسابات بنكية معرفة. يرجى إضافة حساب بنكي أولاً',
+                                            Loc.noBankAccountsDefined(),
                                             style: textTheme.bodySmall?.copyWith(
                                               color: Colors.red.shade700,
                                             ),
@@ -283,7 +278,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
                                         ),
                                       ),
                                       child: Text(
-                                        '+ إضافة حساب بنكي',
+                                        Loc.addBankAccountPlus(),
                                         style: textTheme.bodyMedium?.copyWith(
                                           color: const Color(0xFFC7A47B),
                                           fontWeight: FontWeight.bold,
@@ -310,7 +305,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
                                         child: DropdownButton<String>(
                                           value: _selectedBankAccountId,
                                           hint: Text(
-                                            'اختر الحساب',
+                                            Loc.chooseAccount(),
                                             style: textTheme.bodyMedium?.copyWith(
                                               color: theme.hintColor,
                                             ),
@@ -350,9 +345,8 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
 
                             Gap(40.h),
 
-                            // 💵 المبلغ المطلوب للسحب
                             Text(
-                              "المبلغ المطلوب للسحب *",
+                              Loc.withdrawAmountRequired(),
                               style: textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
@@ -391,14 +385,12 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
                               ),
                             ),
 
-                            // Small bottom padding so last field isn't flush against the footer
                             Gap(20.h),
                           ],
                         ),
                       ),
                     ),
 
-                    // 🟡 Fixed footer with confirm button
                     Container(
                       padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
                       decoration: BoxDecoration(
@@ -432,7 +424,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
                             ),
                           )
                               : Text(
-                            'تأكيد السحب',
+                            Loc.confirmWithdrawal(),
                             style: textTheme.bodyMedium?.copyWith(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,

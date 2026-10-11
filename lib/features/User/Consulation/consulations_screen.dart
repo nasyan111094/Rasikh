@@ -1,14 +1,11 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:gap/gap.dart';
-import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/widgets/gradiant_button.dart';
-import 'package:rasikh/features/Lawyer/consultation/Bloc/consultations_cubit.dart';
 import 'package:size_config/size_config.dart';
-
 import '../../../core/widgets/app_bar_without_icon_button.dart';
 import '../../../core/widgets/general_divider.dart';
-import '../../Lawyer/consultation/models/consultation_model.dart';
 
 
 
@@ -32,7 +29,7 @@ class _InstantConsultationScreenState extends State<InstantConsultationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            AppBarWithoutBackIconButton(theme: theme, title: "إستشاراتي"),
+            AppBarWithoutBackIconButton(theme: theme, title: Loc.myConsultations()),
             const FilterHeader(),
             GeneralDivider(height: 10.h),
             Expanded(
@@ -45,10 +42,10 @@ class _InstantConsultationScreenState extends State<InstantConsultationScreen> {
                   children: [
                     LawyerConsultationCard(
                       active: true,
-                      lawyerName: "عبدالله بن فهد الشمري",
-                      specialization: "بيع وشراء",
-                      startTime: "10:30 صباحا",
-                      price: "1200 ريال",
+                      lawyerName: Loc.sampleLawyerName(),
+                      specialization: Loc.sampleSpecialization(),
+                      startTime: Loc.sampleStartTimeAlt(),
+                      price: Loc.samplePrice(),
                       imageUrl:
                       "https://cdn-icons-png.flaticon.com/512/3135/3135715.png",
                       showWaitingMessage: false,
@@ -58,8 +55,8 @@ class _InstantConsultationScreenState extends State<InstantConsultationScreen> {
                       active: true,
                       lawyerName: null,
                       specialization: null,
-                      startTime: "10:30 صباحا",
-                      price: "1200 ريال",
+                      startTime: Loc.sampleStartTimeAlt(),
+                      price: Loc.samplePrice(),
                       imageUrl: null,
                       showWaitingMessage: true,
                     ),
@@ -67,8 +64,8 @@ class _InstantConsultationScreenState extends State<InstantConsultationScreen> {
                       active: false  ,
                       lawyerName: null,
                       specialization: null,
-                      startTime: "10:30 صباحا",
-                      price: "1200 ريال",
+                      startTime: Loc.sampleStartTimeAlt(),
+                      price: Loc.samplePrice(),
                       imageUrl: null,
                       showWaitingMessage: false,
                     ),
@@ -99,7 +96,6 @@ class FilterHeader extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
       child: Row(
         children: [
-          // Filter text
           RichText(
             text: TextSpan(
               style: theme.textTheme.titleMedium?.copyWith(
@@ -108,9 +104,9 @@ class FilterHeader extends StatelessWidget {
                 fontSize: 16.sp,
               ),
               children: [
-                const TextSpan(text: "تصفية حسب : "),
+                TextSpan(text: Loc.filterByWithColon()),
                 TextSpan(
-                  text: "نشطة",
+                  text: Loc.statusActive(),
                   style: TextStyle(
                     color: highlightColor,
                     fontWeight: FontWeight.bold,
@@ -186,12 +182,11 @@ class UserConsultationCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "إستشارة فورية",
+                      Loc.instantConsultation(),
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.primary,
                         fontWeight: FontWeight.bold,
@@ -206,7 +201,7 @@ class UserConsultationCard extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          "نشطة",
+                          Loc.statusActive(),
                           style: theme.textTheme.labelLarge?.copyWith(
                             color: Colors.green.shade700,
                             fontWeight: FontWeight.bold,
@@ -219,7 +214,6 @@ class UserConsultationCard extends StatelessWidget {
                 ),
                 GeneralDivider(height: 20.h),
 
-                // Lawyer Info or Waiting Message
                 if (!showWaitingMessage && lawyerName != null)
                   Row(
                     children: [
@@ -240,7 +234,7 @@ class UserConsultationCard extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            "التخصص: $specialization",
+                            Loc.specializationWithValue(specialization),
                             style: theme.textTheme.titleSmall?.copyWith(
                               color: Colors.grey,
                               fontSize: 12.sp,
@@ -266,7 +260,7 @@ class UserConsultationCard extends StatelessWidget {
                         SizedBox(width: 8.w),
                         Expanded(
                           child: Text(
-                            "سيتم ترشيح محامي مناسب في الوقت القريب.",
+                            Loc.suitableLawyerWillBeRecommended(),
                             style: theme.textTheme.bodySmall?.copyWith(
                               color: Colors.orange.shade700,
                               fontWeight: FontWeight.w500,
@@ -279,14 +273,13 @@ class UserConsultationCard extends StatelessWidget {
                   ),
                 GeneralDivider(height: 20.h),
 
-                // Start time & price row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     Column(
                       children: [
                         Text(
-                          "وقت البدء",
+                          Loc.startTime(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.grey,
                             fontSize: 12.sp,
@@ -313,7 +306,7 @@ class UserConsultationCard extends StatelessWidget {
                     Column(
                       children: [
                         Text(
-                          "السعر المدفوع",
+                          Loc.paidPrice(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.grey,
                             fontSize: 12.sp,
@@ -338,7 +331,7 @@ class UserConsultationCard extends StatelessWidget {
           ),
           SizedBox(
             width: double.infinity,
-            child: GradiantButton(text: "إنضمام", onTap: (){}),
+            child: GradiantButton(text: Loc.join(), onTap: (){}),
           ),
         ],
       ),
@@ -387,14 +380,13 @@ class LawyerConsultationCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       children: [
                         Text(
-                          "إستشارة فورية",
+                          Loc.instantConsultation(),
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.primary,
                             fontWeight: FontWeight.bold,
@@ -403,7 +395,7 @@ class LawyerConsultationCard extends StatelessWidget {
                         ),
                         Gap(10.h) ,
                         Text(
-                          "التخصص: $specialization",
+                          Loc.specializationWithValue(specialization),
                           style: theme.textTheme.titleSmall?.copyWith(
                             color: Colors.grey,
                             fontSize: 12.sp,
@@ -419,7 +411,7 @@ class LawyerConsultationCard extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          "نشطة",
+                          Loc.statusActive(),
                           style: theme.textTheme.labelLarge?.copyWith(
                             color: Colors.green,
                             fontWeight: FontWeight.bold,
@@ -433,14 +425,13 @@ class LawyerConsultationCard extends StatelessWidget {
                 GeneralDivider(height: 20.h),
 
 
-                // Start time & price row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     Column(
                       children: [
                         Text(
-                          "وقت البدء",
+                          Loc.startTime(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.grey,
                             fontSize: 12.sp,
@@ -467,7 +458,7 @@ class LawyerConsultationCard extends StatelessWidget {
                     Column(
                       children: [
                         Text(
-                          "السعر المدفوع",
+                          Loc.paidPrice(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: Colors.grey,
                             fontSize: 12.sp,
@@ -488,7 +479,6 @@ class LawyerConsultationCard extends StatelessWidget {
                 SizedBox(height: 10.h,) ,
                 GeneralDivider(height: 0),
 
-                // Button
 
               ],
             ),
@@ -496,7 +486,7 @@ class LawyerConsultationCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
 
-            child: GradiantButton(text: "إنضمام", onTap: (){}),
+            child: GradiantButton(text: Loc.join(), onTap: (){}),
           ),
         ],
       ),

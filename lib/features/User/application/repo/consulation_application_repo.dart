@@ -1,15 +1,3 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// consultation_repo.dart
-// Single repository that handles all API calls for the consultation feature.
-// Updated endpoints:
-//   • GET  /api/v1/specializations/active          (was /api/v1/specializations)
-//   • GET  /api/v1/enums/{type}                    (NEW – consultation-types & cities)
-//   • GET  /api/v1/clients/lawyers
-//   • GET  /api/v1/clients/lawyers/{id}
-//   • GET  /api/v1/clients/lawyers/recommended
-//   • GET  /api/v1/client/pricing
-//   • POST /api/v1/client/consultations
-// ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
@@ -31,11 +19,19 @@ class ConsultationRepo {
 
   final DioAdapterBase _dio = getIt.get<ApiHandler>().dioAdapterBase;
 
-  // ── 1. GET /api/v1/specializations/active ────────────────────────────────
-  // Public endpoint – returns only active specializations with active subs.
-  // Sorted by name; supports optional search.
+  /// Idempotency keys per consultation so retries / double-taps
+  /// reuse the SAME key instead of generating a new one each call
+  /// (a new key per call defeats server-side deduplication).
+  final Map<String, String> _paymentIdempotencyKeys = {};
 
-  Future<Either<String, List<SpecializationModel>>> fetchSpecializations({
+
+  Future<
+      Either<
+          String,
+          ({
+            List<SpecializationModel> specializations,
+            Map<String, List<SubSpecializationModel>> lawsuitTypes,
+          })>> fetchSpecializations({
     int page = 1,
     int limit = 50,
     String? search,
@@ -56,16 +52,32 @@ class ConsultationRepo {
       final specializations = rawList
           .map((e) => SpecializationModel.fromJson(e as Map<String, dynamic>))
           .toList();
-      return Right(specializations);
+      final lawsuitTypes = <String, List<SubSpecializationModel>>{};
+      for (final spec in rawList) {
+        final subs = (spec as Map<String, dynamic>)['subSpecializations']
+                as List<dynamic>? ??
+            [];
+        for (final sub in subs) {
+          final subJson = sub as Map<String, dynamic>;
+          final types = subJson['lawsuitTypes'] as List<dynamic>? ?? [];
+          lawsuitTypes[subJson['id'] as String? ?? ''] = types
+              .map((t) => t as Map<String, dynamic>)
+              .where((t) => t['isActive'] as bool? ?? true)
+              .map((t) => SubSpecializationModel(
+                    id: (t['_id'] ?? t['id']) as String? ?? '',
+                    name: t['name'] as String? ?? '',
+                    isActive: true,
+                  ))
+              .toList();
+        }
+      }
+      return Right(
+          (specializations: specializations, lawsuitTypes: lawsuitTypes));
     }
     return Left(result.left);
   }
 
 
-  // ── 8. GET /api/v1/lawyers/{lawyerId}/availability/slots ──────────────────
-  // Returns discrete bookable slots filtered by duration
-  // from and to are ISO datetime strings in Asia/Riyadh timezone
-  // durationMin filters for slots that have ceil(durationMin/15) consecutive periods
 
   Future<Either<String, BookableSlotsResponse>> fetchBookableSlots({
     required String lawyerId,
@@ -74,8 +86,9 @@ class ConsultationRepo {
     int? durationMinutes,
   }) async {
     final queryParams = <String, dynamic>{
-      'from': from.toIso8601String(),
-      'to': to.toIso8601String(),
+      // Send UTC so server filtering matches createConsultation payload.
+      'from': from.toUtc().toIso8601String(),
+      'to': to.toUtc().toIso8601String(),
       if (durationMinutes != null) 'durationMin': durationMinutes,
     };
 
@@ -90,9 +103,6 @@ class ConsultationRepo {
     }
     return Left(result.left.toString());
   }
-  // ── 2. GET /api/v1/enums/{type} ──────────────────────────────────────────
-  // Fetches key-value enum pairs for a given type.
-  // Used for: 'consultation-types', 'cities', and any future enum.
 
   Future<Either<String, List<EnumValueModel>>> fetchEnum(String type) async {
     final result = await _dio.get('enums/$type');
@@ -107,13 +117,10 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 3. GET /api/v1/clients/lawyers ────────────────────────────────────────
 
   Future<Either<String, List<LawyerDetailModel>>> fetchLawyers({
     String? specializationId,
-    String? subSpecializationIds, // comma-separated
-    String? lawsuitTypeIds, // comma-separated (OR) — same pattern as subs
-    String? pricingId, // excludes lawyers with overlapping bookings
+    String? subSpecializationIds,
     String? city,
     int? minExperience,
     double? maxPrice,
@@ -132,9 +139,6 @@ class ConsultationRepo {
       if (specializationId != null) 'specialization': specializationId,
       if (subSpecializationIds != null)
         'subSpecializationIds': subSpecializationIds,
-      if (lawsuitTypeIds != null && lawsuitTypeIds.isNotEmpty)
-        'lawsuitTypeIds': lawsuitTypeIds,
-      if (pricingId != null && pricingId.isNotEmpty) 'pricingId': pricingId,
       if (city != null) 'city': city,
       if (minExperience != null) 'minExperience': minExperience,
       if (maxPrice != null) 'maxPrice': maxPrice,
@@ -159,7 +163,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 4. GET /api/v1/clients/lawyers/{id} ───────────────────────────────────
 
   Future<Either<String, LawyerDetailModel>> fetchLawyerDetails(
       String lawyerId) async {
@@ -172,9 +175,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 5. GET /api/v1/clients/lawyers/recommended ────────────────────────────
-  // subSpecializationIds: backend accepts repeated params, comma-separated,
-  // or JSON array string. We send as repeated query params (most compatible).
 
   Future<Either<String, LawyerDetailModel>> fetchRecommendedLawyer({
     required String specializationId,
@@ -198,9 +198,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 6. GET /api/v1/client/pricing ─────────────────────────────────────────
-  // Only active pricing plans are returned.
-  // consultation_type filter: 'instant' | 'written' | 'scheduled'
 
   Future<Either<String, List<PricingModel>>> fetchPricing({
     int page = 1,
@@ -228,13 +225,11 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 7. POST /api/v1/client/consultations ──────────────────────────────────
-  // multipart/form-data. lawyerId is always required.
 
-// ── 7. POST /api/v1/client/consultations ──────────────────────────────────
 
   Future<Either<String, CreatedConsultationModel>> createConsultation(
-      CreateConsultationParams params) async {
+      CreateConsultationParams params,
+      {String? lawsuitTypeId, String? idempotencyKey}) async {
 
     final fields = <String, dynamic>{
       'pricingId': params.pricingId,
@@ -246,19 +241,21 @@ class ConsultationRepo {
       'hideClientFromLawyer': params.hideClientFromLawyer.toString(),
     };
 
+    if (lawsuitTypeId != null && lawsuitTypeId.isNotEmpty) {
+      fields['lawsuitTypeId'] = lawsuitTypeId;
+    }
+
     if (params.subSpecializationIds.isNotEmpty) {
       fields['subSpecializationIds'] =
       '[${params.subSpecializationIds.map((id) => '"$id"').join(',')}]';
     }
 
-    if (params.lawsuitTypeIds.isNotEmpty) {
-      fields['lawsuitTypeIds'] =
-      '[${params.lawsuitTypeIds.map((id) => '"$id"').join(',')}]';
+    String formatDate(DateTime? dt) {
+      // Device DateTime is local → convert once to UTC for the API.
+      // (Previous toLocal().toUtc() round-trip could shift during DST.)
+      if (dt == null) return '';
+      return dt.toUtc().toIso8601String();
     }
-
-    // ✅ Unified DateTime format (LOCAL ISO 8601)
-    String formatDate(DateTime? dt) =>
-        dt == null ? '' : dt.toLocal().toUtc().toIso8601String();
 
     if (params.startTime != null) {
       AppLogger.info(params.startTime) ;
@@ -310,6 +307,9 @@ class ConsultationRepo {
     final result = await _dio.post(
       'client/consultations',
       body: formData,
+      options: idempotencyKey == null
+          ? null
+          : Options(headers: {'Idempotency-Key': idempotencyKey}),
     );
 
     if (result.isRight) {
@@ -322,19 +322,28 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 9. POST /api/v1/client/consultations/{id}/pay-with-wallet ───────────────
-  // Pay consultation from wallet balance
-  // Requires Idempotency-Key header (UUID v4)
+
+  /// Returns a STABLE key per consultationId (creates once, reuses after).
+  String _stablePaymentKey(String consultationId) =>
+      _paymentIdempotencyKeys.putIfAbsent(
+          consultationId, () => const Uuid().v4());
+
+  /// Clears the stored key (call after a terminal paid/failed state
+  /// if the backend expects a fresh key for the next payment attempt
+  /// on a NEW consultation — keys are per-consultation so this is rarely needed).
+  void clearPaymentKey(String consultationId) =>
+      _paymentIdempotencyKeys.remove(consultationId);
 
   Future<Either<String, Map<String, dynamic>>> payWithWallet({
     required String consultationId,
+    String? idempotencyKey,
   }) async {
-    final uuid = const Uuid().v4();
+    final key = idempotencyKey ?? _stablePaymentKey(consultationId);
     
     final result = await _dio.post(
       EndPoints.payWithWallet(consultationId: consultationId),
       options: Options(headers: {
-        'Idempotency-Key': uuid,
+        'Idempotency-Key': key,
       }),
     );
 
@@ -345,19 +354,17 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 10. POST /api/v1/client/consultations/{id}/payment/initiate ────────────
-  // Initiate payment via MyFatoorah
-  // Requires Idempotency-Key header (UUID v4)
 
   Future<Either<String, Map<String, dynamic>>> initiatePayment({
     required String consultationId,
+    String? idempotencyKey,
   }) async {
-    final uuid = const Uuid().v4();
+    final key = idempotencyKey ?? _stablePaymentKey(consultationId);
     
     final result = await _dio.post(
       EndPoints.initiatePayment(consultationId: consultationId),
       options: Options(headers: {
-        'Idempotency-Key': uuid,
+        'Idempotency-Key': key,
       }),
     );
 
@@ -368,9 +375,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 11. GET /api/v1/client/consultations/{id} ───────────────────────────────
-  // Check consultation status after payment
-  // Returns the consultation details including payment status
 
   Future<Either<String, Map<String, dynamic>>> checkConsultationStatus({
     required String consultationId,
@@ -384,10 +388,6 @@ class ConsultationRepo {
     return Left(result.left.toString());
   }
 
-  // ── 12. GET /api/v1/client/consultations/{id}/payment/status ───────────────
-  // Get the latest MyFatoorah payment status for this consultation
-  // Poll after redirect from checkout
-  // Returns payment details including invoiceStatus
 
   Future<Either<String, Map<String, dynamic>>> checkPaymentStatus({
     required String consultationId,
@@ -399,5 +399,51 @@ class ConsultationRepo {
       return Right(data);
     }
     return Left(result.left.toString());
+  }
+
+  /// Extracts the external payment URL tolerating backend key variations
+  /// (PaymentURL / paymentUrl / paymentLink / url, nested or flat).
+  static String? extractPaymentUrl(Map<String, dynamic>? paymentData) {
+    if (paymentData == null) return null;
+    final candidates = <dynamic>[
+      paymentData['payment'] is Map
+          ? (paymentData['payment'] as Map)['PaymentURL']
+          : null,
+      paymentData['payment'] is Map
+          ? (paymentData['payment'] as Map)['paymentUrl']
+          : null,
+      paymentData['payment'] is Map
+          ? (paymentData['payment'] as Map)['url']
+          : null,
+      paymentData['paymentUrl'],
+      paymentData['PaymentURL'],
+      paymentData['paymentLink'],
+      paymentData['url'],
+    ];
+    for (final c in candidates) {
+      if (c is String && c.isNotEmpty) return c;
+    }
+    return null;
+  }
+
+  /// Normalizes invoice/payment status strings across gateway variations.
+  static String normalizePaymentStatus(Map<String, dynamic> data) {
+    final raw = (data['invoiceStatus'] ??
+            data['paymentStatus'] ??
+            data['status'] ??
+            '')
+        .toString()
+        .toLowerCase();
+    if (raw == 'paid' || raw == 'completed' || raw == 'success') {
+      return 'paid';
+    }
+    if (raw == 'failed' ||
+        raw == 'cancelled' ||
+        raw == 'canceled' ||
+        raw == 'rejected' ||
+        raw == 'expired') {
+      return 'failed';
+    }
+    return 'pending';
   }
 }
