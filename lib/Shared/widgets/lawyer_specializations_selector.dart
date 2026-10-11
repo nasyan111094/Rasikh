@@ -2,8 +2,8 @@
 // Shared/widgets/lawyer_specializations_selector.dart
 //
 // Professional multi-level selector for lawyers:
-//  • أكثر من تخصص رئيسي (إضافة عبر SearchableDropdown)
-//  • أكثر من تخصص فرعي داخل كل رئيسي (chips متعددة — واحد على الأقل)
+//  • أكثر من تخصص رئيسي (إضافة عبر SearchableDropdown) — مطلوب
+//  • أكثر من تخصص فرعي داخل كل رئيسي (chips متعددة — اختياري)
 //  • أكثر من دعوة داخل كل فرعي مختار (chips متعددة — اختياري،
 //    والفرعي الذي لا يحتوي دعاوى يُختار عادي)
 //
@@ -148,7 +148,6 @@ class _LawyerSpecializationsSelectorState
   // ── Mutations ────────────────────────────────────────────────────────────
 
   void _emit() {
-    final byId = _byId;
     final subIds =
         _subsByMain.values.expand((s) => s).toList(growable: false);
     final activeLawsuits = <String, Set<String>>{
@@ -158,19 +157,11 @@ class _LawyerSpecializationsSelectorState
     final lawsuitIds =
         activeLawsuits.values.expand((e) => e).toList(growable: false);
 
+    // Main specialization is always required. Sub-specializations and
+    // lawsuits are optional — they may be sent or omitted.
     String? message;
     if (_mains.isEmpty) {
       message = 'اختر تخصصاً رئيسياً واحداً على الأقل';
-    } else {
-      final emptyMains = _mains
-          .where((id) => (_subsByMain[id]?.isEmpty ?? true))
-          .map((id) => byId[id]?.name ?? '')
-          .where((n) => n.isNotEmpty)
-          .toList();
-      if (emptyMains.isNotEmpty) {
-        message =
-            'اختر تخصصاً فرعياً واحداً على الأقل داخل: ${emptyMains.join('، ')}';
-      }
     }
 
     widget.onChanged(LawyerSpecSelection(
@@ -471,7 +462,7 @@ class _MainCard extends StatelessWidget {
                         Gap(2.h),
                         Text(
                           selectedSubs.isEmpty
-                              ? '${main.subs.length} تخصص فرعي — اختر واحداً أو أكثر'
+                              ? '${main.subs.length} تخصص فرعي — اختياري'
                               : '${selectedSubs.length} فرعي محدد'
                                   '${lawsuitCount > 0 ? ' · $lawsuitCount دعوة' : ''}',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -521,7 +512,7 @@ class _MainCard extends StatelessWidget {
                             color: theme.dividerColor.withOpacity(0.3)),
                         Gap(12.h),
                         Text(
-                          'التخصصات الفرعية * (يمكن اختيار أكثر من تخصص)',
+                          'التخصصات الفرعية (اختياري — يمكن اختيار أكثر من تخصص)',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),

@@ -245,10 +245,9 @@ class LawyerRegistrationFormData {
       'qualifications':    qualifications,
       'experienceYears':   experienceYears.toString(),
       'mainSpecializations': jsonEncode(mainSpecializationIds),
-      'subSpecializations':  jsonEncode(subSpecializationIds),
+      'subSpecializations': jsonEncode(subSpecializationIds),
       if (lawsuitTypeIds.isNotEmpty)
         'lawsuitTypeIds': jsonEncode(lawsuitTypeIds),
-      if (lawsuitTypeIds.isNotEmpty) 'lawsuitTypeIds': lawsuitTypeIds,
       'acceptedTerms':     acceptedTerms.toString(),
     };
   }

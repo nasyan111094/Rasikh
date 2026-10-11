@@ -2,10 +2,10 @@
 // choose_specialty_screen.dart  (Step 1)
 //
 // New flow (per /specializations/active):
-//  • SearchableDropdown #1 → تخصص رئيسي واحد (single)
-//  • SearchableDropdown #2 → تخصص فرعي واحد (single, تابع للرئيسي)
-//  • Chips متعددة → الدعاوى (lawsuitTypes التابعة للفرعي، multi)
-//  • التالي مفعّل فقط عند: رئيسي + فرعي (+ دعوة واحدة على الأقل إن وُجدت)
+//  • SearchableDropdown #1 → تخصص رئيسي واحد (single — مطلوب)
+//  • SearchableDropdown #2 → تخصص فرعي واحد (single, تابع للرئيسي — اختياري)
+//  • Chips متعددة → الدعاوى (lawsuitTypes التابعة للفرعي، multi — اختياري)
+//  • التالي مفعّل عند اختيار الرئيسي فقط
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
@@ -54,9 +54,10 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
     await context.read<ConsultationApplicationCubit>().loadSpecializations();
   }
 
-  /// Mains that actually have sub-specializations (same rule as before).
+  /// All mains are visible — sub-specializations are optional so mains
+  /// without subs must stay selectable.
   List<SpecializationModel> _visibleMains(ConsultationState state) =>
-      state.specializations.where((s) => s.subSpecializations.isNotEmpty).toList();
+      List.of(state.specializations);
 
   void _syncControllers(ConsultationState state) {
     final mainName = state.selectedSpecialization?.name ?? '';
@@ -181,12 +182,9 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
     final lawsuits = state.availableLawsuitTypes;
     final selectedLawsuits = state.selectedLawsuitTypeIds.toSet();
     final hasSub = state.selectedSubSpecialization != null;
-    // 0 = main, 1 = sub, 2 = lawsuits, 3 = complete.
-    final step = resolvedMain == null
-        ? 0
-        : !hasSub
-            ? 1
-            : (lawsuits.isNotEmpty && selectedLawsuits.isEmpty ? 2 : 3);
+    // Sub-specializations and lawsuits are optional — the step is
+    // complete as soon as the main specialization is chosen.
+    final step = resolvedMain == null ? 0 : 3;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -226,7 +224,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
                     _StepCard(
                       number: 2,
                       title: 'التخصص الفرعي داخل "${resolvedMain.name}"',
-                      subtitle: 'اختر تخصصاً واحداً فقط *',
+                      subtitle: 'اختر تخصصاً واحداً فقط (اختياري)',
                       done: hasSub,
                       child: SearchableDropdown(
                         items: subs.map((s) => s.name).toList(),
@@ -260,8 +258,8 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
                           'الدعاوى داخل "${state.selectedSubSpecialization!.name}"',
                       subtitle: lawsuits.isEmpty
                           ? 'لا توجد دعاوى — يمكنك المتابعة'
-                          : 'يمكن اختيار أكثر من دعوة *',
-                      done: lawsuits.isEmpty || selectedLawsuits.isNotEmpty,
+                          : 'يمكن اختيار أكثر من دعوة (اختياري)',
+                      done: true,
                       trailing: lawsuits.isEmpty
                           ? null
                           : _CountBadge(
@@ -338,8 +336,7 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
         ),
 
         // ── Validation hint ─────────────────────────────────────────
-        if (!state.canProceedFromSpecialty &&
-            (resolvedMain != null || hasSub)) ...[
+        if (!state.canProceedFromSpecialty) ...[
           Gap(8.h),
           Row(
             children: [
@@ -366,10 +363,6 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
   String _validationMessage(bool hasMain, bool hasSub,
       List<dynamic> lawsuits, Set<String> selectedLawsuits) {
     if (!hasMain) return 'اختر تخصصك الرئيسي من القائمة بالأعلى';
-    if (!hasSub) return 'اختر التخصص الفرعي للمتابعة';
-    if (lawsuits.isNotEmpty && selectedLawsuits.isEmpty) {
-      return 'اختر دعوة واحدة على الأقل للمتابعة';
-    }
     return '';
   }
 

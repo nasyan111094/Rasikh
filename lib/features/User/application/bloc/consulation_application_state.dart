@@ -320,14 +320,10 @@ class ConsultationState {
   List<LawsuitTypeModel> get availableLawsuitTypes =>
       selectedSubSpecialization?.lawsuitTypes ?? const [];
 
-  /// Main (1) + sub (1) required; if the sub has lawsuits, ≥1 lawsuit required.
+  /// Main is always required; sub-specializations and lawsuit types
+  /// are optional — they may be sent or omitted.
   bool get canProceedFromSpecialty {
-    if (selectedSpecialization == null || selectedSubSpecializations.isEmpty) {
-      return false;
-    }
-    final lawsuits = availableLawsuitTypes;
-    if (lawsuits.isNotEmpty && selectedLawsuitTypeIds.isEmpty) return false;
-    return true;
+    return selectedSpecialization != null;
   }
 
   bool get canProceedFromDetails =>

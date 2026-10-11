@@ -305,8 +305,7 @@ class _LawyerSpecializationsScreenState
             initialLawsuitsBySub: _initialLawsuitsBySub,
             onChanged: (sel) => setState(() => _selection = sel),
           ),
-          if (_selection?.validationMessage != null &&
-              (_selection?.mainIds.isNotEmpty ?? false)) ...[
+          if (_selection?.validationMessage != null) ...[
             Gap(8.h),
             Row(
               children: [

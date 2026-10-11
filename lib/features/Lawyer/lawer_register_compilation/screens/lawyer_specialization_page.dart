@@ -4,11 +4,10 @@
 // Step 4 (final) – Specializations (التخصصات)
 //
 // Behaviour (LawyerSpecializationsSelector):
-//  • إضافة أكثر من تخصص رئيسي عبر SearchableDropdown
-//  • أكثر من تخصص فرعي داخل كل رئيسي (chips)
-//  • أكثر من دعوة داخل كل فرعي مختار (chips)
-//  • "إرسال للمراجعة" مفعّل عند اختيار رئيسي واحد على الأقل
-//    وفرعي واحد داخل كل رئيسي مختار.
+//  • إضافة أكثر من تخصص رئيسي عبر SearchableDropdown (مطلوب)
+//  • أكثر من تخصص فرعي داخل كل رئيسي (chips — اختياري)
+//  • أكثر من دعوة داخل كل فرعي مختار (chips — اختياري)
+//  • "إرسال للمراجعة" مفعّل عند اختيار رئيسي واحد على الأقل.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/gestures.dart';
@@ -130,7 +129,6 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                         }
                         if (state is LawyerSpecializationLoaded) {
                           final mains = state.specializations
-                              .where((s) => s.subSpecializations.isNotEmpty)
                               .map((s) => LawyerSpecMain(
                                     id: s.id,
                                     name: s.name,
@@ -167,9 +165,7 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                                 onChanged: (sel) =>
                                     setState(() => _selection = sel),
                               ),
-                              if (_selection?.validationMessage != null &&
-                                  (_selection?.mainIds.isNotEmpty ??
-                                      false)) ...[
+                              if (_selection?.validationMessage != null) ...[
                                 Gap(8.h),
                                 Row(
                                   children: [
