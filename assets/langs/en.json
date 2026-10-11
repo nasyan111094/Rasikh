@@ -1219,5 +1219,6 @@
   "noSubSpecializationsTitle": "No sub-specializations",
   "noSubSpecializationsMessage": "No sub-specializations are available for this specialization right now, you can choose another main specialization",
   "noLawsuitTypesTitle": "No lawsuit types",
-  "noLawsuitTypesMessage": "No lawsuit types are available for this sub-specialization, you can continue to the next step"
+  "noLawsuitTypesMessage": "No lawsuit types are available for this sub-specialization, you can continue to the next step",
+  "optional": "Optional"
 }

@@ -214,8 +214,10 @@ class LawyerRegistrationFormData {
         'commercialRegistrationNumber': commercialRegistrationNumber,
       'qualifications':    qualifications,
       'experienceYears':   experienceYears.toString(),
+      // Main is always required; subs are optional → omit when empty.
       'mainSpecializations': mainSpecializationIds,
-      'subSpecializations':  subSpecializationIds,
+      if (subSpecializationIds.isNotEmpty)
+        'subSpecializations':  subSpecializationIds,
       'acceptedTerms':     acceptedTerms.toString(),
     };
   }

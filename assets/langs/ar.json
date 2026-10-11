@@ -1219,5 +1219,6 @@
   "noSubSpecializationsTitle": "لا توجد تخصصات فرعية",
   "noSubSpecializationsMessage": "لا تتوفر تخصصات فرعية لهذا التخصص حالياً، يمكنك اختيار تخصص رئيسي آخر",
   "noLawsuitTypesTitle": "لا توجد أنواع دعاوى",
-  "noLawsuitTypesMessage": "لا تتوفر أنواع دعاوى لهذا التخصص الفرعي، يمكنك المتابعة إلى الخطوة التالية"
+  "noLawsuitTypesMessage": "لا تتوفر أنواع دعاوى لهذا التخصص الفرعي، يمكنك المتابعة إلى الخطوة التالية",
+  "optional": "اختياري"
 }

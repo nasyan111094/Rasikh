@@ -125,23 +125,38 @@ class _ChooseSpecialtyScreenState extends State<ChooseSpecialtyScreen> {
                             label: Loc.mainSpecializationLabel(),
                             hint: Loc.chooseMainSpecialization(),
                             value: state.selectedSpecialization?.name,
+                            isRequired: true,
                             onTap: _openMainSpecializationSheet,
                           ),
                           Gap(ConsultationFlowSpacing.fieldGap),
                           SpecialtySelectionField(
-                            label: Loc.subSpecialization(),
+                            label:
+                                '${Loc.subSpecialization()} (${Loc.optional()})',
                             hint: Loc.chooseSubSpecializationAlt(),
                             value: state.selectedSubSpecializations.isEmpty
                                 ? null
                                 : state.selectedSubSpecializations.first.name,
+                            isRequired: false,
                             onTap: () => _openSubSpecializationSheet(state),
+                            onClear: state.selectedSubSpecializations.isEmpty
+                                ? null
+                                : () => context
+                                    .read<ConsultationApplicationCubit>()
+                                    .clearSubSpecialization(),
                           ),
                           Gap(ConsultationFlowSpacing.fieldGap),
                           SpecialtySelectionField(
-                            label: Loc.lawsuitTypeLabel(),
+                            label:
+                                '${Loc.lawsuitTypeLabel()} (${Loc.optional()})',
                             hint: Loc.chooseLawsuitType(),
                             value: state.selectedLawsuitType?.name,
+                            isRequired: false,
                             onTap: () => _openLawsuitTypeSheet(state),
+                            onClear: state.selectedLawsuitType == null
+                                ? null
+                                : () => context
+                                    .read<ConsultationApplicationCubit>()
+                                    .clearLawsuitType(),
                           ),
                         ],
                       ),

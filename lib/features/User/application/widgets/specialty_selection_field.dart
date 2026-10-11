@@ -12,12 +12,16 @@ class SpecialtySelectionField extends StatelessWidget {
     required this.hint,
     required this.onTap,
     this.value,
+    this.isRequired = true,
+    this.onClear,
   });
 
   final String label;
   final String hint;
   final String? value;
   final VoidCallback? onTap;
+  final bool isRequired;
+  final VoidCallback? onClear;
 
   static const Color _textColor = Color(0xFF404040);
 
@@ -30,7 +34,7 @@ class SpecialtySelectionField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ConsultationFieldLabel(label, isRequired: true),
+        ConsultationFieldLabel(label, isRequired: isRequired),
         Gap(ConsultationFlowSpacing.titleToContent),
         InkWell(
           onTap: onTap,
@@ -58,6 +62,20 @@ class SpecialtySelectionField extends StatelessWidget {
                   ),
                 ),
                 Gap(8.w),
+                if (hasValue && onClear != null)
+                  InkWell(
+                    onTap: onClear,
+                    borderRadius: BorderRadius.circular(20),
+                    child: Padding(
+                      padding: EdgeInsets.all(4.w),
+                      child: Icon(
+                        Icons.close_rounded,
+                        size: 18.w,
+                        color: greyIconColors,
+                      ),
+                    ),
+                  ),
+                if (hasValue && onClear != null) Gap(4.w),
                 Icon(
                   Icons.keyboard_arrow_down,
                   size: 24.w,

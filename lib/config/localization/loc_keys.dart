@@ -1571,4 +1571,5 @@ abstract class Loc {
   static String noSubSpecializationsMessage() => 'noSubSpecializationsMessage'.tr();
   static String noLawsuitTypesTitle() => 'noLawsuitTypesTitle'.tr();
   static String noLawsuitTypesMessage() => 'noLawsuitTypesMessage'.tr();
+  static String optional() => 'optional'.tr();
 }

@@ -89,9 +89,7 @@ class _LawyerSpecializationsScreenState
   }
 
 
-  bool get _canProceed =>
-      _selections.isNotEmpty &&
-          _selections.values.every((subs) => subs.isNotEmpty);
+  bool get _canProceed => _selections.isNotEmpty;
 
   List<SpecializationCatalogModel> _filtered(
       List<SpecializationCatalogModel> all) {
@@ -230,12 +228,6 @@ class _LawyerSpecializationsScreenState
             ),
           ),
           const Spacer(),
-          if (_selections.values.any((s) => s.isEmpty))
-            Tooltip(
-              message: Loc.chooseSubSpecializationForEachMain(),
-              child: Icon(Icons.warning_amber_rounded,
-                  size: 16, color: theme.colorScheme.error),
-            ),
         ],
       ),
     );
@@ -431,7 +423,7 @@ class _LawyerSpecializationsScreenState
                   children: [
                     const Gap(8),
                     Text(
-                      Loc.chooseSubSpecialization(),
+                      '${Loc.chooseSubSpecialization()} (${Loc.optional()})',
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w600),
                     ),

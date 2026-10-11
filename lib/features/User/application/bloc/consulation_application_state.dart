@@ -285,10 +285,7 @@ class ConsultationState {
                   selectedSubSpecializations.first.id] ??
               const [];
 
-  bool get canProceedFromSpecialty =>
-      selectedSpecialization != null &&
-      selectedSubSpecializations.isNotEmpty &&
-      (availableLawsuitTypes.isEmpty || selectedLawsuitType != null);
+  bool get canProceedFromSpecialty => selectedSpecialization != null;
 
   bool get canProceedFromDetails =>
       consultationTitle.trim().isNotEmpty &&

@@ -56,6 +56,19 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
     emit(state.copyWith(selectedLawsuitType: lawsuitType));
   }
 
+  /// Sub-specialization is optional → allow clearing it (also clears lawsuit).
+  void clearSubSpecialization() {
+    emit(state.copyWith(
+      selectedSubSpecializations: const [],
+      clearSelectedLawsuitType: true,
+    ));
+  }
+
+  /// Lawsuit type is optional → allow clearing it.
+  void clearLawsuitType() {
+    emit(state.copyWith(clearSelectedLawsuitType: true));
+  }
+
   void toggleSubSpecialization(SubSpecializationModel sub) {
     final current =
     List<SubSpecializationModel>.from(state.selectedSubSpecializations);

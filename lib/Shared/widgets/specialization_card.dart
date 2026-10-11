@@ -111,7 +111,11 @@ class SpecializationCard extends StatelessWidget {
 
                   Padding(
                     padding: EdgeInsets.only(top: 2.h),
-                    child: _RadioDot(isSelected: isSelected, cs: cs),
+                    child: GestureDetector(
+                      onTap: () => cubit.toggleMain(spec.id),
+                      behavior: HitTestBehavior.opaque,
+                      child: _RadioDot(isSelected: isSelected, cs: cs),
+                    ),
                   ),
                 ],
               ),
@@ -218,7 +222,11 @@ class _SubSpecSection extends StatelessWidget {
             children: [
               Padding(
                 padding: EdgeInsets.only(top: 2.h),
-                child: _RadioDot(isSelected: anySubSel, cs: cs),
+                child: GestureDetector(
+                  onTap: () => cubit.toggleMain(spec.id),
+                  behavior: HitTestBehavior.opaque,
+                  child: _RadioDot(isSelected: anySubSel, cs: cs),
+                ),
               ),
               Gap(12.w),
               Expanded(
@@ -226,7 +234,7 @@ class _SubSpecSection extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      Loc.chooseSubSpecializationAlt(),
+                      '${Loc.chooseSubSpecializationAlt()} (${Loc.optional()})',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         color:      cs.onSurface,
