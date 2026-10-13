@@ -11,3 +11,8 @@ ios/Flutter/Flutter.podspec
 .pub-cache/
 .pub/
 pubspec.lock
+# JVM / Android Studio crash artifacts (heap dumps can be GBs and break push)
+*.hprof
+hs_err_pid*.log
+replay_pid*.log
+android/.kotlin/
