@@ -33,8 +33,6 @@ import 'models/consultation_model.dart';
 import '../../User/application/appointment_booking_screen(3.3).dart';
 import 'consultations_screen.dart';
 
-const String _kBaseUrl = 'http://89.117.60.202:3050';
-
 DateTime? _correctServerTime(DateTime? dt) {
   if (dt == null) return null;
   return dt.toLocal().add(const Duration(hours: 0));
@@ -84,7 +82,11 @@ class _LawyerConsultationDetailsScreenState
       if (start == null) return true;
       return !DateTime.now().isBefore(start.toLocal());
     }
-    if (item.isPaymentPaid && item.status == ConsultationStatus.none) return true;
+    // Paid written consultations may enter even before status flips to
+    // active/upcoming; no generic `none` exception (requires paid + written).
+    if (item.isPaymentPaid && item.type.toLowerCase().trim() == 'written') {
+      return true;
+    }
     return false;
   }
 
@@ -179,13 +181,17 @@ class _LawyerConsultationDetailsScreenState
         ];
 
       case ConsultationStatus.upcoming:
+        // TODO(lawyer-endpoints): reschedule/cancel hidden for lawyer until
+        // backend ships lawyer endpoints; client-only for now.
+        final isLawyer =
+            getIt<CacheHelper>().cachedVendorType == VendorType.lawyer;
         return [
           Padding(
             padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 24.h),
             child: _DetailsUpcomingButton(
               consultation: consultation,
               onEnter: () => _enterSession(context, consultation),
-              onReschedule: consultation.lawyer == null
+              onReschedule: isLawyer || consultation.lawyer == null
                   ? null
                   : () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -225,6 +231,7 @@ class _LawyerConsultationDetailsScreenState
         ];
 
       case ConsultationStatus.completed:
+        // TODO(lawyer-endpoints): rating is client-only for now.
         if (getIt<CacheHelper>().cachedVendorType == VendorType.lawyer) {
           return const [];
         }
@@ -254,7 +261,21 @@ class _LawyerConsultationDetailsScreenState
       case ConsultationStatus.none:
         return const [];
       case ConsultationStatus.pending:
-        throw UnimplementedError();
+        // Pending state: show a details-style action instead of crashing.
+        // (Payment-pending case is already handled above.)
+        return [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 0, 16.w, 24.h),
+            child: SizedBox(
+              width: double.infinity,
+              height: 54.h,
+              child: GradiantButton(
+                text: Loc.detailsLabel(),
+                onTap: () {},
+              ),
+            ),
+          ),
+        ];
     }
   }
 
@@ -1299,7 +1320,8 @@ class _VoiceNotePlayerState extends State<_VoiceNotePlayer> {
 
   String get _resolvedUrl {
     final u = widget.url;
-    return u.startsWith(AppConfig.baseImgUrl) ? u : '$_kBaseUrl$u';
+    // Files served from the same static host as images.
+    return u.startsWith(AppConfig.baseImgUrl) ? u : '${AppConfig.baseImgUrl}$u';
   }
 
   @override
@@ -1547,7 +1569,7 @@ class _AttachmentsGrid extends StatelessWidget {
   const _AttachmentsGrid({required this.attachments});
 
   String _resolveUrl(String url) =>
-      url.startsWith('http') ? url : '$_kBaseUrl$url';
+      url.startsWith('http') ? url : '${AppConfig.baseImgUrl}$url';
 
   String _extension(String url) {
     final clean = url.split('?').first;
@@ -1952,6 +1974,8 @@ class _DetailsUpcomingButtonState extends State<_DetailsUpcomingButton> {
           ),
           if (widget.onReschedule != null &&
               getIt<CacheHelper>().cachedVendorType == VendorType.user) ...[
+            // TODO(lawyer-endpoints): reschedule/cancel hidden for lawyer
+            // until backend ships lawyer endpoints; client-only for now.
             SizedBox(height: 10.h),
             Row(
               children: [

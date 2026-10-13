@@ -29,7 +29,10 @@ class WithdrawRequestScreen extends StatefulWidget {
 class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
   final TextEditingController _amountController = TextEditingController();
   String? _selectedBankAccountId;
-  final double _minWithdrawalAmount = 50.0;
+  // No server-driven withdrawal limits endpoint exists (topup has
+  // getTopupLimits; wallet_repo/app_config expose no withdrawal equivalent),
+  // so the minimum stays a named constant with a balance-based max check.
+  static const double kMinWithdrawalAmount = 50.0;
   bool _hasAutoSelected = false;
 
   /// Ensures success pops exactly once with `true`.
@@ -55,7 +58,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
     super.dispose();
   }
 
-  void _handleWithdrawal(BuildContext context, WalletState state) {
+  Future<void> _handleWithdrawal(BuildContext context) async {
     if (_selectedBankAccountId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(Loc.pleaseChooseBankAccount())),
@@ -79,14 +82,18 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
       return;
     }
 
-    if (amount < _minWithdrawalAmount) {
+    if (amount < kMinWithdrawalAmount) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(Loc.minimumWithdrawalIs(_minWithdrawalAmount))),
+        SnackBar(content: Text(Loc.minimumWithdrawalIs(kMinWithdrawalAmount))),
       );
       return;
     }
 
-    final availableBalance = state.wallet?.availableBalance ?? 0;
+    // Refresh the wallet first so the balance check uses fresh data.
+    await context.read<WalletCubit>().getWallet();
+    if (!context.mounted) return;
+    final availableBalance =
+        context.read<WalletCubit>().state.wallet?.availableBalance ?? 0;
     if (amount > availableBalance) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(Loc.insufficientBalanceForWithdrawal())),
@@ -128,6 +135,21 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
             final availableBalance = wallet?.availableBalance ?? 0;
             final isLoading = state.withdrawalRequestStatus == WalletStatus.loading;
 
+            // Drop a selection whose account no longer exists (e.g. deleted
+            // from the wallet screen) so a stale id can never be submitted.
+            if (_selectedBankAccountId != null &&
+                bankAccounts.isNotEmpty &&
+                !bankAccounts.any((a) => a.id == _selectedBankAccountId)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _selectedBankAccountId = null;
+                    _hasAutoSelected = false;
+                  });
+                }
+              });
+            }
+
             if (!_hasAutoSelected &&
                 state.bankAccountsStatus == WalletStatus.success &&
                 bankAccounts.isNotEmpty &&
@@ -135,7 +157,12 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted) {
                   setState(() {
-                    _selectedBankAccountId = bankAccounts.first.id;
+                    _selectedBankAccountId = bankAccounts
+                        .firstWhere(
+                          (a) => a.isDefault,
+                          orElse: () => bankAccounts.first,
+                        )
+                        .id;
                     _hasAutoSelected = true;
                   });
                 }
@@ -407,7 +434,7 @@ class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
                         width: double.infinity,
                         height: 48.h,
                         child: ElevatedButton(
-                          onPressed: isLoading ? null : () => _handleWithdrawal(context, state),
+                          onPressed: isLoading ? null : () => _handleWithdrawal(context),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFC7A47B),
                             shape: RoundedRectangleBorder(

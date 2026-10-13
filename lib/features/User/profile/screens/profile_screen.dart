@@ -1,6 +1,7 @@
 import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/screens/helping_center_screen.dart';
@@ -8,6 +9,7 @@ import 'package:rasikh/features/Lawyer/lawyer_Settings/screens/wallet_screen.dar
 
 import '../../../../config/navigation/nav.dart';
 import '../../../../Shared/widgets/account_item_widget.dart';
+import '../../../common/notifications/bloc/notification_badge_cubit.dart';
 import '../../../common/notifications/notifications_screen.dart';
 import '../cubit/profile_cubit.dart';
 import '../widgets/dialog_widget.dart';
@@ -68,7 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ImageProvider avatarImage;
               if (profile?.avatar != null) {
                 avatarImage = NetworkImage(
-                  'http://89.117.60.202:3050${profile!.avatar}',
+                  '${AppConfig.baseImgUrl}${profile!.avatar}',
                 );
               } else {
                 avatarImage = const AssetImage('assets/images/avatar.png');
@@ -207,11 +209,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           svgAsset: 'assets/icons/Bell_Bing.svg',
                           label: Loc.notifications(),
                           trailingChevronRight: true,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const NotificationsScreen(),
-                            ),
-                          ),
+                          onTap: () => Navigator.of(context)
+                              .push(
+                                MaterialPageRoute(
+                                  builder: (_) => const NotificationsScreen(),
+                                ),
+                              )
+                              .then((_) {
+                            if (context.mounted) {
+                              context
+                                  .read<ProfileCubit>()
+                                  .loadProfile();
+                              getIt<NotificationBadgeCubit>()
+                                  .fetchUnreadCount();
+                            }
+                          }),
                         ),
                         divider,
                         const SizedBox(height: 20),

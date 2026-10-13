@@ -1,4 +1,6 @@
 import 'package:rasikh/config/localization/loc_keys.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
@@ -39,7 +41,9 @@ class _AddingWorkAppointmentScreenState
   bool _showDayError = false;
 
   bool _isSaving = false;
-
+  // Manual subscription (if ever used) is cancelled in dispose;
+  // the BlocListener below auto-cancels on widget disposal.
+  StreamSubscription<LawyerAppointmentsState>? _slotSub;
 
   @override
   void initState() {
@@ -150,9 +154,27 @@ class _AddingWorkAppointmentScreenState
       return;
     }
 
-    if (_isSaving) return;
-    setState(() => _isSaving = true);
+    // Reject start < now (stale slot).
+    if (_sessionSettings.startDate!.isBefore(DateTime.now())) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              // TODO(l10n): add Loc key for past start-time error
+              content: Text('وقت البدء يجب أن يكون في المستقبل'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
+      return;
+    }
 
+    if (_isSaving) return;
+
+    // TODO(backend-contract): dayIndex mapping ((weekday+1)%7) and the
+    // duration/gap payload shape are server contracts — do not change.
     final daysOfWeek = _selectedDayIndexes.map((i) {
       final date = DateTime.now().add(Duration(days: i));
       return (date.weekday + 1) % 7;
@@ -160,6 +182,27 @@ class _AddingWorkAppointmentScreenState
 
     final startTime = _formatTime(_sessionSettings.startDate!);
     final endTime = _formatTime(_sessionSettings.endDate!);
+
+    // Validate against existing cachedWeeklyData.days[].slots for overlap
+    // on the same daysOfWeek.
+    final overlap = _hasOverlap(daysOfWeek, startTime, endTime);
+    if (overlap) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            const SnackBar(
+              // TODO(l10n): add Loc key for overlapping slot error
+              content: Text('الموعد يتداخل مع موعد موجود في نفس الأيام'),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+      }
+      return;
+    }
+
+    setState(() => _isSaving = true);
 
     final request = SlotRequestModel(
       daysOfWeek: daysOfWeek,
@@ -170,29 +213,44 @@ class _AddingWorkAppointmentScreenState
 
     final cubit = context.read<LawyerAppointmentsCubit>();
 
-    final futureState = cubit.stream.firstWhere(
-          (s) =>
-      s is SlotCreatedSuccess ||
-          s is SlotUpdatedSuccess ||
-          s is SlotMutationError,
-    );
-
+    // Result is delivered via the BlocListener in build (no manual
+    // stream.firstWhere — avoids leaked subscriptions).
     if (widget.slotId == null) {
       await cubit.createSlot(request: request);
     } else {
       await cubit.updateSlot(slotId: widget.slotId!, request: request);
     }
+  }
 
-    final resultState = await futureState;
-    if (!mounted) return;
+  int _toMinutes(String t) {
+    final parts = t.split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
 
-    setState(() => _isSaving = false);
-
-    if (resultState is SlotCreatedSuccess) {
-      await _showSuccessDialog(resultState.message);
-    } else if (resultState is SlotUpdatedSuccess) {
-      await _showSuccessDialog(resultState.message);
+  bool _hasOverlap(List<int> daysOfWeek, String start, String end) {
+    final cached = context.read<LawyerAppointmentsCubit>().cachedWeeklyData;
+    if (cached == null) return false;
+    final s = _toMinutes(start);
+    final e = _toMinutes(end);
+    for (final day in cached.days) {
+      if (!daysOfWeek.contains(day.dayIndex)) continue;
+      if (widget.slotId != null &&
+          day.slots.length == 1 &&
+          day.slots.first.id == widget.slotId) {
+        continue; // editing the only slot of that day — not an overlap
+      }
+      for (final slot in day.slots) {
+        if (widget.slotId != null && slot.id == widget.slotId) continue;
+        try {
+          final os = _toMinutes(slot.startTime);
+          final oe = _toMinutes(slot.endTime);
+          if (s < oe && os < e) return true;
+        } catch (_) {
+          continue;
+        }
+      }
     }
+    return false;
   }
 
   String _formatTime(DateTime dt) {
@@ -270,7 +328,30 @@ class _AddingWorkAppointmentScreenState
     final theme = Theme.of(context);
     final isEdit = widget.slotId != null;
 
-    return Scaffold(
+    return BlocListener<LawyerAppointmentsCubit, LawyerAppointmentsState>(
+      listener: (context, state) async {
+        if (state is SlotCreatedSuccess || state is SlotUpdatedSuccess) {
+          if (!mounted) return;
+          setState(() => _isSaving = false);
+          final msg = state is SlotCreatedSuccess
+              ? state.message
+              : (state as SlotUpdatedSuccess).message;
+          await _showSuccessDialog(msg);
+        } else if (state is SlotMutationError) {
+          if (!mounted) return;
+          setState(() => _isSaving = false);
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(state.message),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+        }
+      },
+      child: Scaffold(
       appBar: GeneralAppBar(
         title: isEdit ? Loc.editWorkAppointment() : Loc.addWorkAppointment(),
       ),
@@ -355,6 +436,12 @@ class _AddingWorkAppointmentScreenState
           ),
         ),
       ),
-    );
+    ));
+  }
+
+  @override
+  void dispose() {
+    _slotSub?.cancel();
+    super.dispose();
   }
 }

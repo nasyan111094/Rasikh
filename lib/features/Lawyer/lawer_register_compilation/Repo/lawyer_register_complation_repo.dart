@@ -6,7 +6,6 @@ import 'package:dio_adapter/dio_adapter.dart';
 
 
 import '../../../../Shared/models/city_model.dart';
-import '../../../../config/app_config.dart';
 import '../../../../core/cache/cache_helper.dart';
 import '../../../../core/get_it_service/get_it_service.dart';
 import '../../../../core/utils/api/api_handler.dart';
@@ -76,22 +75,28 @@ class LawyerCompletionRepo {
       final fields = formData.toFormFields();
       final parts  = <String, dynamic>{...fields};
 
+      String fileName(String path, String fallback) {
+        final base = path.split(RegExp(r'[/\\]')).last;
+        final safe = base.isEmpty ? fallback : base;
+        return '${DateTime.now().millisecondsSinceEpoch}_$safe';
+      }
+
       if (formData.photo != null) {
         parts['photo'] = await MultipartFile.fromFile(
           formData.photo!.path,
-          filename: 'photo.jpg',
+          filename: fileName(formData.photo!.path, 'photo.jpg'),
         );
       }
       if (formData.licenseImage != null) {
         parts['licenseImage'] = await MultipartFile.fromFile(
           formData.licenseImage!.path,
-          filename: 'license.jpg',
+          filename: fileName(formData.licenseImage!.path, 'license.jpg'),
         );
       }
       if (formData.nationalIdDocument != null) {
         parts['nationalIdDocument'] = await MultipartFile.fromFile(
           formData.nationalIdDocument!.path,
-          filename: 'national_id.jpg',
+          filename: fileName(formData.nationalIdDocument!.path, 'national_id.jpg'),
         );
       }
       if (formData.commercialRegistrationDocument != null &&
@@ -99,19 +104,26 @@ class LawyerCompletionRepo {
         parts['commercialRegistrationDocument'] =
         await MultipartFile.fromFile(
           formData.commercialRegistrationDocument!.path,
-          filename: 'commercial_reg.jpg',
+          filename: fileName(formData.commercialRegistrationDocument!.path,
+              'commercial_reg.jpg'),
         );
       }
 
 
       final response = await _adapter.put(
-        '${AppConfig.baseUrl}$_profileForm',
+        _profileForm,
         body: FormData.fromMap(parts),
 
       );
 
 
       if (response.isRight) {
+        // Promote the registration token to a full session (verifyOtp
+        // keeps it in registerToken until the profile is completed).
+        final pending = _cache.registerToken;
+        if (pending != null && pending.isNotEmpty) {
+          await _cache.setUserToken(pending);
+        }
         _cache.registerToken = null ;
         return Right(LawyerProfileCompletionModel.fromJson(response.right.data));
       }

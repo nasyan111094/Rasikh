@@ -45,7 +45,9 @@ class _AuthPageState extends State<AuthPage>
   void initState() {
     super.initState();
     _cubit = getIt<AuthCubit>();
-
+    // Clear any stale send-otp status from a previous visit instead of
+    // resetting after navigation (the cubit is a shared LazySingleton).
+    _cubit.resetSendOtpState();
   }
 
   @override

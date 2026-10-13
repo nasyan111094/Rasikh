@@ -17,6 +17,8 @@ import '../../../../config/app_config.dart';
 import '../../../../config/theme/colors.dart';
 import '../../../../core/widgets/fields/prefix_text_filed_icon.dart';
 import '../../../../core/widgets/general_app_bar.dart';
+import '../../lawer_register_compilation/Repo/lawyer_register_complation_repo.dart';
+import '../../../../Shared/models/city_model.dart';
 
 import '../bloc/Profile_cubit/lawyer_cubit.dart';
 import '../bloc/Profile_cubit/lawyer_state.dart';
@@ -490,22 +492,17 @@ class CityDropdownField extends StatefulWidget {
 class _CityDropdownFieldState extends State<CityDropdownField> {
   bool _isFocused = false;
   late final FocusNode _focusNode;
-
-  static const Map<String, String> cityMapping = {
-    'RIYADH': 'الرياض',
-    'JEDDAH': 'جدة',
-    'DAMMAM': 'الدمام',
-    'MECCA': 'مكة',
-  };
+  List<CityEnumModel> _cities = const [];
+  bool _loadingCities = false;
+  String? _citiesError;
 
   String? _normalizeValue(String? value) {
-    if (value == null) return null;
-    
-    if (cityMapping.values.contains(value)) {
-      return value;
+    if (value == null || value.isEmpty) return null;
+    if (_cities.isEmpty) return value;
+    for (final c in _cities) {
+      if (c.value == value || c.key == value) return c.value;
     }
-    
-    return cityMapping[value];
+    return value;
   }
 
   @override
@@ -513,6 +510,44 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
     super.initState();
     _focusNode = FocusNode()
       ..addListener(() => setState(() => _isFocused = _focusNode.hasFocus));
+    _loadCities();
+  }
+
+  Future<void> _loadCities() async {
+    // Mirrors the enums/cities pattern used in the registration flow.
+    setState(() {
+      _loadingCities = true;
+      _citiesError = null;
+    });
+    try {
+      final repo = LawyerCompletionRepo();
+      final result = await repo.getCities();
+      result.fold(
+        (err) {
+          if (mounted) {
+            setState(() {
+              _citiesError = err;
+              _loadingCities = false;
+            });
+          }
+        },
+        (list) {
+          if (mounted) {
+            setState(() {
+              _cities = list;
+              _loadingCities = false;
+            });
+          }
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _citiesError = e.toString();
+          _loadingCities = false;
+        });
+      }
+    }
   }
 
   @override
@@ -542,6 +577,7 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
         style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14.sp),
         decoration: InputDecoration(
           hintText: Loc.chooseCityLabel(),
+          helperText: _citiesError,
           hintStyle: theme.textTheme.bodyMedium?.copyWith(
             color: cs.onSurfaceVariant,
             fontSize: 14.sp,
@@ -574,10 +610,14 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
           EdgeInsets.symmetric(horizontal: 12.w, vertical: 18.h),
         ),
         items: [
-          DropdownMenuItem(value: 'الرياض', child: Text(Loc.riyadh())),
-          DropdownMenuItem(value: 'جدة', child: Text(Loc.jeddah())),
-          DropdownMenuItem(value: 'الدمام', child: Text(Loc.dammam())),
-          DropdownMenuItem(value: 'مكة', child: Text(Loc.mecca())),
+          if (_loadingCities)
+            // TODO(l10n): add Loc key for loading
+            const DropdownMenuItem(
+                value: null, child: Text('جارٍ التحميل...')),
+          ..._cities.map((c) =>
+              DropdownMenuItem(value: c.value, child: Text(c.value))),
+          if (!_loadingCities && _cities.isEmpty && widget.value != null)
+            DropdownMenuItem(value: widget.value, child: Text(widget.value!)),
         ],
         onChanged: widget.onChanged,
         validator:

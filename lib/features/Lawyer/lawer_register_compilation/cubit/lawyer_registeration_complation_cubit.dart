@@ -73,13 +73,16 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
     final current = state;
     if (current is! LawyerSpecializationLoaded) return;
 
-    final filtered = query.trim().isEmpty
+    final q = query.trim().toLowerCase();
+    final filtered = q.isEmpty
         ? _allSpecializations
         : _allSpecializations.where((spec) {
-      final matchesMain = spec.name.contains(query);
+      final matchesMain = spec.name.toLowerCase().contains(q);
       final matchesSub  = spec.subSpecializations
-          .any((s) => s.name.contains(query));
-      return matchesMain || matchesSub;
+          .any((s) => s.name.toLowerCase().contains(q));
+      final matchesLawsuit = spec.subSpecializations.any((s) => s.lawsuitTypes
+          .any((l) => l.name.toLowerCase().contains(q)));
+      return matchesMain || matchesSub || matchesLawsuit;
     }).toList();
 
     emit(current.copyWith(specializations: filtered));
@@ -179,11 +182,15 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
     File? nationalIdDocument,
     File? commercialRegistrationDocument,
     required bool isCompany,
+    DateTime? licenseExpiryDate,
   }) {
     formData = formData.copyWith(
       nationalId:                     nationalIdController.text.trim(),
       licenseNumber:                  licenseController.text.trim(),
       commercialRegistrationNumber:   commercialRegController.text.trim(),
+      licenseExpiryDate: licenseExpiryDate != null
+          ? licenseExpiryDate.toUtc().toIso8601String()
+          : formData.licenseExpiryDate,
       isCompany:                      isCompany,
       licenseImage:                   licenseImage,
       nationalIdDocument:             nationalIdDocument,

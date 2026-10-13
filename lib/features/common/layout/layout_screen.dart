@@ -58,6 +58,30 @@ class _LayoutPageState extends State<LayoutPage> {
     ];
   }
 
+  /// Resolves the tab body explicitly per vendor type. Company has no
+  /// dedicated tabs yet, so it safely falls back to the user tabs.
+  /// TODO: add dedicated company tabs.
+  Widget _bodyForIndex(int index, VendorType? vendor) {
+    switch (vendor) {
+      case VendorType.user:
+      case VendorType.company:
+      case null:
+        return switch (index) {
+          0 => const HomePage(),
+          1 => const LawerConsultationsScreen(),
+          2 => const MyAppointmentsScreen(),
+          _ => const ProfileScreen(),
+        };
+      case VendorType.lawyer:
+        return switch (index) {
+          0 => const LawyerHomeScreen(),
+          1 => const LawerConsultationsScreen(),
+          2 => const LawyerAppointmentsScreen(),
+          _ => const LawyerSettingsScreen(),
+        };
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -69,13 +93,8 @@ class _LayoutPageState extends State<LayoutPage> {
     return AppWrapper(
       withSafeArea: true,
       child: Scaffold(
-        body: _selectedIndex == 0
-            ? (getIt<CacheHelper>().cachedVendorType == VendorType.user ? HomePage() : LawyerHomeScreen())
-            : _selectedIndex == 1
-                ? LawerConsultationsScreen()
-                : _selectedIndex == 2
-                    ? (getIt<CacheHelper>().cachedVendorType  == VendorType.user ?  MyAppointmentsScreen() :LawyerAppointmentsScreen())
-                    : getIt<CacheHelper>().cachedVendorType == VendorType.user ? ProfileScreen()  : LawyerSettingsScreen (),
+        body: _bodyForIndex(
+            _selectedIndex, getIt<CacheHelper>().cachedVendorType),
         bottomNavigationBar: Container(
           height: 100.h,
 

@@ -29,6 +29,8 @@ class LawyerDetailsScreen extends StatefulWidget {
 class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  bool _dialogOpen = false;
+  bool _navigatedToPayment = false;
 
   @override
   void initState() {
@@ -48,7 +50,7 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
     final detail = state.selectedLawyerDetail;
     if (detail == null) return;
 
-    context.read<ConsultationApplicationCubit>().selectLawyer(detail);
+    context.read<ConsultationApplicationCubit>().selectLawyerAndLoadDetail(detail);
 
     if (state.selectedConsultationType == ConsultationType.scheduled) {
       Nav.appointmentBookingScreen(context);
@@ -70,18 +72,21 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
         prev.createStatus != curr.createStatus,
         listener: (context, state) {
           if (state.createStatus == ConsultationStatus.loading) {
-            showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (_) => const PopScope(
-                canPop: false,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            );
+            if (!_dialogOpen) {
+              _dialogOpen = true;
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (_) => const PopScope(
+                  canPop: false,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ).then((_) => _dialogOpen = false);
+            }
             return;
           }
 
-          if (Navigator.of(context).canPop()) {
+          if (_dialogOpen && Navigator.of(context).canPop()) {
             Navigator.of(context).pop();
           }
 
@@ -153,8 +158,15 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
             );
 
             Future.delayed(const Duration(milliseconds: 500), () {
-              if (context.mounted) Nav.paymentScreen(context);
+              if (context.mounted && !_navigatedToPayment) {
+                _navigatedToPayment = true;
+                Nav.paymentScreen(context);
+              }
             });
+          }
+
+          if (state.createStatus != ConsultationStatus.success) {
+            _navigatedToPayment = false;
           }
 
           if (state.createStatus == ConsultationStatus.failure) {

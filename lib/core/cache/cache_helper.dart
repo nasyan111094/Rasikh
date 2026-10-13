@@ -636,8 +636,10 @@ class CacheHelper {
     await _ensureInitialized();
 
     currentToken = null;
+    registerToken = null;
 
     currentUser = null;
+    cachedVendorType = null;
 
     await removeData(
       PrefKeys.userToken,
@@ -662,6 +664,10 @@ class CacheHelper {
     await removeData(
       PrefKeys.currentUser,
       isSensitive: true,
+    );
+
+    await removeData(
+      PrefKeys.cachedVendorType,
     );
 
     _logger.i('User session cleared');
@@ -901,28 +907,6 @@ class CacheHelper {
     }
   }
 
-
-  Future<UserProfileData?> _readCachedVendorType() async {
-    try {
-      final encoded = await _readSecureDirect(
-        PrefKeys.currentUser,
-      );
-
-      if (encoded == null) {
-        return null;
-      }
-
-      final decoded = jsonDecode(encoded);
-
-      if (decoded is! Map<String, dynamic>) {
-        return null;
-      }
-
-      return UserProfileData.fromJson(decoded);
-    } catch (_) {
-      return null;
-    }
-  }
 
   // ─────────────────────────────────────────────────────────────────────────
   // Secure Storage Options

@@ -25,10 +25,9 @@ class _ConsultationTypeScreenState extends State<ConsultationTypeScreen> {
   @override
   void initState() {
     super.initState();
-    final cubit = context.read<ConsultationApplicationCubit>();
-    cubit.selectConsultationType(ConsultationType.instant);
-
-
+    // No forced default here: the state constructor already defaults to
+    // instant, and forcing it would wipe the user's choice when
+    // navigating back from a later step.
   }
 
   @override

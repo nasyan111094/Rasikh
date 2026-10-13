@@ -71,6 +71,10 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
       builder: (dialogContext) {
         return StatefulBuilder(builder: (ctx, setDState) {
           timer ??= Timer.periodic(const Duration(seconds: 1), (t) {
+            if (!ctx.mounted) {
+              t.cancel();
+              return;
+            }
             if (secondsLeft > 0) {
               setDState(() => secondsLeft--);
             } else {
@@ -121,7 +125,7 @@ class _PaymentScreenState extends State<PaymentScreen> with WidgetsBindingObserv
           );
         });
       },
-    );
+    ).then((_) => timer?.cancel());
   }
 
   Future<void> _showOrderConfirmedScheduled(BuildContext context) async {

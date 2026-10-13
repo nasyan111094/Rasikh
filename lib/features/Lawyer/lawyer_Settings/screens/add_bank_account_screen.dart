@@ -6,6 +6,8 @@ import 'package:gap/gap.dart';
 import 'package:size_config/size_config.dart';
 import '../../../User/profile/bloc/wallet_cubit.dart';
 import '../../../User/profile/bloc/wallet_state.dart';
+import '../../../User/profile/repo/wallet_repo.dart'
+    show normalizeIban, validateIban;
 
 Future<void> showAddBankAccountDialog(BuildContext context) {
   final cubit = context.read<WalletCubit>();
@@ -42,31 +44,7 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
     super.dispose();
   }
 
-  String? _validateIBAN(String? value) {
-    if (value == null || value.isEmpty) {
-      return Loc.pleaseEnterIban();
-    }
-
-    final cleanValue = value.replaceAll(' ', '').toUpperCase();
-
-    if (cleanValue.length < 24) {
-      return Loc.ibanMinLength();
-    }
-    if (cleanValue.length > 24) {
-      return Loc.ibanMaxLength();
-    }
-
-    if (!cleanValue.startsWith('SA')) {
-      return Loc.ibanMustStartWithSa();
-    }
-
-    final ibanNumbers = cleanValue.substring(2);
-    if (!RegExp(r'^[0-9]+$').hasMatch(ibanNumbers)) {
-      return Loc.ibanDigitsOnlyAfterSa();
-    }
-
-    return null;
-  }
+  String? _validateIBAN(String? value) => validateIban(value);
 
   void _handleAddBankAccount(WalletCubit cubit) {
     if (!_formKey.currentState!.validate()) {
@@ -76,7 +54,7 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
     cubit.addBankAccount(
       bankName: _bankNameController.text.trim(),
       accountHolderName: _accountHolderNameController.text.trim(),
-      iban: _ibanController.text.trim().replaceAll(' ', '').toUpperCase(),
+      iban: normalizeIban(_ibanController.text.trim()),
     );
   }
 
@@ -88,8 +66,10 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
     return BlocProvider.value(
       value: widget.cubit,
       child: BlocListener<WalletCubit, WalletState>(
+        listenWhen: (previous, current) =>
+            previous.addAccountStatus != current.addAccountStatus,
         listener: (context, state) {
-          if (state.bankAccountsStatus == WalletStatus.success &&
+          if (state.addAccountStatus == WalletStatus.success &&
               !_successHandled) {
             _successHandled = true;
             ScaffoldMessenger.of(context).showSnackBar(
@@ -100,12 +80,13 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
               ),
             );
             widget.cubit.getBankAccounts();
+            widget.cubit.resetAddAccount();
             Navigator.pop(context);
-          } else if (state.bankAccountsStatus == WalletStatus.failure) {
+          } else if (state.addAccountStatus == WalletStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content:
-                Text(state.bankAccountsError ?? Loc.addBankAccountFailed()),
+                Text(state.addAccountError ?? Loc.addBankAccountFailed()),
                 backgroundColor: Colors.red,
                 duration: const Duration(seconds: 3),
               ),
@@ -114,7 +95,7 @@ class _AddBankAccountDialogState extends State<AddBankAccountDialog> {
         },
         child: BlocBuilder<WalletCubit, WalletState>(
           builder: (context, state) {
-            final isLoading = state.bankAccountsStatus == WalletStatus.loading;
+            final isLoading = state.addAccountStatus == WalletStatus.loading;
 
             return Dialog(
               shape: RoundedRectangleBorder(

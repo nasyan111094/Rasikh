@@ -5,19 +5,36 @@ import 'package:size_config/size_config.dart';
 
 Future<void> showCallSummaryDialog(
     BuildContext context, {
-      required void Function(String summary) onSubmit, required Future<Null> Function() onSkip,
+      required void Function(String summary) onSubmit,
+      required Future<Null> Function() onSkip,
+      bool noShowEligible = false,
+      void Function(String summary)? onSubmitNoShow,
     }) {
   return showDialog(
     context: context,
     barrierDismissible: false,
-    builder: (_) => _CallSummaryDialog(onSubmit: onSubmit),
+    builder: (_) => _CallSummaryDialog(
+      onSubmit: onSubmit,
+      onSkip: onSkip,
+      noShowEligible: noShowEligible,
+      onSubmitNoShow: onSubmitNoShow,
+    ),
   );
 }
 
 class _CallSummaryDialog extends StatefulWidget {
-  const _CallSummaryDialog({Key? key, required this.onSubmit}) : super(key: key);
+  const _CallSummaryDialog({
+    Key? key,
+    required this.onSubmit,
+    required this.onSkip,
+    this.noShowEligible = false,
+    this.onSubmitNoShow,
+  }) : super(key: key);
 
   final void Function(String summary) onSubmit;
+  final Future<Null> Function() onSkip;
+  final bool noShowEligible;
+  final void Function(String summary)? onSubmitNoShow;
 
   @override
   State<_CallSummaryDialog> createState() => _CallSummaryDialogState();
@@ -29,6 +46,7 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
   late final Animation<Offset> _offsetAnimation;
   late final Animation<double> _scaleAnimation;
   final _textController = TextEditingController();
+  bool _busy = false;
 
   @override
   void initState() {
@@ -58,10 +76,10 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
     super.dispose();
   }
 
-  void _onSend() {
+  bool _validateSummary() {
     final summary = _textController.text.trim();
 
-    if (summary.isEmpty) return;
+    if (summary.isEmpty) return false;
 
     if (summary.length < 50) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -69,11 +87,37 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
           content: Text(Loc.callSummaryMinLength()),
         ),
       );
-      return;
+      return false;
     }
+    return true;
+  }
 
+  void _onSend() {
+    if (!_validateSummary()) return;
+
+    final summary = _textController.text.trim();
     Navigator.of(context).pop();
     widget.onSubmit(summary);
+  }
+
+  void _onSendNoShow() {
+    if (!_validateSummary()) return;
+
+    final summary = _textController.text.trim();
+    Navigator.of(context).pop();
+    if (widget.onSubmitNoShow != null) {
+      widget.onSubmitNoShow!(summary);
+    } else {
+      widget.onSubmit(summary);
+    }
+  }
+
+  Future<void> _onSkipPressed() async {
+    if (_busy) return;
+    _busy = true;
+    // X / Cancel must end-or-skip the session via onSkip (which navigates
+    // away itself), never a bare pop while the session is alive.
+    await widget.onSkip();
   }
 
   @override
@@ -119,7 +163,7 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                             Icons.close,
                             color: cs.onSurface.withOpacity(.6),
                           ),
-                          onPressed: () => Navigator.of(context).pop(),
+                          onPressed: _onSkipPressed,
                         ),
                       ),
 
@@ -196,7 +240,7 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                         children: [
                           Expanded(
                             child: OutlinedButton(
-                              onPressed: () => Navigator.of(context).pop(),
+                              onPressed: _onSkipPressed,
                               style: OutlinedButton.styleFrom(
                                 minimumSize: Size.fromHeight(46.h),
                                 shape: RoundedRectangleBorder(
@@ -240,6 +284,25 @@ class _CallSummaryDialogState extends State<_CallSummaryDialog>
                           ),
                         ],
                       ),
+
+                      if (widget.noShowEligible) ...[
+                        SizedBox(height: 10.h),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: _onSendNoShow,
+                            child: Text(
+                              // TODO(l10n): add noShow key
+                              'إنهاء كتخلف عن الحضور',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: cs.error,
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

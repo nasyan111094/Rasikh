@@ -108,7 +108,8 @@ class ConnectingToLawyerCubit extends Cubit<ConnectingToLawyerState> {
         },
       );
     } else {
-      final result = await _videoRepo.fetchSession(_consultationId, null);
+      final result = await _videoRepo.fetchSession(
+          _consultationId, _consultationType.value);
       result.fold(
             (l) => error = l,
             (session) {

@@ -25,6 +25,11 @@ class WalletState extends Equatable {
   final List<BankAccountModel> bankAccounts;
   final String? bankAccountsError;
 
+  // ── Add bank account (dedicated so background getBankAccounts refreshes
+  // don't trigger add-dialog success handling) ──────────────────────────────
+  final WalletStatus addAccountStatus;
+  final String? addAccountError;
+
   // ── Top-up ─────────────────────────────────────────────────────────────────
   final WalletStatus topupStatus;
   final TopupResponseModel? topupResponse;
@@ -71,6 +76,10 @@ class WalletState extends Equatable {
     this.bankAccounts = const [],
     this.bankAccountsError,
 
+    // Add bank account
+    this.addAccountStatus = WalletStatus.initial,
+    this.addAccountError,
+
     // Top-up
     this.topupStatus = WalletStatus.initial,
     this.topupResponse,
@@ -116,6 +125,10 @@ class WalletState extends Equatable {
     List<BankAccountModel>? bankAccounts,
     String? bankAccountsError,
 
+    // Add bank account
+    WalletStatus? addAccountStatus,
+    String? addAccountError,
+
     // Top-up
     WalletStatus? topupStatus,
     TopupResponseModel? topupResponse,
@@ -158,6 +171,9 @@ class WalletState extends Equatable {
       bankAccounts: bankAccounts ?? this.bankAccounts,
       bankAccountsError: bankAccountsError ?? this.bankAccountsError,
 
+      addAccountStatus: addAccountStatus ?? this.addAccountStatus,
+      addAccountError: addAccountError ?? this.addAccountError,
+
       topupStatus: topupStatus ?? this.topupStatus,
       topupResponse: topupResponse ?? this.topupResponse,
       topupError: topupError ?? this.topupError,
@@ -197,6 +213,8 @@ class WalletState extends Equatable {
         bankAccountsStatus,
         bankAccounts,
         bankAccountsError,
+        addAccountStatus,
+        addAccountError,
         topupStatus,
         topupResponse,
         topupError,

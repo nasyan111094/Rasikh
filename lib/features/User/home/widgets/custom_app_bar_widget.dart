@@ -2,6 +2,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/config/theme/colors.dart';
 import 'package:rasikh/features/common/notifications/notifications_screen.dart';
 import 'package:size_config/size_config.dart';
@@ -104,7 +105,7 @@ class CustomAppBar<C extends StateStreamable<S>, S>
                                 ? Image.network(
                               avatarPath.startsWith('http')
                                   ? avatarPath
-                                  : 'http://89.117.60.202:3050$avatarPath',
+                                  : '${AppConfig.baseImgUrl}$avatarPath',
                               fit: BoxFit.cover,
                             )
                                 : Image.asset(
@@ -176,16 +177,20 @@ class CustomAppBar<C extends StateStreamable<S>, S>
 
             Gap(10.w),
 
-            BlocProvider(
-              create: (_) {
-                final cubit = getIt<NotificationBadgeCubit>();
-                if (getIt<CacheHelper>().currentToken != null) {
-                  cubit.fetchUnreadCount();
-                }
-                return cubit;
-              },
+            BlocProvider.value(
+              value: getIt<NotificationBadgeCubit>(),
               child: Builder(
                 builder: (badgeContext) {
+                  // Initial fetch only (state persists on the getIt singleton).
+                  // .value must be used for singletons — create would close()
+                  // the shared instance on unmount.
+                  if (badgeContext.read<NotificationBadgeCubit>().state
+                          is NotificationBadgeInitial &&
+                      getIt<CacheHelper>().currentToken != null) {
+                    badgeContext
+                        .read<NotificationBadgeCubit>()
+                        .fetchUnreadCount();
+                  }
                   return MyCustomIconsWidget(
                     backGround: Colors.transparent,
                     height: 40.h,

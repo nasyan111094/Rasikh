@@ -20,6 +20,8 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
   int _currentPage = 1;
   bool _hasMorePages = false;
   bool _isPaginating = false;
+  // Guards against stale paginate responses racing with applyFilter.
+  int _fetchToken = 0;
 
 
   ConsultationStatus get selectedStatus => currentSelectedStatus;
@@ -33,6 +35,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
 
     _currentPage = 1;
     _consultations = [];
+    final token = ++_fetchToken;
 
     emit(const ConsultationsLoading());
 
@@ -40,6 +43,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
       page: _currentPage,
       status: currentSelectedStatus,
     );
+    if (token != _fetchToken) return; // stale response ignored
 
     result.fold(
           (error) => emit(
@@ -99,6 +103,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
       page: _currentPage,
       status: currentSelectedStatus,
     );
+    final token = _fetchToken;
 
     result.fold(
           (error) {
@@ -111,6 +116,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
         ));
       },
           (model) {
+        if (token != _fetchToken) return; // stale paginate ignored
         _consultations = [..._consultations, ...model.consultations];
         _hasMorePages = model.hasMorePages;
         emit(ConsultationsLoaded(

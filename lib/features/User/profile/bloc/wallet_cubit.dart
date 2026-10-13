@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/wallet_models.dart';
 import '../repo/wallet_repo.dart';
@@ -13,6 +14,11 @@ class WalletCubit extends Cubit<WalletState> {
   WalletCubit(this._repo) : super(const WalletState());
 
   final WalletRepo _repo;
+
+  /// Stable idempotency keys, generated once per user action and reused
+  /// if the same attempt is retried.
+  String? _topupIdempotencyKey;
+  String? _withdrawalIdempotencyKey;
 
   // ── Wallet ─────────────────────────────────────────────────────────────────
 
@@ -63,9 +69,10 @@ class WalletCubit extends Cubit<WalletState> {
     required String accountHolderName,
     required String iban,
   }) async {
+    if (state.addAccountStatus == WalletStatus.loading) return;
     emit(state.copyWith(
-      bankAccountsStatus: WalletStatus.loading,
-      bankAccountsError: null,
+      addAccountStatus: WalletStatus.loading,
+      addAccountError: null,
     ));
 
     final result = await _repo.addBankAccount(
@@ -76,17 +83,25 @@ class WalletCubit extends Cubit<WalletState> {
 
     result.fold(
       (error) => emit(state.copyWith(
-        bankAccountsStatus: WalletStatus.failure,
-        bankAccountsError: error,
+        addAccountStatus: WalletStatus.failure,
+        addAccountError: error,
       )),
       (account) {
         final updatedAccounts = [...state.bankAccounts, account];
         emit(state.copyWith(
+          addAccountStatus: WalletStatus.success,
           bankAccountsStatus: WalletStatus.success,
           bankAccounts: updatedAccounts,
         ));
       },
     );
+  }
+
+  void resetAddAccount() {
+    emit(state.copyWith(
+      addAccountStatus: WalletStatus.initial,
+      addAccountError: null,
+    ));
   }
 
   Future<void> deleteBankAccount({required String id}) async {
@@ -201,12 +216,17 @@ class WalletCubit extends Cubit<WalletState> {
   }
 
   Future<void> initiateTopup({required double amount}) async {
+    if (state.topupStatus == WalletStatus.loading) return;
+    _topupIdempotencyKey ??= const Uuid().v4();
     emit(state.copyWith(
       topupStatus: WalletStatus.loading,
       topupError: null,
     ));
 
-    final result = await _repo.initiateTopup(amount: amount);
+    final result = await _repo.initiateTopup(
+      amount: amount,
+      idempotencyKey: _topupIdempotencyKey,
+    );
 
     result.fold(
       (error) => emit(state.copyWith(
@@ -346,6 +366,8 @@ class WalletCubit extends Cubit<WalletState> {
     required double amount,
     required String bankAccountId,
   }) async {
+    if (state.withdrawalRequestStatus == WalletStatus.loading) return;
+    _withdrawalIdempotencyKey ??= const Uuid().v4();
     emit(state.copyWith(
       withdrawalRequestStatus: WalletStatus.loading,
       withdrawalRequestError: null,
@@ -354,6 +376,7 @@ class WalletCubit extends Cubit<WalletState> {
     final result = await _repo.createWithdrawal(
       amount: amount,
       bankAccountId: bankAccountId,
+      idempotencyKey: _withdrawalIdempotencyKey,
     );
 
     String? errorMessage;
@@ -407,6 +430,7 @@ class WalletCubit extends Cubit<WalletState> {
   // ── Reset ─────────────────────────────────────────────────────────────────
 
   void resetTopup() {
+    _topupIdempotencyKey = null;
     emit(state.copyWith(
       topupStatus: WalletStatus.initial,
       topupResponse: null,
@@ -415,6 +439,7 @@ class WalletCubit extends Cubit<WalletState> {
   }
 
   void resetWithdrawalRequest() {
+    _withdrawalIdempotencyKey = null;
     emit(state.copyWith(
       withdrawalRequestStatus: WalletStatus.initial,
       withdrawalRequest: null,

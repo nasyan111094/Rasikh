@@ -9,7 +9,7 @@ import '../../../../core/get_it_service/get_it_service.dart';
 import '../../../../core/utils/api/api_handler.dart';
 import '../../../../features/Lawyer/lawyer_Settings/bloc/Profile_cubit/lawyer_cubit.dart';
 import '../../../../features/User/profile/cubit/profile_cubit.dart';
-import '../models/auth_model.dart';
+import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 
 
 class _AuthEndpoints {
@@ -39,7 +39,7 @@ class GeneralAuthRepo {
   }) async {
     final result = await _adapter.post(
       _AuthEndpoints.register(vendor),
-      body: {'phone': '+966$phone'},
+      body: {'phone': normalizeSaudiPhone(phone)},
     );
     if (result.isRight) {
       return Right(SharedOtpSentModel.fromJson(result.right.data));
@@ -54,7 +54,7 @@ class GeneralAuthRepo {
   }) async {
     final result = await _adapter.post(
       _AuthEndpoints.login(vendor),
-      body: {'phone': '+966$phone'},
+      body: {'phone': normalizeSaudiPhone(phone)},
     );
     if (result.isRight) {
 
@@ -75,7 +75,7 @@ class GeneralAuthRepo {
     final result = await _adapter.post(
       _AuthEndpoints.verifyOtp(vendor),
       body: {
-        'phone': '+966$phone',
+        'phone': normalizeSaudiPhone(phone),
         'code': code,
       },
     );
@@ -99,8 +99,24 @@ class GeneralAuthRepo {
       }
       
       _cache.registerToken = model.accessToken;
-      await _cache.setUserToken(model.accessToken);
-      
+
+      // Only promote to a full session when the profile is already
+      // completed (login flow). During registration the token stays in
+      // registerToken until completeProfile finishes (it authenticates
+      // via the registerToken fallback in ApiHandler).
+      final profileCompleted = switch (vendor) {
+        VendorType.user => model.client.profileCompleted,
+        VendorType.lawyer => model.lawyer.profileCompleted,
+        // Verify-OTP response carries no company snapshot; fall back to
+        // the client snapshot. TODO: use a dedicated company flag.
+        VendorType.company => model.client.profileCompleted,
+      };
+      if (profileCompleted) {
+        await _cache.setUserToken(model.accessToken);
+      }
+      // Refresh token is valid in both flows; keep it whenever present so
+      // a fresh registrant can still refresh after completeProfile
+      // promotes the access token below.
       if (model.refreshToken.isNotEmpty) {
         await _cache.setRefreshToken(model.refreshToken);
       }
@@ -121,11 +137,11 @@ class GeneralAuthRepo {
     final result = isRegister
         ? await _adapter.post(
       _AuthEndpoints.register(vendor),
-      body: {'phone': '+966$phone'},
+      body: {'phone': normalizeSaudiPhone(phone)},
     )
         : await _adapter.post(
       _AuthEndpoints.login(vendor),
-      body: {'phone': '+966$phone'},
+      body: {'phone': normalizeSaudiPhone(phone)},
     );
 
     if (result.isRight) {
@@ -166,4 +182,23 @@ class GeneralAuthRepo {
     }
     return Left(_extractError(result.left));
   }
+}
+
+/// Normalizes a Saudi phone number to E.164 (`+966XXXXXXXXX`).
+///
+/// Strips any pre-existing `+966`/`966` prefix, whitespace/dashes and a
+/// leading `0`, so passing an already-prefixed number never produces a
+/// duplicate prefix. The server expects the `+966` prefix (all OTP
+/// endpoints historically sent `'+966$phone'`).
+String normalizeSaudiPhone(String phone) {
+  var digits = phone.trim().replaceAll(RegExp(r'[\s\-()]'), '');
+  if (digits.startsWith('+')) digits = digits.substring(1);
+  if (digits.startsWith('00966')) {
+    digits = digits.substring(5);
+  } else if (digits.startsWith('966')) {
+    digits = digits.substring(3);
+  }
+  if (digits.startsWith('0')) digits = digits.substring(1);
+  digits = digits.replaceAll(RegExp(r'[^0-9]'), '');
+  return '+966$digits';
 }

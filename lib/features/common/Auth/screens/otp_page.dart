@@ -321,22 +321,40 @@ class _OtpPageState extends State<OtpPage> {
 
 
   String _maskPhone(String phone) {
-    if (phone.length < 4) return '+966$phone';
-    final suffix  = phone.substring(phone.length - 2);
-    final stars   = '*' * (phone.length - 2);
-    return '$suffix$stars\966';
+    final digits = phone.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length < 4) return '+966$phone';
+    final suffix = digits.substring(digits.length - 2);
+    return '+966 **** **$suffix';
   }
 
 
   void _handleState(BuildContext context, AuthState state) {
     if (!mounted) return;
-    
+
     if (state.verifyOtpStatus == RequestStatus.success) {
-      final profileCompleted = state.verifyOtpModel!.lawyer.profileCompleted;
+      _cubit.cancelTimer();
+      final vendor = getIt<CacheHelper>().cachedVendorType;
+      if (vendor == null) {
+        SnackBarBuilder.showFeedBackMessage(
+          context,
+          Loc.unexpectedError(),
+          isSuccess: false,
+        );
+        _cubit.resetVerifyOtpState();
+        return;
+      }
+      final model = state.verifyOtpModel!;
+      final profileCompleted = switch (vendor) {
+        VendorType.user => model.client.profileCompleted,
+        VendorType.lawyer => model.lawyer.profileCompleted,
+        // Verify-OTP response carries no company snapshot; fall back to
+        // the client snapshot. TODO: use a dedicated company flag.
+        VendorType.company => model.client.profileCompleted,
+      };
       if (state.isRegister && !profileCompleted) {
         Nav.vendorCompletion(
           context,
-          vendor: getIt<CacheHelper>().cachedVendorType!,
+          vendor: vendor,
         );
       }
       else {

@@ -22,15 +22,56 @@ class TopUpWalletScreen extends StatefulWidget {
   State<TopUpWalletScreen> createState() => _TopUpWalletScreenState();
 }
 
-class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
+class _TopUpWalletScreenState extends State<TopUpWalletScreen>
+    with WidgetsBindingObserver {
   final TextEditingController _amountController = TextEditingController();
   TopupLimitsModel? _topupLimits;
 
+  /// Resume-check pattern (mirrors payment_screen): after launching the
+  /// external payment URL, refresh the wallet when the app resumes.
+  bool _hasOpenedPaymentUrl = false;
+  bool _isCheckingAfterResume = false;
+
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _amountController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed &&
+        _hasOpenedPaymentUrl &&
+        !_isCheckingAfterResume) {
+      _checkWalletAfterResume();
+    }
+  }
+
+  Future<void> _checkWalletAfterResume() async {
+    if (_isCheckingAfterResume || !mounted) return;
+    _isCheckingAfterResume = true;
+    try {
+      await context.read<WalletCubit>().getWallet();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingAfterResume = false;
+          _hasOpenedPaymentUrl = false;
+        });
+      } else {
+        _isCheckingAfterResume = false;
+        _hasOpenedPaymentUrl = false;
+      }
+    }
   }
 
   void _handleTopUp(WalletCubit cubit, WalletState state) {
@@ -50,19 +91,34 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
       return;
     }
 
-    if (_topupLimits != null) {
-      if (amount < _topupLimits!.minSar) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Loc.minimumDepositIs(_topupLimits!.minSar.toStringAsFixed(2)))),
-        );
-        return;
-      }
-      if (amount > _topupLimits!.maxSar) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(Loc.maximumDepositIs(_topupLimits!.maxSar.toStringAsFixed(2)))),
-        );
-        return;
-      }
+    // Block submit when limits are unavailable — never skip validation
+    // silently. The error banner below offers a retry.
+    if (state.topupLimitsStatus == WalletStatus.failure) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                state.topupLimitsError ?? Loc.depositRequestFailed())),
+      );
+      return;
+    }
+    if (_topupLimits == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.loadingLimits())),
+      );
+      return;
+    }
+
+    if (amount < _topupLimits!.minSar) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.minimumDepositIs(_topupLimits!.minSar.toStringAsFixed(2)))),
+      );
+      return;
+    }
+    if (amount > _topupLimits!.maxSar) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.maximumDepositIs(_topupLimits!.maxSar.toStringAsFixed(2)))),
+      );
+      return;
     }
 
     cubit.initiateTopup(amount: amount);
@@ -71,8 +127,14 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
   Future<void> _handlePaymentUrl(String paymentUrl) async {
     final uri = Uri.parse(paymentUrl);
     if (await canLaunchUrl(uri)) {
+      if (mounted) {
+        setState(() => _hasOpenedPaymentUrl = true);
+      } else {
+        _hasOpenedPaymentUrl = true;
+      }
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(Loc.unableToOpenPaymentLink())),
       );
@@ -166,6 +228,43 @@ class _TopUpWalletScreenState extends State<TopUpWalletScreen> {
                           ],
                         ),
                       ),
+
+                      if (state.topupLimitsStatus == WalletStatus.failure)
+                        Padding(
+                          padding: EdgeInsets.only(top: 12.h),
+                          child: Container(
+                            padding: EdgeInsets.all(12.w),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(8.h),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline,
+                                  color: Colors.red,
+                                  size: 20,
+                                ),
+                                Gap(8.w),
+                                Expanded(
+                                  child: Text(
+                                    state.topupLimitsError ??
+                                        Loc.depositRequestFailed(),
+                                    style: textTheme.bodySmall?.copyWith(
+                                      color: Colors.red.shade700,
+                                    ),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: () => context
+                                      .read<WalletCubit>()
+                                      .getTopupLimits(),
+                                  child: Text(Loc.retryAgain()),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
 
                       Gap(40.h),
 

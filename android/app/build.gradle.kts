@@ -15,7 +15,8 @@ if (keystorePropertiesFile.exists()) {
 android {
     namespace = "com.rasikh.rasikh_smart"
     compileSdk = 36
-    ndkVersion = "27.0.12077973"
+    // NDK r28+: required for 16 KB page-size support (Play requirement).
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -32,9 +33,12 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 24
-        targetSdk = 35
-        versionCode = 2
-        versionName = "1.0.2"
+        // Play requires targetSdk 36+ for updates.
+        targetSdk = 36
+        // Version comes from pubspec.yaml (flutter.versionCode/versionName).
+        // Keep them in sync there for every Play Store release.
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     signingConfigs {

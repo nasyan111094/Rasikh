@@ -5,8 +5,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
-
-import '../models/auth_model.dart';
+import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 import '../repo/auth_repo.dart';
 import 'auth_state.dart';
 
@@ -16,6 +15,19 @@ class AuthCubit extends Cubit<AuthState> {
   AuthCubit(this._repo) : super(const AuthState());
 
   Timer? _timer;
+
+  /// Returns the selected vendor, or emits a clear error when none was
+  /// chosen yet (e.g. account-type step skipped) instead of crashing on `!`.
+  VendorType? _requireVendor() {
+    final vendor = getIt<CacheHelper>().cachedVendorType;
+    if (vendor == null) {
+      emit(state.copyWith(
+        sendOtpStatus: RequestStatus.error,
+        errorMessage: Loc.unexpectedError(),
+      ));
+    }
+    return vendor;
+  }
 
 
   Future<void> login({required String phone}) async {
@@ -27,6 +39,9 @@ class AuthCubit extends Cubit<AuthState> {
       return;
     }
 
+    final vendor = _requireVendor();
+    if (vendor == null) return;
+
     emit(state.copyWith(
       sendOtpStatus: RequestStatus.loading,
       errorMessage:  '',
@@ -35,7 +50,7 @@ class AuthCubit extends Cubit<AuthState> {
 
     final result = await _repo.login(
       phone:  phone,
-      vendor: getIt<CacheHelper>().cachedVendorType!,
+      vendor: vendor,
     );
 
     result.fold(
@@ -61,6 +76,9 @@ class AuthCubit extends Cubit<AuthState> {
       return;
     }
 
+    final vendor = _requireVendor();
+    if (vendor == null) return;
+
     emit(state.copyWith(
       sendOtpStatus: RequestStatus.loading,
       errorMessage:  '',
@@ -69,7 +87,7 @@ class AuthCubit extends Cubit<AuthState> {
 
     final result = await _repo.register(
       phone:  phone,
-      vendor: getIt<CacheHelper>().cachedVendorType!,
+      vendor: vendor,
     );
 
     result.fold(
@@ -103,10 +121,19 @@ class AuthCubit extends Cubit<AuthState> {
       errorMessage:    '',
     ));
 
+    final vendor = getIt<CacheHelper>().cachedVendorType;
+    if (vendor == null) {
+      emit(state.copyWith(
+        verifyOtpStatus: RequestStatus.error,
+        errorMessage:    Loc.unexpectedError(),
+      ));
+      return;
+    }
+
     final result = await _repo.verifyOtp(
       phone:  phone,
       code:   code,
-      vendor: getIt<CacheHelper>().cachedVendorType!,
+      vendor: vendor,
     );
 
     result.fold(
@@ -123,11 +150,25 @@ class AuthCubit extends Cubit<AuthState> {
 
 
   Future<void> resendOtp({required String phone}) async {
+    // Guard: ignore taps while the cooldown timer is still running.
+    if (!state.canResend || state.resendOtpStatus == RequestStatus.loading) {
+      return;
+    }
+
+    final vendor = getIt<CacheHelper>().cachedVendorType;
+    if (vendor == null) {
+      emit(state.copyWith(
+        resendOtpStatus: RequestStatus.error,
+        errorMessage:    Loc.unexpectedError(),
+      ));
+      return;
+    }
+
     emit(state.copyWith(resendOtpStatus: RequestStatus.loading));
 
     final result = await _repo.resendOtp(
       phone:      phone,
-      vendor:     getIt<CacheHelper>().cachedVendorType!,
+      vendor:     vendor,
       isRegister: state.isRegister,
     );
 
@@ -165,6 +206,13 @@ class AuthCubit extends Cubit<AuthState> {
   void resetVerifyOtpState() => emit(state.resetVerifyOtp());
   void resetResendOtpState() => emit(state.resetResendOtp());
   void clearErrors()         => emit(state.copyWith(errorMessage: ''));
+
+  /// Stops the resend cooldown (e.g. after a successful verification so a
+  /// stale timer can't keep emitting into a dead page).
+  void cancelTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
 
   @override
   Future<void> close() {

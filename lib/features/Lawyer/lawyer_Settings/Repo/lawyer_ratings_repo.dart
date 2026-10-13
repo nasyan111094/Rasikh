@@ -59,7 +59,6 @@ class LawyerRatingsRepo {
         ratingJson = data as Map<String, dynamic>;
       }
       
-      print('DEBUG: getRatingById parsed data: $ratingJson');
       return Right(RatingDetailModel.fromJson(ratingJson));
     }
     return Left(_extractError(result.left));

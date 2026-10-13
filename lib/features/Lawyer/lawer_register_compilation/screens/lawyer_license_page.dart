@@ -38,6 +38,18 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
   File? _commercialRegFile;
 
   bool _isCompany = false;
+  DateTime? _licenseExpiryDate;
+
+  Future<void> _pickExpiryDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _licenseExpiryDate ?? now,
+      firstDate: DateTime(now.year - 20),
+      lastDate: DateTime(now.year + 30),
+    );
+    if (picked != null) setState(() => _licenseExpiryDate = picked);
+  }
 
   @override
   void initState() {
@@ -192,6 +204,25 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
 
                           Gap(30.h),
 
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  // TODO(l10n): add Loc key for license expiry label
+                                  _licenseExpiryDate == null
+                                      ? 'تاريخ انتهاء الرخصة *'
+                                      : '${_licenseExpiryDate!.day}/${_licenseExpiryDate!.month}/${_licenseExpiryDate!.year}',
+                                  style: theme.textTheme.bodyMedium,
+                                  textAlign: TextAlign.right,
+                                ),
+                              ),
+                              Gap(8.w),
+                              OutlinedButton(
+                                onPressed: _pickExpiryDate,
+                                child: Text(Loc.pleaseSelectDate()),
+                              ),
+                            ],
+                          ),
 
                           Gap(24.h),
 
@@ -293,11 +324,22 @@ strokeWidth: 2,
                       return;
                     }
                     if (_formKey.currentState!.validate()) {
+                      if (_licenseExpiryDate == null ||
+                          !_licenseExpiryDate!.isAfter(DateTime.now())) {
+                        SnackBarBuilder.showFeedBackMessage(
+                          context,
+                          // TODO(l10n): add Loc key for expired license date
+                          'تاريخ انتهاء الرخصة يجب أن يكون في المستقبل',
+                          isSuccess: false,
+                        );
+                        return;
+                      }
                       _cubit.saveLicenseInfo(
                         licenseImage:                   _licenseImageFile,
                         nationalIdDocument:             _nationalIdFile,
                         commercialRegistrationDocument: _commercialRegFile,
                         isCompany:                      _isCompany,
+                        licenseExpiryDate:              _licenseExpiryDate,
                       );
                       Nav.qualificationsSExperienceScreen(context);
                     }

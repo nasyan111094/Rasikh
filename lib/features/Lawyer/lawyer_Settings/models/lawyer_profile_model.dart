@@ -287,11 +287,13 @@ class UpdateProfileRequest {
   });
 
   Map<String, String> toFormFields() {
+    // Explicit clearing: a non-null (even empty) value is sent so the user
+    // can clear a field; null means untouched and is omitted.
     final map = <String, String>{};
-    if (fullName != null && fullName!.isNotEmpty) map['fullName'] = fullName!;
-    if (email != null && email!.isNotEmpty) map['email'] = email!;
-    if (city != null && city!.isNotEmpty) map['city'] = city!;
-    if (bio != null && bio!.isNotEmpty) map['bio'] = bio!;
+    if (fullName != null) map['fullName'] = fullName!;
+    if (email != null) map['email'] = email!;
+    if (city != null) map['city'] = city!;
+    if (bio != null) map['bio'] = bio!;
     if (experienceYears != null) {
       map['experienceYears'] = experienceYears.toString();
     }
@@ -339,14 +341,26 @@ class UpdateLicenceRequest {
 class ChangePhoneRequestModel {
   final String phone;
   const ChangePhoneRequestModel({required this.phone});
-  Map<String, dynamic> toJson() => {'phone': '+966$phone'};
+  Map<String, dynamic> toJson() => {'phone': _withPrefix(phone)};
 }
 
 class ChangePhoneVerifyModel {
   final String phone;
   final String code;
   const ChangePhoneVerifyModel({required this.phone, required this.code});
-  Map<String, dynamic> toJson() => {'phone': '+966$phone', 'code': code};
+  Map<String, dynamic> toJson() => {'phone': _withPrefix(phone), 'code': code};
+}
+
+/// Strips any existing +966/966/leading-0 then prepends +966 once.
+String _withPrefix(String phone) {
+  var p = phone.trim();
+  if (p.startsWith('+966')) {
+    p = p.substring(4);
+  } else if (p.startsWith('966')) {
+    p = p.substring(3);
+  }
+  if (p.startsWith('0')) p = p.substring(1);
+  return '+966$p';
 }
 
 class ChangePhoneResponseModel {

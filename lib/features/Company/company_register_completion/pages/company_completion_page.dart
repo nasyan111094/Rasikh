@@ -32,7 +32,13 @@ class _CompanyCompletionPageState extends State<CompanyCompletionPage> {
   @override
   void initState() {
     super.initState();
-    _cubit = getIt<CompanyCompletionCubit>();
+    _cubit = getIt<CompanyCompletionCubit>()..reset();
+  }
+
+  @override
+  void dispose() {
+    _cubit.reset();
+    super.dispose();
   }
 
   @override

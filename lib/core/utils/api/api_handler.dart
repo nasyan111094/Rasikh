@@ -142,16 +142,13 @@ class ApiHandler {
       'unauthor',
       'unauthen',
       'expired',
-      'session',
       'authenticate',
       'login again',
-      'انتهت',
-      'منتهي',
-      'تسجيل الدخول',
+      // Intentionally narrow: only explicit token/session-expiry wording
+      // counts as an auth error (broad Arabic words removed to avoid
+      // treating validation 400s as session expiry).
+      'انتهت صلاحية',
       'غير مصرح',
-      'غير مسموح',
-      'رمز',
-      'الجلسة',
     ];
     for (final s in signals) {
       if (text.contains(s)) return true;
@@ -203,7 +200,7 @@ class ApiHandler {
         return false;
       }
 
-      final refreshEither = await GeneralAuthRepo()
+      final refreshEither = await getIt<GeneralAuthRepo>()
           .refreshToken(refreshToken: refreshToken, vendor: vendorType)
           .timeout(
             const Duration(seconds: 10),
@@ -240,7 +237,16 @@ class ApiHandler {
 
     if (!_logoutNavigated) {
       _logoutNavigated = true;
+      // Capture UI handles before any async gap.
+      final messenger =
+          Nav.mainNavKey.currentContext != null
+              ? ScaffoldMessenger.of(Nav.mainNavKey.currentContext!)
+              : null;
       try {
+        // Inform the user before leaving the screen.
+        messenger?.showSnackBar(
+          SnackBar(content: Text(Loc.sessionExpiredPleaseLogin())),
+        );
         await Nav.mainNavKey.currentState?.pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (_) => const AccountTypeScreen(),
@@ -249,6 +255,7 @@ class ApiHandler {
         );
       } catch (_) {
       }
+      // Reset only after navigation completes (2s fallback).
       Future.delayed(
         const Duration(seconds: 2),
         () => _logoutNavigated = false,
@@ -285,7 +292,11 @@ class ApiHandler {
 
   Future<Response> _retryRequest(RequestOptions requestOptions) async {
     final dio = Dio();
-    dio.options.baseUrl = AppConfig.baseUrl;
+    // Absolute URLs are requested as-is; only relative paths resolve
+    // against the API base URL (avoids double-prefixing).
+    if (!requestOptions.path.startsWith('http')) {
+      dio.options.baseUrl = AppConfig.baseUrl;
+    }
     dio.options.connectTimeout = const Duration(seconds: 30);
     dio.options.receiveTimeout = const Duration(seconds: 30);
 

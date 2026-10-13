@@ -11,6 +11,8 @@ import 'video_call_state.dart';
 
 const int _kMaxReconnectAttempts = 3;
 const Duration _kPollInterval = Duration(seconds: 10);
+const Duration _kMaxWaitDuration = Duration(minutes: 3);
+const int _kMaxTokenRenewFailures = 3;
 
 class VideoCallCubit extends Cubit<VideoCallState> {
   VideoCallCubit({
@@ -36,6 +38,9 @@ class VideoCallCubit extends Cubit<VideoCallState> {
   RtcEngine? _engine;
   Timer? _pollTimer;
   Timer? _localTimer;
+  Timer? _timeoutTimer;
+  Timer? _rtcTokenRenewTimer;
+  int _rtcRenewFailures = 0;
 
   int? _localRemainingSeconds;
 
@@ -53,10 +58,29 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
   void _emitError(String message) {
     if (isClosed) return;
+    _stopPolling();
     _emitKeepingTimer(state.copyWith(
       phase: VideoCallPhase.error,
       errorMessage: message,
     ));
+  }
+
+  void _stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _timeoutTimer?.cancel();
+    _timeoutTimer = null;
+  }
+
+  void _resyncTimerIfDrifted(int? serverSeconds) {
+    if (!_timerStarted) return;
+    if (serverSeconds == null || serverSeconds < 0) return;
+    final local = _localRemainingSeconds;
+    if (local == null) return;
+    if ((serverSeconds - local).abs() > 5) {
+      _localRemainingSeconds = serverSeconds;
+      if (!isClosed) emit(state.copyWith(remainingSeconds: serverSeconds));
+    }
   }
 
 
@@ -83,6 +107,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
       if (current <= 0) {
         _localTimer?.cancel();
         _localTimer = null;
+        _stopPolling();
         if (!isClosed) {
           emit(state.copyWith(
             remainingSeconds: 0,
@@ -166,6 +191,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
         emit(state.copyWith(
           lawyerId: initialSession.lawyerId ?? state.lawyerId,
           clientId: initialSession.clientId ?? state.clientId,
+          canLawyerEndAsNoShow: initialSession.canLawyerEndAsNoShow,
         ));
       }
     }
@@ -181,6 +207,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
     final rtcToken = tokenResult.fold((l) => null, (r) => r)!;
     _emitKeepingTimer(state.copyWith(rtcToken: rtcToken));
+    _scheduleRtcRenewal(rtcToken.expiresAt);
 
     final agoraReady = await _initAgora(rtcToken);
     if (!agoraReady) return;
@@ -338,9 +365,16 @@ class VideoCallCubit extends Cubit<VideoCallState> {
         if (isClosed) return;
         final result = await _repo.fetchRtcToken(_consultationId);
         result.fold(
-              (_) {},
+              (_) {
+            _rtcRenewFailures++;
+            if (_rtcRenewFailures >= _kMaxTokenRenewFailures) {
+              _emitError(Loc.renewCallTokenFailed());
+            }
+          },
               (newToken) async {
+            _rtcRenewFailures = 0;
             _emitKeepingTimer(state.copyWith(rtcToken: newToken));
+            _scheduleRtcRenewal(newToken.expiresAt);
             await _engine?.renewToken(newToken.token);
           },
         );
@@ -349,9 +383,16 @@ class VideoCallCubit extends Cubit<VideoCallState> {
         if (isClosed) return;
         final result = await _repo.fetchRtcToken(_consultationId);
         result.fold(
-              (_) {},
+              (_) {
+            _rtcRenewFailures++;
+            if (_rtcRenewFailures >= _kMaxTokenRenewFailures) {
+              _emitError(Loc.renewCallTokenFailed());
+            }
+          },
               (newToken) async {
+            _rtcRenewFailures = 0;
             _emitKeepingTimer(state.copyWith(rtcToken: newToken));
+            _scheduleRtcRenewal(newToken.expiresAt);
             await _engine?.renewToken(newToken.token);
           },
         );
@@ -398,19 +439,72 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
     final tokenResult = await _repo.fetchRtcToken(_consultationId);
     if (tokenResult.isLeft()) {
-      _emitError(Loc.renewCallTokenFailed());
+      _rtcRenewFailures++;
+      if (_rtcRenewFailures >= _kMaxTokenRenewFailures) {
+        _emitError(Loc.renewCallTokenFailed());
+      }
       return;
     }
+    _rtcRenewFailures = 0;
 
     final newToken = tokenResult.fold((l) => null, (r) => r)!;
     _emitKeepingTimer(state.copyWith(rtcToken: newToken));
+    _scheduleRtcRenewal(newToken.expiresAt);
     await _joinAgoraChannel(newToken);
   }
 
 
+  void _scheduleRtcRenewal(DateTime expiresAt) {
+    _rtcTokenRenewTimer?.cancel();
+    _rtcTokenRenewTimer = null;
+    var lead =
+        expiresAt.difference(DateTime.now()) - const Duration(seconds: 60);
+    if (lead.isNegative) lead = const Duration(seconds: 30);
+    _rtcTokenRenewTimer = Timer(lead, () async {
+      if (isClosed) return;
+      final result = await _repo.fetchRtcToken(_consultationId);
+      result.fold(
+        (_) {
+          _rtcRenewFailures++;
+          if (_rtcRenewFailures >= _kMaxTokenRenewFailures) {
+            _emitError(Loc.renewCallTokenFailed());
+          } else {
+            _scheduleRtcRenewal(
+                DateTime.now().add(const Duration(seconds: 30)));
+          }
+        },
+        (newToken) async {
+          _rtcRenewFailures = 0;
+          _emitKeepingTimer(state.copyWith(rtcToken: newToken));
+          _scheduleRtcRenewal(newToken.expiresAt);
+          await _engine?.renewToken(newToken.token);
+        },
+      );
+    });
+  }
+
   void _startPolling() {
     _repo.pollSession(_consultationId, _consultationType).then((result) {
       result.fold((_) {}, _applySessionState);
+    });
+
+    _timeoutTimer?.cancel();
+    _timeoutTimer = Timer(_kMaxWaitDuration, () {
+      if (isClosed) return;
+      if (state.phase != VideoCallPhase.waitingForLawyer &&
+          state.phase != VideoCallPhase.joiningCall &&
+          state.phase != VideoCallPhase.agoraReady &&
+          state.phase != VideoCallPhase.initializing) return;
+      _stopPolling();
+      _localTimer?.cancel();
+      _localTimer = null;
+      _localRemainingSeconds = 0;
+      if (!isClosed) {
+        emit(state.copyWith(
+          remainingSeconds: 0,
+          phase: VideoCallPhase.timerExpired,
+        ));
+      }
     });
 
     _pollTimer = Timer.periodic(_kPollInterval, (_) async {
@@ -424,8 +518,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
     if (isClosed) return;
 
     if (session.isEnded) {
-      _pollTimer?.cancel();
-      _pollTimer = null;
+      _stopPolling();
       _localTimer?.cancel();
       _localTimer = null;
       _localRemainingSeconds = 0;
@@ -436,6 +529,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
           remainingSeconds: 0,
           lawyerId: session.lawyerId ?? state.lawyerId,
           clientId: session.clientId ?? state.clientId,
+          canLawyerEndAsNoShow: session.canLawyerEndAsNoShow,
         ));
       }
 
@@ -447,11 +541,15 @@ class VideoCallCubit extends Cubit<VideoCallState> {
         state.phase == VideoCallPhase.ended) return;
 
     _seedTimerIfNeeded(session.remainingSeconds);
+    _resyncTimerIfDrifted(session.remainingSeconds);
 
     VideoCallPhase? newPhase;
 
     if (session.isInProgress &&
-        state.phase == VideoCallPhase.waitingForLawyer) {
+        (state.phase == VideoCallPhase.waitingForLawyer ||
+            state.phase == VideoCallPhase.reconnecting ||
+            state.phase == VideoCallPhase.joiningCall ||
+            state.phase == VideoCallPhase.agoraReady)) {
       newPhase = VideoCallPhase.inProgress;
     } else if (session.instantTwoMinuteWarningActive &&
         state.phase == VideoCallPhase.inProgress) {
@@ -466,6 +564,7 @@ class VideoCallCubit extends Cubit<VideoCallState> {
       twoMinuteWarningActive: session.instantTwoMinuteWarningActive,
       lawyerId: session.lawyerId ?? state.lawyerId,
       clientId: session.clientId ?? state.clientId,
+      canLawyerEndAsNoShow: session.canLawyerEndAsNoShow,
     ));
   }
 
@@ -514,10 +613,11 @@ class VideoCallCubit extends Cubit<VideoCallState> {
 
 
   Future<void> _cleanup() async {
-    _pollTimer?.cancel();
-    _pollTimer = null;
+    _stopPolling();
     _localTimer?.cancel();
     _localTimer = null;
+    _rtcTokenRenewTimer?.cancel();
+    _rtcTokenRenewTimer = null;
 
     if (isLawyer) {
       await _repo.notifyLawyerDisconnected(_consultationId);

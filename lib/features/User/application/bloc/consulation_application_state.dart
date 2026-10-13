@@ -202,6 +202,7 @@ class ConsultationState {
     ConsultationStatus? paymentStatus,
     Map<String, dynamic>? paymentData,
     String? paymentError,
+    bool clearPaymentData = false,
   }) =>
       ConsultationState(
         specializationsStatus:
@@ -277,8 +278,10 @@ class ConsultationState {
         createError: createError ?? this.createError,
 
         paymentStatus: paymentStatus ?? this.paymentStatus,
-        paymentData: paymentData ?? this.paymentData,
-        paymentError: paymentError ?? this.paymentError,
+        paymentData:
+            clearPaymentData ? null : (paymentData ?? this.paymentData),
+        paymentError:
+            clearPaymentData ? null : (paymentError ?? this.paymentError),
       );
 
 

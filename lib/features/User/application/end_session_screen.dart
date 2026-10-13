@@ -1,4 +1,5 @@
 import 'package:rasikh/config/localization/loc_keys.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:gap/gap.dart';
@@ -32,12 +33,24 @@ class EndSessionScreen extends StatefulWidget {
 }
 
 class _EndSessionScreenState extends State<EndSessionScreen> {
+  Timer? _timeUpTimer;
+  bool _hasRated = false;
+  bool _hasDisputed = false;
+
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 1), () {
+    _timeUpTimer = Timer(const Duration(seconds: 1), () {
       if (mounted) _TimeUpDialog.show(context);
     });
+  }
+
+  @override
+  void dispose() {
+    _timeUpTimer?.cancel();
+    _timeUpTimer = null;
+    _TimeUpDialog.cancel();
+    super.dispose();
   }
 
   @override
@@ -59,26 +72,36 @@ class _EndSessionScreenState extends State<EndSessionScreen> {
             GeneralOptionCard(
               title: Loc.openDispute(),
               icon: Picture(getAssetIcon("doc_add.svg"), width: 25.h, height: 25.h),
-              onTap: () {
-                showDialog(
+              onTap: _hasDisputed
+                  ? null
+                  : () async {
+                final disputed = await showDialog<bool>(
                   context: context,
                   builder: (_) => OpenDisputeDialog(
                     consultationId: widget.consultationId,
                   ),
                 );
+                if (disputed == true && mounted) {
+                  setState(() => _hasDisputed = true);
+                }
               },
             ),
             GeneralDivider(),
             GeneralOptionCard(
               title: Loc.rateSession(),
               icon: Picture(getAssetIcon("Stars.svg"), width: 25.h, height: 25.h),
-              onTap: () {
-                showRateExperienceBottomSheet(
+              onTap: _hasRated
+                  ? null
+                  : () async {
+                final rated = await showRateExperienceBottomSheet(
                   context,
                   consultationId: widget.consultationId,
                   lawyerId: widget.lawyerId,
                   clientId: widget.clientId,
                 );
+                if (rated == true && mounted) {
+                  setState(() => _hasRated = true);
+                }
               },
             ),
             const Spacer(),
@@ -135,6 +158,13 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
   final TextEditingController detailsController = TextEditingController();
   bool _isSubmitting = false;
   final VideoCallRepo _repo = VideoCallRepo();
+
+  @override
+  void dispose() {
+    reasonController.dispose();
+    detailsController.dispose();
+    super.dispose();
+  }
 
   Future<void> _showSentDialog(BuildContext context) async {
     final theme = Theme.of(context);
@@ -341,6 +371,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                       consultationId: widget.consultationId,
                       reason: reasonController.text.trim(),
                       description: detailsController.text.trim(),
+                      idempotencyKey: 'dispute_${widget.consultationId}',
                     );
                     setState(() => _isSubmitting = false);
                     result.fold(
@@ -352,7 +383,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
                         );
                       },
                           (_) {
-                        Navigator.pop(context);
+                        Navigator.pop(context, true);
                         _showSentDialog(context);
                       },
                     );
@@ -384,7 +415,7 @@ class _OpenDisputeDialogState extends State<OpenDisputeDialog> {
 }
 
 
-void showRateExperienceBottomSheet(
+Future<bool?> showRateExperienceBottomSheet(
     BuildContext context, {
       required String consultationId,
       required String lawyerId,
@@ -397,7 +428,7 @@ void showRateExperienceBottomSheet(
   final TextEditingController feedbackController = TextEditingController();
   final repo = VideoCallRepo();
 
-  showModalBottomSheet(
+  final future = showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     backgroundColor: theme.scaffoldBackgroundColor,
@@ -528,6 +559,7 @@ void showRateExperienceBottomSheet(
                           clientId: clientId,
                           stars: rating.toInt(),
                           comment: feedbackController.text.trim(),
+                          idempotencyKey: 'rating_$consultationId',
                         );
                         setState(() => isSubmitting = false);
                         result.fold(
@@ -540,7 +572,7 @@ void showRateExperienceBottomSheet(
                             );
                           },
                               (_) {
-                            Navigator.pop(context);
+                            Navigator.pop(context, true);
                             ScaffoldMessenger.of(context)
                                 .showSnackBar(
                               SnackBar(
@@ -576,11 +608,21 @@ void showRateExperienceBottomSheet(
       );
     },
   );
+  future.whenComplete(() => feedbackController.dispose());
+  return future;
 }
 
 
 class _TimeUpDialog {
-  static Future<void> show(BuildContext context) async {
+  static Timer? _dismissTimer;
+
+  static void cancel() {
+    _dismissTimer?.cancel();
+    _dismissTimer = null;
+  }
+
+  static void show(BuildContext context) {
+    cancel();
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -634,11 +676,14 @@ class _TimeUpDialog {
       },
     );
 
-    await Future.delayed(const Duration(seconds: 3));
-
-    if (context.mounted && Navigator.canPop(context)) {
-      Navigator.of(context).pop();
-    }
+    cancel();
+    _dismissTimer = Timer(const Duration(seconds: 3), () {
+      _dismissTimer = null;
+      if (!context.mounted) return;
+      if (Navigator.canPop(context)) {
+        Navigator.of(context).pop();
+      }
+    });
   }
 }
 

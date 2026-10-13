@@ -7,11 +7,82 @@ import 'package:rasikh/core/widgets/general_divider.dart';
 import 'package:size_config/size_config.dart';
 
 class AppointmentDetailsScreen extends StatelessWidget {
-  const AppointmentDetailsScreen({super.key});
+  const AppointmentDetailsScreen({super.key, this.consultationId});
+
+  /// When null, a friendly empty state is shown instead of mock content.
+  final String? consultationId;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    if (consultationId == null) {
+      return Scaffold(
+        backgroundColor: theme.scaffoldBackgroundColor,
+        body: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    height: 32.h,
+                    width: 32.w,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16.w,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.event_note_outlined,
+                          size: 48.w,
+                          color: theme.hintColor,
+                        ),
+                        Gap(12.h),
+                        Text(
+                          Loc.noAppointments(),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Gap(8.h),
+                        Text(
+                          Loc.noAppointmentsInCategory(),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.hintColor,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -30,23 +101,26 @@ class AppointmentDetailsScreen extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Container(
-                    height: 32.h,
-                    width: 32.w,
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 16.w,
-                      color: theme.colorScheme.onSurface,
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      height: 32.h,
+                      width: 32.w,
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16.w,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
                   ),
                 ],
@@ -284,7 +358,7 @@ class AppointmentDetailsScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12.h),
                     ),
                   ),
-                  onPressed: () {},
+                  onPressed: () => Navigator.of(context).pop(),
                   child: Text(
                     Loc.goBack(),
                     style: theme.textTheme.titleMedium?.copyWith(

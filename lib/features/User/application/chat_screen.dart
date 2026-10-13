@@ -199,6 +199,7 @@ class _ChatSessionView extends StatefulWidget {
 
 class _ChatSessionViewState extends State<_ChatSessionView> {
   bool _timerExpiredDialogShown = false;
+  bool _navigatedOnce = false;
 
   Future<void> _handleTimerExpired(BuildContext ctx) async {
     final cubit = ctx.read<ChatSessionCubit>();
@@ -206,10 +207,26 @@ class _ChatSessionViewState extends State<_ChatSessionView> {
     if (cubit.isLawyer) {
       await showCallSummaryDialog(
         ctx,
+        noShowEligible: cubit.state.canLawyerEndAsNoShow,
+        onSubmitNoShow: (summary) async {
+          await cubit.submitCallSummary(summary, endAsNoShow: true);
+          await cubit.endSession();
+
+          _navigatedOnce = true;
+          if (ctx.mounted) {
+            Navigator.of(ctx).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) => const LayoutPage(),
+              ),
+                  (r) => false,
+            );
+          }
+        },
         onSubmit: (summary) async {
           await cubit.submitCallSummary(summary);
           await cubit.endSession();
 
+          _navigatedOnce = true;
           if (ctx.mounted) {
             Navigator.of(ctx).pushAndRemoveUntil(
               MaterialPageRoute(
@@ -222,6 +239,7 @@ class _ChatSessionViewState extends State<_ChatSessionView> {
         onSkip: () async {
           await cubit.endSession();
 
+          _navigatedOnce = true;
           if (ctx.mounted) {
             Navigator.of(ctx).pushAndRemoveUntil(
               MaterialPageRoute(
@@ -237,6 +255,7 @@ class _ChatSessionViewState extends State<_ChatSessionView> {
 
       await cubit.endSession();
 
+      _navigatedOnce = true;
       if (ctx.mounted) {
         Navigator.of(ctx).pushAndRemoveUntil(
           MaterialPageRoute(
@@ -257,6 +276,8 @@ class _ChatSessionViewState extends State<_ChatSessionView> {
       ChatSessionState state,
       ChatSessionCubit cubit,
       ) {
+    if (_navigatedOnce) return;
+    _navigatedOnce = true;
     final lawyerId = state.lawyerId ?? widget.lawyerId;
     final clientId = state.clientId ?? widget.clientId;
 
@@ -287,6 +308,8 @@ class _ChatSessionViewState extends State<_ChatSessionView> {
         }
 
         if (state.phase == ChatSessionPhase.ended) {
+          if (_navigatedOnce) return;
+          if (!ctx.mounted) return;
           _navigateOnEnded(
             ctx,
             state,
@@ -405,6 +428,7 @@ class _ChatBodyState extends State<_ChatBody> {
 
   late final ChatClient _chatClient;
   late final ChatEventHandler _msgHandler;
+  bool _sessionEnded = false;
 
 
   @override
@@ -425,9 +449,27 @@ class _ChatBodyState extends State<_ChatBody> {
       'chat_body_handler',
     );
 
-    _chatClient.logout(false).catchError((_) {});
+    // Do NOT logout the shared chat client while the session is still
+    // active — only logout once the session has ended, else just
+    // remove the handler.
+    var ended = _sessionEnded;
+    if (!ended) {
+      try {
+        final phase =
+            context.read<ChatSessionCubit>().state.phase;
+        ended = phase == ChatSessionPhase.ended ||
+            phase == ChatSessionPhase.timerExpired;
+      } catch (_) {}
+    }
+    if (ended) {
+      _chatClient.logout(false).catchError((_) {});
+    }
 
     super.dispose();
+  }
+
+  void markSessionEnded() {
+    _sessionEnded = true;
   }
 
 
@@ -2950,10 +2992,18 @@ class _ChatSdkErrorWidget
               ),
 
               ElevatedButton(
-                onPressed: () =>
-                    Navigator.of(
-                      context,
-                    ).pop(),
+                onPressed: () async {
+                  try {
+                    await context.read<ChatSessionCubit>().endSession();
+                  } catch (_) {}
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                          builder: (_) => const LayoutPage()),
+                      (r) => false,
+                    );
+                  }
+                },
                 child:
                 Text(
                   Loc.goBack(),
@@ -3298,10 +3348,20 @@ class _ChatErrorOverlay
                 ),
 
                 ElevatedButton(
-                  onPressed: () =>
+                  onPressed: () async {
+                    try {
+                      await context.read<ChatSessionCubit>().endSession();
+                    } catch (_) {}
+                    if (context.mounted) {
                       Navigator.of(
                         context,
-                      ).pop(),
+                      ).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                            builder: (_) => const LayoutPage()),
+                            (r) => false,
+                      );
+                    }
+                  },
                   child:
                   Text(
                     Loc.goBack(),
@@ -3424,6 +3484,28 @@ class _EndChatButton
     if (cubit.isLawyer) {
       await showCallSummaryDialog(
         context,
+        noShowEligible: cubit.state.canLawyerEndAsNoShow,
+        onSubmitNoShow: (summary) async {
+          await cubit
+              .submitCallSummary(
+            summary,
+            endAsNoShow: true,
+          );
+
+          await cubit.endSession();
+
+          if (context.mounted) {
+            Navigator.of(
+              context,
+            ).pushAndRemoveUntil(
+              MaterialPageRoute(
+                builder: (_) =>
+                const LayoutPage(),
+              ),
+                  (r) => false,
+            );
+          }
+        },
         onSubmit: (summary) async {
           await cubit
               .submitCallSummary(

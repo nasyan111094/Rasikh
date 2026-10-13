@@ -493,13 +493,27 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     if (state.recommendedLawyerStatus == ConsultationStatus.failure) {
       return Padding(
         padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
-        child: ErrorStateWidget(
-          title: Loc.unableToLoadRecommendedLawyer(),
-          message: state.recommendedLawyerError ?? Loc.errorConnectingToServer(),
-          actionLabel: Loc.retryAgain(),
-          onAction: () => context
-              .read<ConsultationApplicationCubit>()
-              .loadRecommendedLawyer(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ErrorStateWidget(
+              title: Loc.unableToLoadRecommendedLawyer(),
+              message: state.recommendedLawyerError ?? Loc.errorConnectingToServer(),
+              actionLabel: Loc.retryAgain(),
+              onAction: () => context
+                  .read<ConsultationApplicationCubit>()
+                  .loadRecommendedLawyer(),
+            ),
+            Gap(ConsultationFlowSpacing.cardGap),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () =>
+                    Nav.chooseLawyerScreen(context, recommended: false),
+                child: const Text('عرض جميع المحامين'), // TODO(l10n)
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -508,10 +522,24 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
         state.recommendedLawyer == null) {
       return Padding(
         padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
-        child: ConsultationEmptyState(
-          icon: Icons.person_search_outlined,
-          title: Loc.noRecommendedLawyerNow(),
-          message: Loc.noSuitableLawyerForSpecialization(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConsultationEmptyState(
+              icon: Icons.person_search_outlined,
+              title: Loc.noRecommendedLawyerNow(),
+              message: Loc.noSuitableLawyerForSpecialization(),
+            ),
+            Gap(ConsultationFlowSpacing.cardGap),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () =>
+                    Nav.chooseLawyerScreen(context, recommended: false),
+                child: const Text('عرض جميع المحامين'), // TODO(l10n)
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -535,6 +563,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
                   ? '${lawyer.experienceYears}'
                   : '—',
               price: lawyer.consultationFee ?? 0,
+              pricingFallback: state.selectedPricing?.basePrice,
               imageUrl: lawyer.photoUrl ?? '',
               statusValue: lawyer.activityStatus,
               isRecommended: true,
@@ -643,6 +672,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
               ? '${lawyer.experienceYears}'
               : '—',
           price: lawyer.consultationFee ?? 0,
+          pricingFallback: state.selectedPricing?.basePrice,
           imageUrl: lawyer.photoUrl ?? '',
           statusValue: lawyer.activityStatus,
           onConsult: () => _onConsult(context, state, lawyer),
@@ -670,6 +700,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
               ? '${lawyer.experienceYears}'
               : '—',
           price: lawyer.consultationFee ?? 0,
+          pricingFallback: state.selectedPricing?.basePrice,
           imageUrl: lawyer.photoUrl ?? '',
           statusValue: lawyer.activityStatus,
           isRecommended: widget.recommended,
@@ -771,6 +802,7 @@ class LawyerCard extends StatelessWidget {
   final String specialization;
   final String experience;
   final double price;
+  final double? pricingFallback;
   final String imageUrl;
   final String? statusValue;
   final bool isRecommended;
@@ -786,6 +818,7 @@ class LawyerCard extends StatelessWidget {
     required this.specialization,
     required this.experience,
     required this.price,
+    this.pricingFallback,
     required this.imageUrl,
     this.statusValue,
     this.isRecommended = false,
@@ -1004,10 +1037,9 @@ class LawyerCard extends StatelessWidget {
                   title: Loc.consultationPriceAlt(),
                   value: hasPrice
                       ? Loc.amountRiyal(price.toStringAsFixed(0))
-                      : Loc.amountRiyal(context
-                      .read<ConsultationApplicationCubit>()
-                      .selectedPricing
-                      ?.basePrice ?? 0),
+                      : (pricingFallback != null && pricingFallback! > 0
+                          ? Loc.amountRiyal(pricingFallback!.toStringAsFixed(0))
+                          : '—'),
                   valueColor: theme.colorScheme.primary,
                 ),
               ],

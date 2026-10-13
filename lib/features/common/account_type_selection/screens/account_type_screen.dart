@@ -33,9 +33,9 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
   @override
   void initState() {
-    getIt<CacheHelper>().cachedVendorType = VendorType.user ;
-    getIt<CacheHelper>().setCurrentVendorType(VendorType.user) ;
-
+    super.initState();
+    // Do NOT pre-select a vendor here: the choice is persisted only when
+    // the user explicitly taps a card below.
     Logger().i(getIt<CacheHelper>().cachedVendorType);
   }
 
@@ -128,7 +128,12 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
                             return AccountTypeCard(
                               item: item,
-                              selectedValue: getIt<CacheHelper>().cachedVendorType!,
+                              // Company has no card yet: fall back to user
+                              // tabs for display only. TODO: add a third
+                              // company option card.
+                              selectedValue: getIt<CacheHelper>()
+                                      .cachedVendorType ??
+                                  VendorType.user,
                               onChanged: (value) {
                                 setState(() {
 

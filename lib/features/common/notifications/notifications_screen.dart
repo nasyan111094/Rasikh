@@ -15,6 +15,7 @@ import '../../../../../../core/get_it_service/get_it_service.dart';
 
 import '../../User/profile/widgets/header_capsule_appbar_widget.dart';
 
+import 'bloc/notification_badge_cubit.dart';
 import 'bloc/notifications_cubit.dart';
 import 'models/notification_model.dart';
 
@@ -96,6 +97,10 @@ class _NotificationsViewState extends State<_NotificationsView> {
                   backgroundColor: Colors.red,
                 ),
               );
+            }
+            if (state is MarkReadSuccess) {
+              // Keep the home/profile bell badge in sync.
+              getIt<NotificationBadgeCubit>().decrement();
             }
           },
           builder: (context, state) {

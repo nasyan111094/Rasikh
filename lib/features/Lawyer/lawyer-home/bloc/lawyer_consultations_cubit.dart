@@ -23,9 +23,13 @@ class LawyerConsultationsCubit extends Cubit<LawyerConsultationsState> {
 
   String? acceptedConsultationId;
 
-  Future<void> fetchConsultations() async {
-    emit(LawyerConsultationsLoading());
+  int _fetchToken = 0;
+
+  Future<void> fetchConsultations({bool silent = false}) async {
+    final token = ++_fetchToken;
+    if (!silent) emit(LawyerConsultationsLoading());
     final result = await _repo.getAvailableConsultations();
+    if (token != _fetchToken) return; // stale response ignored (applyFilter ran)
     result.fold(
           (error) => emit(LawyerConsultationsError(error)),
           (consultations) {
@@ -36,11 +40,19 @@ class LawyerConsultationsCubit extends Cubit<LawyerConsultationsState> {
   }
 
   Future<void> acceptConsultation(Consultation consultation) async {
+    final normalizedType = consultation.type.toLowerCase().trim();
+    const supported = {'instant', 'written', 'scheduled'};
+    if (!supported.contains(normalizedType)) {
+      emit(AcceptConsultationError('Unsupported consultation type: ${consultation.type}'));
+      // TODO(l10n): add Loc key for unsupported consultation type
+      await fetchConsultations(silent: true);
+      return;
+    }
     if (_acceptingIds.contains(consultation.id)) return;
     _acceptingIds.add(consultation.id);
     try {
-      final isWritten = consultation.type == 'written';
-      final isScheduled = consultation.type == 'scheduled';
+      final isWritten = normalizedType == 'written';
+      final isScheduled = normalizedType == 'scheduled';
 
       // Emit the correct loading state based on type
       if (isWritten) {
@@ -52,20 +64,20 @@ class LawyerConsultationsCubit extends Cubit<LawyerConsultationsState> {
       // Route to the matching endpoint — scheduled must NOT reuse
       // accept-instant (server returns 400 for wrong type).
       final result = await _repo.acceptConsultationByType(
-          consultation.id, consultation.type);
+          consultation.id, normalizedType);
 
       result.fold(
-        (error) {
+        (error) async {
           if (isWritten) {
             emit(AcceptWrittenConsultationError(error));
           } else {
             emit(AcceptConsultationError(error));
           }
           // Race case (another lawyer took it / already accepted):
-          // refresh the list so the stale card disappears.
-          fetchConsultations();
+          // refresh the list silently so the error snackbar stays visible.
+          await fetchConsultations(silent: true);
         },
-        (accepted) {
+        (accepted) async {
           // Remove accepted consultation from local list
           _consultations.removeWhere((c) => c.id == consultation.id);
           emit(LawyerConsultationsLoaded(List.from(_consultations)));
@@ -83,10 +95,10 @@ class LawyerConsultationsCubit extends Cubit<LawyerConsultationsState> {
             emit(AcceptConsultationSuccess(accepted));
           }
 
-          // Keep dashboard + upcoming in sync without clobbering the
-          // success state (separate buildWhen filters in the UI).
-          fetchUpcomingScheduled();
-          fetchDashboard();
+          // Keep dashboard + upcoming in sync silently without clobbering
+          // the success state (separate buildWhen filters in the UI).
+          await fetchUpcomingScheduled(silent: true);
+          await fetchDashboard(silent: true);
         },
       );
     } finally {
@@ -96,8 +108,8 @@ class LawyerConsultationsCubit extends Cubit<LawyerConsultationsState> {
 
   List<ScheduledConsultation> _upcomingAppointments = [];
 
-  Future<void> fetchUpcomingScheduled() async {
-    emit(UpcomingScheduledLoading());
+  Future<void> fetchUpcomingScheduled({bool silent = false}) async {
+    if (!silent) emit(UpcomingScheduledLoading());
     final result = await _repo.getUpcomingScheduled();
     result.fold(
           (error) => emit(UpcomingScheduledError(error)),
@@ -110,8 +122,8 @@ class LawyerConsultationsCubit extends Cubit<LawyerConsultationsState> {
 
   LawyerDashboardData? _dashboardData;
 
-  Future<void> fetchDashboard() async {
-    emit(DashboardLoading());
+  Future<void> fetchDashboard({bool silent = false}) async {
+    if (!silent) emit(DashboardLoading());
     final result = await _repo.getLawyerDashboard();
     result.fold(
           (error) => emit(DashboardError(error)),

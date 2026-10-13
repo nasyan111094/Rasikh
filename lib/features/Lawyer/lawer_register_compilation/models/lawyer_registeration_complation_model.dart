@@ -232,13 +232,16 @@ class LawyerRegistrationFormData {
           acceptedTerms;
 
   Map<String, dynamic> toFormFields() {
+    final licensePayload = jsonEncode({
+      'number': licenseNumber,
+      'expiryDate': licenseExpiryDate,
+    });
     return {
       'fullName':   fullName,
       'email':      email,
       'city':       cityKey,
       'nationalId': nationalId,
-      'license':
-      '{"number":"$licenseNumber","expiryDate":"$licenseExpiryDate"}',
+      'license': licensePayload,
       'isCompany': isCompany.toString(),
       if (isCompany && commercialRegistrationNumber.isNotEmpty)
         'commercialRegistrationNumber': commercialRegistrationNumber,

@@ -10,6 +10,9 @@ import '../models/lawyer_dashboard_model.dart';
 import '../models/nearest.dart';
 
 class LawyerConsultationsEndpoints {
+  // NOTE(backend limitation): this endpoint currently returns instant items
+  // only; written/scheduled items — if the backend ever includes them here —
+  // are rendered via the type-label fallback in the UI. No new endpoint added.
   static const String availableConsultations =
       'lawyer/consultations/instant/available';
 
@@ -161,9 +164,11 @@ class LawyerConsultationsRepo {
 
   /// Routes to the correct accept endpoint based on consultation [type].
   /// Returns Left for unknown types instead of calling a wrong endpoint.
+  /// NOTE: the list endpoint is not paginated server-side today, so the
+  /// home list keeps a single page (no ScrollController loadMore).
   Future<Either<String, Consultation>> acceptConsultationByType(
       String id, String type) async {
-    switch (type) {
+    switch (type.toLowerCase().trim()) {
       case 'written':
         return acceptWrittenConsultation(id);
       case 'scheduled':

@@ -21,6 +21,7 @@ class LawyerAvailabilityCubit extends Cubit<LawyerAvailabilityState> {
   // ── UPDATE availability ───────────────────────────────────────────────────
 
   Future<void> updateAvailability(LawyerAvailabilityStatus status) async {
+    if (state is UpdateAvailabilityLoading) return; // re-entrancy guard
     emit(const UpdateAvailabilityLoading());
 
     final result = await _repo.updateAvailability(status: status);

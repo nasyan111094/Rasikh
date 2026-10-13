@@ -9,8 +9,6 @@ import 'package:gap/gap.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/config/theme/colors.dart';
-import 'package:rasikh/core/cache/cache_helper.dart';
-import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/widgets/general_divider.dart';
 import 'package:rasikh/core/widgets/gradiant_button.dart';
 import 'package:rasikh/core/widgets/error_state_widget.dart';
@@ -69,6 +67,9 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
+      final state = context.read<ConsultationsCubit>().state;
+      if (state is ConsultationsPaginating) return;
+      if (!context.read<ConsultationsCubit>().hasMorePages) return;
       context.read<ConsultationsCubit>().loadMoreConsultations();
     }
   }
@@ -111,6 +112,19 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
         return;
       }
 
+      // Block session entry when the ids needed by the call screens are null.
+      if (item.client?.id == null || item.lawyer?.id == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(Loc.unexpectedError())),
+        );
+        return;
+      }
+
+      final rawPhoto = item.lawyer?.photoUrl;
+      final String? lawyerPhoto = rawPhoto == null || rawPhoto.isEmpty
+          ? null
+          : (rawPhoto.startsWith('http') ? rawPhoto : AppConfig.baseImgUrl + rawPhoto);
+
       if (item.type == 'written') {
         Nav.chat(
           context,
@@ -118,7 +132,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
           clientId: item.client?.id,
           lawyerId: item.lawyer?.id,
           lawyerName: item.lawyer?.fullName,
-          lawyerPhotoUrl: getIt<CacheHelper>().currentUser?.avatar,
+          lawyerPhotoUrl: lawyerPhoto,
         );
       } else {
         Nav.videoCallScreen(
@@ -128,7 +142,7 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
           lawyerId: item.lawyer?.id,
           lawyerName: item.lawyer?.fullName,
           consultationType: item.type,
-          lawyerPhotoUrl: getIt<CacheHelper>().currentUser?.avatar,
+          lawyerPhotoUrl: lawyerPhoto,
         );
       }
     } else {

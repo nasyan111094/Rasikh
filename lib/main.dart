@@ -86,10 +86,14 @@ Future<void> main() async {
   final savedVersion = prefs.getInt('saved_version') ?? 0;
 
   if (_lastVersion != savedVersion) {
-    final userData = prefs.getString(PrefKeys.userKey);
-    await prefs.clear();
-    if (userData != null) {
-      await prefs.setString(PrefKeys.userKey, userData);
+    // Selective migration: remove only known stale version keys instead of
+    // wiping the whole store, explicitly preserving the vendor selection.
+    const staleVersionKeys = {
+      PrefKeys.userProfileKey,
+      PrefKeys.userAddressList,
+    };
+    for (final key in staleVersionKeys) {
+      await prefs.remove(key);
     }
     await prefs.setInt('saved_version', _lastVersion);
     await HydratedBloc.storage.clear();

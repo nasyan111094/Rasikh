@@ -195,14 +195,18 @@ class _HomeNotificationButton extends StatelessWidget {
     final colors = theme.colorScheme;
     final size = 33.w;
 
-    return BlocProvider(
-      create: (_) {
-        final cubit = getIt<NotificationBadgeCubit>();
-        if (!_isGuest) cubit.fetchUnreadCount();
-        return cubit;
-      },
+    return BlocProvider.value(
+      value: getIt<NotificationBadgeCubit>(),
       child: Builder(
         builder: (badgeContext) {
+          // Initial fetch only (state persists on the getIt singleton).
+          // .value must not be used with create: for singletons — create
+          // would close() the shared instance on unmount.
+          if (badgeContext.read<NotificationBadgeCubit>().state
+                  is NotificationBadgeInitial &&
+              !_isGuest) {
+            badgeContext.read<NotificationBadgeCubit>().fetchUnreadCount();
+          }
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => _onTap(context, badgeContext),

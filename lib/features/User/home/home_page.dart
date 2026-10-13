@@ -13,6 +13,9 @@ import 'package:rasikh/features/User/home/widgets/options.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../config/navigation/nav.dart';
+import '../../../core/cache/cache_helper.dart';
+import '../../../core/get_it_service/get_it_service.dart';
+import '../../../core/widgets/custom_dialog.dart';
 import '../profile/cubit/profile_cubit.dart';
 import 'cubit/home_cubit.dart';
 import 'cubit/home_state.dart';
@@ -81,6 +84,22 @@ class _HomePageState extends State<HomePage> with RouteAware {
                   child: FadeInAnimation(
                     child: LegalConsultationCard(
                       onPressed: () {
+                        // Guest guard — mirrors HomeHeader._isGuest check.
+                        if (getIt<CacheHelper>().currentToken == null) {
+                          Nav.soonDialog(
+                            context,
+                            Center(
+                              child: Container(
+                                color: Colors.transparent,
+                                height:
+                                    MediaQuery.of(context).size.height / 3,
+                                width: MediaQuery.of(context).size.width / 1.2,
+                                child: const CustomDialog(),
+                              ),
+                            ),
+                          );
+                          return;
+                        }
                         Nav.chooseSpecialtyScreen(context);
                       },
                     ),

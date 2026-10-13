@@ -159,6 +159,22 @@ class _LawyerUpdateLicenceScreenState extends State<LawyerUpdateLicenceScreen> {
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
+    // Reject expired licences (expiry <= now).
+    if (_expiryDate != null &&
+        !_expiryDate!.isAfter(DateTime.now())) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            // TODO(l10n): add Loc key for expired license date
+            content: Text('تاريخ انتهاء الرخصة يجب أن يكون في المستقبل'),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      return;
+    }
+
     String? expiryDateString;
     if (_expiryDate != null) {
       expiryDateString = _expiryDate!.toIso8601String();

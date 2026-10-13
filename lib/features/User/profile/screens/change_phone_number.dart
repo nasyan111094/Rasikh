@@ -44,7 +44,14 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
   }
 
   void _verifyOtp() {
-    if (_otpCtrl.text.trim().length < 4) return;
+    // NOTE: kept on LawyerProfileCubit — ProfileCubit has no equivalent
+    // phone-change methods. This screen is user-role only via settings.
+    if (_otpCtrl.text.trim().length < 4) {
+      final theme = Theme.of(context);
+      _showSnack(context, Loc.pleaseEnterVerificationCode(),
+          theme.colorScheme.error, theme.colorScheme.onError);
+      return;
+    }
     context.read<LawyerProfileCubit>().verifyPhoneChange(
       phone: _phoneCtrl.text.trim(),
       code: _otpCtrl.text.trim(),
@@ -127,12 +134,9 @@ class _ChangePhoneNumberState extends State<ChangePhoneNumber> {
               theme.colorScheme.onError);
         } else if (state is ChangePhoneVerifySuccess) {
           showOrderConfirmedDialog2(context);
-          Future.delayed(Duration(seconds: 1) , ()
-          {
-            Navigator.pop(context);
-            Navigator.pop(context);
-            Navigator.pop(context);
-          }) ;
+          Future.delayed(const Duration(seconds: 1), () {
+            if (context.mounted) Nav.layout(context);
+          });
         } else if (state is ChangePhoneVerifyError) {
           _showSnack(context, state.message, theme.colorScheme.error,
               theme.colorScheme.onError);

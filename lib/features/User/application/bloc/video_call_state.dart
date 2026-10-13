@@ -58,6 +58,9 @@ class VideoCallState {
 
   final List<Permission> missingPermissions;
 
+  // ── No-show eligibility (lawyer only, server-authoritative) ────────────────
+  final bool canLawyerEndAsNoShow;
+
   const VideoCallState({
     this.rtcToken,
     this.phase = VideoCallPhase.initializing,
@@ -79,6 +82,7 @@ class VideoCallState {
     this.errorMessage,
     this.reconnectAttempts = 0,
     this.missingPermissions = const [],
+    this.canLawyerEndAsNoShow = false,
   });
 
   VideoCallState copyWith({
@@ -104,6 +108,7 @@ class VideoCallState {
     bool clearError = false,
     int? reconnectAttempts,
     List<Permission>? missingPermissions,
+    bool? canLawyerEndAsNoShow,
   }) {
     return VideoCallState(
       rtcToken: rtcToken ?? this.rtcToken,
@@ -127,6 +132,8 @@ class VideoCallState {
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       reconnectAttempts: reconnectAttempts ?? this.reconnectAttempts,
       missingPermissions: missingPermissions ?? this.missingPermissions,
+      canLawyerEndAsNoShow:
+          canLawyerEndAsNoShow ?? this.canLawyerEndAsNoShow,
     );
   }
 

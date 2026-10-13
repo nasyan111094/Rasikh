@@ -45,6 +45,7 @@ class AppointmentBookingScreen extends StatefulWidget {
 }
 
 class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
+  bool _navigatedToPayment = false;
   static List<String> get _arabicDays => [
     Loc.mondayAlt(), Loc.tuesdayAlt(), Loc.wednesday(), Loc.thursday(),
     Loc.friday(), Loc.saturday(), Loc.sunday(),
@@ -174,9 +175,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
       ),
       itemBuilder: (context, index) {
         final slot = daySlots[index];
-        final isSelected =
-            state.selectedBookableSlot?.startTime == slot.startTime &&
-                state.selectedBookableSlot?.endTime == slot.endTime;
+        final selected = state.selectedBookableSlot;
+        final isSelected = selected != null &&
+            selected.startTime.isAtSameMomentAs(slot.startTime) &&
+            selected.endTime.isAtSameMomentAs(slot.endTime);
 
         return GestureDetector(
           onTap: () => context
@@ -248,6 +250,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
         return;
       }
       Navigator.of(context).pop();
+      // NOTE: only the start is forwarded — the reschedule endpoint accepts
+      // a single newStartTime (backend contract), so the end is intentionally
+      // not passed. See report.
       widget.onRescheduleConfirmed!(slot.startTime);
     } else {
       context.read<ConsultationApplicationCubit>().createConsultation();
@@ -276,9 +281,14 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen> {
               !widget.isRescheduleMode &&
                   prev.createStatus != curr.createStatus,
               listener: (context, state) {
+                if (!context.mounted) return;
                 if (state.createStatus == ConsultationStatus.success) {
-                  Nav.paymentScreen(context);
+                  if (!_navigatedToPayment) {
+                    _navigatedToPayment = true;
+                    Nav.paymentScreen(context);
+                  }
                 } else if (state.createStatus == ConsultationStatus.failure) {
+                  _navigatedToPayment = false;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(

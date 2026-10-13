@@ -4,6 +4,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:rasikh/config/theme/colors.dart';
 
 import '../../../../config/navigation/nav.dart';
+import '../../../../core/cache/cache_helper.dart';
+import '../../../../core/get_it_service/get_it_service.dart';
 import '../../../../core/widgets/general_app_bar.dart';
 import '../widgets/dialog_widget.dart';
 
@@ -61,10 +63,23 @@ class SettingsScreen extends StatelessWidget {
 
             _DeleteRow(
               label: Loc.deleteAccount(),
-              onTap: ()
-              async
-              {
-                showLogoutAndDeletAccountConfirmDialog(context, title: Loc.deleteAccount(), message: Loc.deleteAccountConfirmation(), svgAsset: "assets/icons/Trash_Bin.svg") ;
+              onTap: () async {
+                final confirmed =
+                    await showLogoutAndDeletAccountConfirmDialog(
+                  context,
+                  title: Loc.deleteAccount(),
+                  message: Loc.deleteAccountConfirmation(),
+                  svgAsset: "assets/icons/Trash_Bin.svg",
+                );
+                // Route through the unified session-clear (mirrors
+                // profile_screen logout). The dialog itself returns null on
+                // its internal flows; this covers an explicit true result.
+                if (confirmed == true && context.mounted) {
+                  await getIt<CacheHelper>().clearUserSession();
+                  if (context.mounted) {
+                    Nav.account_type_screen(context);
+                  }
+                }
               },
             ),
           ],

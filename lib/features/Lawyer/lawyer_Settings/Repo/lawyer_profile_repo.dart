@@ -68,7 +68,7 @@ class LawyerProfileRepo {
       if (photo != null)
         'photo': await MultipartFile.fromFile(
           photo.path,
-          filename: photo.path.split('/').last,
+          filename: photo.path.split(RegExp(r'[/\\]')).last,
         ),
     });
 
@@ -144,20 +144,20 @@ class LawyerProfileRepo {
     if (licenseImage != null) {
       fields['licenseImage'] = await MultipartFile.fromFile(
         licenseImage.path,
-        filename: licenseImage.path.split('/').last,
+        filename: licenseImage.path.split(RegExp(r'[/\\]')).last,
       );
     }
     if (nationalIdDocument != null) {
       fields['nationalIdDocument'] = await MultipartFile.fromFile(
         nationalIdDocument.path,
-        filename: nationalIdDocument.path.split('/').last,
+        filename: nationalIdDocument.path.split(RegExp(r'[/\\]')).last,
       );
     }
     if (commercialRegistrationDocument != null) {
       fields['commercialRegistrationDocument'] =
       await MultipartFile.fromFile(
         commercialRegistrationDocument.path,
-        filename: commercialRegistrationDocument.path.split('/').last,
+        filename: commercialRegistrationDocument.path.split(RegExp(r'[/\\]')).last,
       );
     }
 
@@ -169,7 +169,12 @@ class LawyerProfileRepo {
     );
 
     if (result.isRight) {
-      return Right(LawyerProfileModel.fromJson(result.right.data));
+      final raw = result.right.data;
+      final unwrapped = raw is Map<String, dynamic>
+          ? (raw['data'] ?? raw)
+          : raw;
+      return Right(LawyerProfileModel.fromJson(
+          unwrapped as Map<String, dynamic>));
     }
     return Left(_extractError(result.left));
   }

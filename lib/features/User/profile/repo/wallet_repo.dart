@@ -10,6 +10,31 @@ import 'package:uuid/uuid.dart';
 import '../../../../config/app_config.dart';
 import '../models/wallet_models.dart';
 
+/// Normalizes an IBAN: strips spaces and uppercases.
+String normalizeIban(String input) => input.replaceAll(' ', '').toUpperCase();
+
+/// Shared IBAN validation (SA, 24 chars, digits after SA).
+/// Returns the localized error message or null when valid.
+String? validateIban(String? value) {
+  if (value == null || value.isEmpty) {
+    return Loc.pleaseEnterIban();
+  }
+  final cleanValue = normalizeIban(value);
+  if (cleanValue.length < 24) {
+    return Loc.ibanMinLength();
+  }
+  if (cleanValue.length > 24) {
+    return Loc.ibanMaxLength();
+  }
+  if (!cleanValue.startsWith('SA')) {
+    return Loc.ibanMustStartWithSa();
+  }
+  if (!RegExp(r'^[0-9]+$').hasMatch(cleanValue.substring(2))) {
+    return Loc.ibanDigitsOnlyAfterSa();
+  }
+  return null;
+}
+
 class WalletRepo {
   WalletRepo();
 
@@ -21,8 +46,19 @@ class WalletRepo {
     return vendorType?.name;
   }
 
+  /// Explicit error when the vendor type is unknown — callers surface it
+  /// as a failure state instead of silently falling back to `client`.
+  String? _missingVendorError() {
+    if (_getVendorType() == null) {
+      return Loc.unexpectedError();
+    }
+    return null;
+  }
+
 
   Future<Either<String, WalletModel>> getWallet() async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final result = await _dio.get(EndPoints.wallet(vendorType: vendorType));
@@ -36,6 +72,8 @@ class WalletRepo {
 
 
   Future<Either<String, List<BankAccountModel>>> getBankAccounts() async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final result = await _dio.get(EndPoints.walletBankAccounts(vendorType: vendorType));
@@ -56,6 +94,8 @@ class WalletRepo {
     required String accountHolderName,
     required String iban,
   }) async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final result = await _dio.post(
@@ -111,14 +151,19 @@ class WalletRepo {
 
   Future<Either<String, TopupResponseModel>> initiateTopup({
     required double amount,
+    String? idempotencyKey,
   }) async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
-    final uuid = const Uuid().v4();
+    // Stable per attempt: the caller (cubit) generates the key once per user
+    // action and passes it in, so retries of the same attempt reuse it.
+    final key = idempotencyKey ?? const Uuid().v4();
     
     final result = await _dio.post(
       EndPoints.walletTopupInitiate(vendorType: vendorType),
       options: Options(headers: {
-        'Idempotency-Key': uuid,
+        'Idempotency-Key': key,
       }),
       body: {
         'amount': amount,
@@ -134,6 +179,8 @@ class WalletRepo {
 
 
   Future<Either<String, TopupLimitsModel>> getTopupLimits() async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final result = await _dio.get(EndPoints.walletTopupLimits(vendorType: vendorType));
@@ -153,6 +200,8 @@ class WalletRepo {
     int page = 1,
     int limit = 10,
   }) async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final queryParams = <String, dynamic>{
@@ -179,6 +228,8 @@ class WalletRepo {
   Future<Either<String, TransactionModel>> getTransactionById({
     required String id,
   }) async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final result = await _dio.get(
@@ -194,6 +245,8 @@ class WalletRepo {
 
 
   Future<Either<String, List<WithdrawalModel>>> getWithdrawals() async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final result = await _dio.get(EndPoints.walletWithdrawals(vendorType: vendorType));
@@ -212,11 +265,20 @@ class WalletRepo {
   Future<Either<String, WithdrawalModel>> createWithdrawal({
     required double amount,
     required String bankAccountId,
+    String? idempotencyKey,
   }) async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
-    
+    // Stable per attempt: the caller (cubit) generates the key once per user
+    // action and passes it in, so retries of the same attempt reuse it.
+    final key = idempotencyKey ?? const Uuid().v4();
+
     final result = await _dio.post(
       EndPoints.walletWithdrawals(vendorType: vendorType),
+      options: Options(headers: {
+        'Idempotency-Key': key,
+      }),
       body: {
         'amount': amount,
         'bankAccountId': bankAccountId,
@@ -234,6 +296,8 @@ class WalletRepo {
   Future<Either<String, String>> deleteBankAccount({
     required String id,
   }) async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final result = await _dio.delete(
@@ -250,6 +314,8 @@ class WalletRepo {
   Future<Either<String, BankAccountModel>> setDefaultBankAccount({
     required String id,
   }) async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final result = await _dio.put(
@@ -270,6 +336,8 @@ class WalletRepo {
     String? accountHolderName,
     String? iban,
   }) async {
+    final vendorError = _missingVendorError();
+    if (vendorError != null) return Left(vendorError);
     final vendorType = _getVendorType();
     
     final body = <String, dynamic>{};

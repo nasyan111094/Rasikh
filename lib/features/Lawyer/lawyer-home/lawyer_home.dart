@@ -76,27 +76,46 @@ class _LawyerHomeScreenState extends State<LawyerHomeScreen> {
           listener: (context, state) {
             if (state is AcceptConsultationSuccess) {
               final accepted = state.acceptedConsultation;
+              final acceptedType = accepted.type.toLowerCase().trim();
 
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(Loc.instantConsultationAcceptedSuccessfully()),
+                  content: Text(acceptedType == 'scheduled'
+                      ? Loc.scheduledConsultation()
+                      : Loc.instantConsultationAcceptedSuccessfully()),
                   backgroundColor: Colors.green,
                   duration: Duration(seconds: 2),
                 ),
               );
 
               Future.delayed(const Duration(milliseconds: 500), () {
-                if (mounted) {
-                  Nav.videoCallScreen(
-                    context,
-                    consultationId: context
-                        .read<LawyerConsultationsCubit>()
-                        .acceptedConsultationId!,
-                    lawyerName: accepted.client.fullName,
-                    lawyerPhotoUrl:
-                    AppConfig.baseImgUrl + accepted.client.avatar,
+                if (!mounted) return;
+                if (acceptedType == 'scheduled') {
+                  // Scheduled accept → details/upcoming, NOT video-call.
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => BlocProvider(
+                        create: (_) => ConsultationDetailsCubit(
+                          repo: ConsultationsRepo(),
+                        ),
+                        child: LawyerConsultationDetailsScreen(
+                            consultationId: accepted.id),
+                      ),
+                    ),
                   );
+                  return;
                 }
+                final consultationId = context
+                    .read<LawyerConsultationsCubit>()
+                    .acceptedConsultationId;
+                if (consultationId == null) return;
+                Nav.videoCallScreen(
+                  context,
+                  consultationId: consultationId,
+                  lawyerName: accepted.client.fullName,
+                  lawyerPhotoUrl:
+                  AppConfig.baseImgUrl + accepted.client.avatar,
+                );
               });
             }
 
@@ -398,6 +417,9 @@ class _AvailabilityCard extends StatefulWidget {
 
 class _AvailabilityCardState extends State<_AvailabilityCard> {
   bool _isAvailable = false;
+  // Last server-confirmed value — restored on error (single writer is the
+  // availability cubit success; profile listener only seeds initial state).
+  bool _lastServerValue = false;
 
   @override
   void initState() {
@@ -405,10 +427,13 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
     final cached = context.read<LawyerProfileCubit>().cachedProfile;
     if (cached != null) {
       _isAvailable = cached.activityStatus == 'available_now';
+      _lastServerValue = _isAvailable;
     }
   }
 
   void _onToggle(bool val) {
+    final previous = _isAvailable;
+    _lastServerValue = previous;
     setState(() => _isAvailable = val);
     final status = val
         ? LawyerAvailabilityStatus.availableNow
@@ -425,19 +450,10 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
         BlocListener<LawyerProfileCubit, LawyerProfileState>(
           listener: (context, state) {
             if (state is LawyerProfileLoaded) {
+              final v = state.profile.activityStatus == 'available_now';
               setState(() {
-                _isAvailable =
-                    state.profile.activityStatus == 'available_now';
-              });
-            }
-          },
-        ),
-        BlocListener<LawyerConsultationsCubit, LawyerConsultationsState>(
-          listener: (context, state) {
-            if (state is DashboardLoaded) {
-              setState(() {
-                _isAvailable = state.dashboardData.availability ==
-                    LawyerAvailabilityStatus.availableNow;
+                _isAvailable = v;
+                _lastServerValue = v;
               });
             }
           },
@@ -445,12 +461,14 @@ class _AvailabilityCardState extends State<_AvailabilityCard> {
         BlocListener<LawyerAvailabilityCubit, LawyerAvailabilityState>(
           listener: (context, state) {
             if (state is UpdateAvailabilitySuccess) {
+              final v = state.currentStatus ==
+                  LawyerAvailabilityStatus.availableNow;
               setState(() {
-                _isAvailable = state.currentStatus ==
-                    LawyerAvailabilityStatus.availableNow;
+                _isAvailable = v;
+                _lastServerValue = v;
               });
             } else if (state is UpdateAvailabilityError) {
-              setState(() => _isAvailable = !_isAvailable);
+              setState(() => _isAvailable = _lastServerValue);
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                     content: Text(state.message),
@@ -555,8 +573,9 @@ class _ConsultationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isInstant = consultation.type == 'instant';
-    final isWritten = consultation.type == 'written';
+    final normalizedType = consultation.type.toLowerCase().trim();
+    final isInstant = normalizedType == 'instant';
+    final isWritten = normalizedType == 'written';
     final typeText = isInstant
         ? Loc.instantConsultation()
         : isWritten
@@ -566,10 +585,9 @@ class _ConsultationCard extends StatelessWidget {
 
     return BlocBuilder<LawyerConsultationsCubit, LawyerConsultationsState>(
       builder: (context, state) {
-        final isAccepting = (state is AcceptConsultationLoading &&
-                state.consultationId == consultation.id) ||
-            (state is AcceptWrittenConsultationLoading &&
-                state.consultationId == consultation.id);
+        final isAccepting = context
+            .read<LawyerConsultationsCubit>()
+            .isAccepting(consultation.id);
 
         return Container(
           padding: EdgeInsets.all(8.w),

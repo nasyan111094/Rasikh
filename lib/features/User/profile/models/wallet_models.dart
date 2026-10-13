@@ -36,7 +36,7 @@ class WalletModel {
   factory WalletModel.fromJson(Map<String, dynamic> json) {
     return WalletModel(
       id: json['id'] as String,
-      clientId: getIt<CacheHelper>().cachedVendorType==VendorType.user ?json['clientId'] :json['lawyerId'] as String,
+      clientId: (json['clientId'] ?? json['lawyerId']) as String,
       availableBalance: getIt<CacheHelper>().cachedVendorType == VendorType.user ? (json['availableBalance'] as num).toDouble()  :(json['availableBalance'] as num).toDouble(),
       totalBalance: (json['totalBalance'] as num?)?.toDouble() ?? (json['availableBalance'] as num).toDouble(),
       disputePendingBalance: (json['disputePendingBalance'] as num?)?.toDouble() ?? 0,
@@ -90,7 +90,7 @@ class BankAccountModel {
   factory BankAccountModel.fromJson(Map<String, dynamic> json) {
     return BankAccountModel(
       id: json['id'] as String,
-      clientId: getIt<CacheHelper>().cachedVendorType==VendorType.user ?json['clientId'] :json['lawyerId'] as String,
+      clientId: (json['clientId'] ?? json['lawyerId']) as String,
       bankName: json['bankName'] as String,
       accountHolderName: json['accountHolderName'] as String,
       iban: json['iban'] as String,
@@ -175,7 +175,7 @@ class TransactionModel {
     return TransactionModel(
       id: json['id'] as String,
       referenceNumber: json['referenceNumber'] as String,
-      clientId: getIt<CacheHelper>().cachedVendorType==VendorType.user ?json['clientId'] :json['lawyerId'] as String,
+      clientId: (json['clientId'] ?? json['lawyerId']) as String,
       type: json['type'] as String,
       typeLabel: json['typeLabel'] as String,
       amount: (json['amount'] as num).toDouble(),
@@ -275,7 +275,7 @@ class WithdrawalModel {
   factory WithdrawalModel.fromJson(Map<String, dynamic> json) {
     return WithdrawalModel(
       id: json['id'] as String,
-      clientId: getIt<CacheHelper>().cachedVendorType==VendorType.user ?json['clientId'] :json['lawyerId'] as String,
+      clientId: (json['clientId'] ?? json['lawyerId']) as String,
       bankAccountId: json['bankAccountId'] as String,
       amount: (json['amount'] as num).toDouble(),
       status: json['status'] as String,

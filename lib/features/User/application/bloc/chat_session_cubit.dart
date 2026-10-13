@@ -8,6 +8,8 @@ import '../repo/chat_session_repo.dart';
 import 'chat_session_state.dart';
 
 const Duration _kPollInterval = Duration(seconds: 10);
+const Duration _kMaxWaitDuration = Duration(minutes: 3);
+const int _kMaxTokenRenewFailures = 3;
 
 class ChatSessionCubit extends Cubit<ChatSessionState> {
   ChatSessionCubit({
@@ -29,6 +31,9 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
 
   Timer? _pollTimer;
   Timer? _localTimer;
+  Timer? _timeoutTimer;
+  Timer? _chatTokenRenewTimer;
+  int _chatTokenFailures = 0;
 
   int? _localRemainingSeconds;
   bool _timerStarted = false;
@@ -44,10 +49,29 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
 
   void _emitError(String message) {
     if (isClosed) return;
+    _stopPolling();
     _emitKeepingTimer(state.copyWith(
       phase: ChatSessionPhase.error,
       errorMessage: message,
     ));
+  }
+
+  void _stopPolling() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _timeoutTimer?.cancel();
+    _timeoutTimer = null;
+  }
+
+  void _resyncTimerIfDrifted(int? serverSeconds) {
+    if (!_timerStarted) return;
+    if (serverSeconds == null || serverSeconds < 0) return;
+    final local = _localRemainingSeconds;
+    if (local == null) return;
+    if ((serverSeconds - local).abs() > 5) {
+      _localRemainingSeconds = serverSeconds;
+      if (!isClosed) emit(state.copyWith(remainingSeconds: serverSeconds));
+    }
   }
 
 
@@ -74,6 +98,7 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
       if (current <= 0) {
         _localTimer?.cancel();
         _localTimer = null;
+        _stopPolling();
         if (!isClosed) {
           emit(state.copyWith(
             remainingSeconds: 0,
@@ -101,6 +126,9 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
     if (isLawyer) {
       final acceptResult = await _repo.acceptWritten(_consultationId);
       if (acceptResult.isLeft()) {
+        _emitError(
+            Loc.fetchSessionDataFailed(acceptResult.fold((l) => l, (r) => '')));
+        return;
       }
     }
 
@@ -123,6 +151,8 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
         emit(state.copyWith(
           lawyerId: initialSession.lawyerId ?? state.lawyerId,
           clientId: initialSession.clientId ?? state.clientId,
+          canLawyerEndAsNoShow: initialSession.canLawyerEndAsNoShow,
+          noShowEligibleAfter: initialSession.noShowEligibleAfter,
         ));
       }
     }
@@ -153,6 +183,7 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
         conversationKey: convMeta.conversationKey,
       ),
     ));
+    _scheduleChatTokenRenewal(chatToken.expiresAt);
 
     final joinResult = await _repo.joinChat(_consultationId);
     if (joinResult.isLeft()) {
@@ -172,6 +203,23 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
       result.fold((_) {}, _applySessionState);
     });
 
+    _timeoutTimer?.cancel();
+    _timeoutTimer = Timer(_kMaxWaitDuration, () {
+      if (isClosed) return;
+      if (state.phase != ChatSessionPhase.waitingForClient &&
+          state.phase != ChatSessionPhase.initializing) return;
+      _stopPolling();
+      _localTimer?.cancel();
+      _localTimer = null;
+      _localRemainingSeconds = 0;
+      if (!isClosed) {
+        emit(state.copyWith(
+          remainingSeconds: 0,
+          phase: ChatSessionPhase.timerExpired,
+        ));
+      }
+    });
+
     _pollTimer = Timer.periodic(_kPollInterval, (_) async {
       if (isClosed) return;
       final result = await _repo.pollSession(_consultationId);
@@ -179,12 +227,49 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
     });
   }
 
+  void _scheduleChatTokenRenewal(DateTime? expiresAt) {
+    _chatTokenRenewTimer?.cancel();
+    _chatTokenRenewTimer = null;
+    if (expiresAt == null) return;
+    var lead = expiresAt.difference(DateTime.now()) - const Duration(seconds: 60);
+    if (lead.isNegative) lead = const Duration(seconds: 30);
+    _chatTokenRenewTimer = Timer(lead, () async {
+      if (isClosed) return;
+      final result = await _repo.fetchChatToken(_consultationId);
+      result.fold(
+        (_) {
+          _chatTokenFailures++;
+          if (_chatTokenFailures >= _kMaxTokenRenewFailures) {
+            _emitError(Loc.getChatTokenFailed(''));
+          } else {
+            _scheduleChatTokenRenewal(
+                DateTime.now().add(const Duration(seconds: 30)));
+          }
+        },
+        (newToken) {
+          _chatTokenFailures = 0;
+          final creds = state.credentials;
+          if (creds != null && !isClosed) {
+            _emitKeepingTimer(state.copyWith(
+              credentials: AgoraChatCredentials(
+                token: newToken.token,
+                myUserId: creds.myUserId,
+                peerUserId: creds.peerUserId,
+                conversationKey: creds.conversationKey,
+              ),
+            ));
+          }
+          _scheduleChatTokenRenewal(newToken.expiresAt);
+        },
+      );
+    });
+  }
+
   void _applySessionState(WrittenSessionState session) {
     if (isClosed) return;
 
     if (session.isEnded) {
-      _pollTimer?.cancel();
-      _pollTimer = null;
+      _stopPolling();
       _localTimer?.cancel();
       _localTimer = null;
       _localRemainingSeconds = 0;
@@ -195,6 +280,8 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
           remainingSeconds: 0,
           lawyerId: session.lawyerId ?? state.lawyerId,
           clientId: session.clientId ?? state.clientId,
+          canLawyerEndAsNoShow: session.canLawyerEndAsNoShow,
+          noShowEligibleAfter: session.noShowEligibleAfter,
         ));
       }
 
@@ -206,11 +293,13 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
         state.phase == ChatSessionPhase.ended) return;
 
     _seedTimerIfNeeded(session.remainingSeconds);
+    _resyncTimerIfDrifted(session.remainingSeconds);
 
     ChatSessionPhase? newPhase;
 
     if (session.isInProgress &&
-        state.phase == ChatSessionPhase.waitingForClient) {
+        (state.phase == ChatSessionPhase.waitingForClient ||
+            state.phase == ChatSessionPhase.initializing)) {
       newPhase = ChatSessionPhase.inProgress;
     } else if (session.writtenTwoMinuteWarningActive &&
         state.phase == ChatSessionPhase.inProgress) {
@@ -225,6 +314,8 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
       twoMinuteWarningActive: session.writtenTwoMinuteWarningActive,
       lawyerId: session.lawyerId ?? state.lawyerId,
       clientId: session.clientId ?? state.clientId,
+      canLawyerEndAsNoShow: session.canLawyerEndAsNoShow,
+      noShowEligibleAfter: session.noShowEligibleAfter,
     ));
   }
 
@@ -249,10 +340,11 @@ class ChatSessionCubit extends Cubit<ChatSessionState> {
 
 
   Future<void> _cleanup() async {
-    _pollTimer?.cancel();
-    _pollTimer = null;
+    _stopPolling();
     _localTimer?.cancel();
     _localTimer = null;
+    _chatTokenRenewTimer?.cancel();
+    _chatTokenRenewTimer = null;
   }
 
   @override

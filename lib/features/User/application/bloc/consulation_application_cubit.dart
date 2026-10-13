@@ -126,12 +126,14 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
   }
 
 
-  ConsultationType? selectedConsultationType = ConsultationType.instant;
-
   void selectConsultationType(ConsultationType type) {
-    selectedConsultationType = type;
     emit(state.copyWith(selectedConsultationType: type));
   }
+
+  /// Backwards-compatible read-only alias for the in-state selection.
+  /// The old mutable out-of-state field was removed (singleton leak fix);
+  /// all writes must go through [selectConsultationType].
+  ConsultationType get selectedConsultationType => state.selectedConsultationType;
 
 
   Future<void> loadPricingPlans() async {
@@ -155,11 +157,22 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
               ));
               return;
             }
-            selectPricing(data.first) ;
+            // Keep the user's previous pricing selection when it is still
+            // present in the refreshed list (e.g. navigating back).
+            final previousId = state.selectedPricing?.id;
+            PricingModel effective = data.first;
+            if (previousId != null) {
+              for (final p in data) {
+                if (p.id == previousId) {
+                  effective = p;
+                  break;
+                }
+              }
+            }
             emit(state.copyWith(
         pricingStatus: ConsultationStatus.success,
         pricingPlans: data,
-         selectedPricing: data.isNotEmpty ? data.first : null,
+         selectedPricing: effective,
       )) ;}
     );
   }
@@ -168,11 +181,14 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
 
 
 
-  PricingModel ? selectedPricing ;
   void selectPricing(PricingModel pricing) {
-    selectedPricing = pricing ;
     emit(state.copyWith(selectedPricing: pricing));
   }
+
+  /// Backwards-compatible read-only alias for the in-state pricing.
+  /// The old mutable out-of-state field was removed (singleton leak fix);
+  /// all writes must go through [selectPricing].
+  PricingModel? get selectedPricing => state.selectedPricing;
 
   void updateTitle(String value) =>
       emit(state.copyWith(consultationTitle: value));
@@ -572,9 +588,16 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
 
 
   void resetFlow() {
-    selectedConsultationType = null;
     _createIdempotencyKey = null;
     emit(const ConsultationState());
+  }
+
+  /// Clears ONLY payment-related state (retry keeps [createdConsultation]).
+  void clearPaymentState() {
+    emit(state.copyWith(
+      paymentStatus: ConsultationStatus.initial,
+      clearPaymentData: true,
+    ));
   }
 
 

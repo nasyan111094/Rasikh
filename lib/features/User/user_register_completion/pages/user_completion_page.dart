@@ -38,11 +38,14 @@ class _UserCompletionPageState extends State<UserCompletionPage> {
   @override
   void initState() {
     super.initState();
-    _cubit = getIt<UserCompletionCubit>()..fetchCities();
+    _cubit = getIt<UserCompletionCubit>()
+      ..reset()
+      ..fetchCities();
   }
 
   @override
   void dispose() {
+    _cubit.reset();
     _cityController.dispose();
     super.dispose();
   }

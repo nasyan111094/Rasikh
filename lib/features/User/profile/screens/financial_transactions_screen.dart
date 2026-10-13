@@ -69,7 +69,20 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
             appBar: GeneralAppBar(
               title: Loc.financialTransactions(),
             ),
-            body: BlocBuilder<WalletCubit, WalletState>(
+            body: BlocListener<WalletCubit, WalletState>(
+              listenWhen: (previous, current) =>
+                  previous.transactionsError != current.transactionsError &&
+                  current.transactionsError != null &&
+                  current.transactions.isNotEmpty &&
+                  !current.transactionsIsLoadingMore,
+              listener: (context, state) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(state.transactionsError ??
+                          Loc.unableToLoadTransactions())),
+                );
+              },
+              child: BlocBuilder<WalletCubit, WalletState>(
               builder: (context, state) {
                 final transactions = state.transactions;
                 final isLoading =
@@ -171,7 +184,8 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
                     .slideY(begin: 0.05, end: 0);
               },
             ),
-          );
+          ),
+        );
         },
       ),
     );
@@ -253,7 +267,7 @@ class _FinancialTransactionsScreenState extends State<FinancialTransactionsScree
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Text(
-                        Loc.amountRiyal(tx.amount.toStringAsFixed(0)),
+                        Loc.amountRiyal(tx.amount.toStringAsFixed(2)),
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: primary ,
                           fontWeight: FontWeight.w700,
@@ -560,7 +574,7 @@ class TransactionDetailsDialog extends StatelessWidget {
                   _detailRow(
                     context,
                     label: Loc.amount(),
-                    value: Loc.amountRiyal(transaction.amount.toStringAsFixed(0)),
+                    value: Loc.amountRiyal(transaction.amount.toStringAsFixed(2)),
                     index: 3,
                   ),
                   _detailRow(
@@ -595,13 +609,13 @@ class TransactionDetailsDialog extends StatelessWidget {
                   _detailRow(
                     context,
                     label: Loc.balanceBeforeTransaction(),
-                    value: Loc.amountRiyal(transaction.balanceBefore.toStringAsFixed(0)),
+                    value: Loc.amountRiyal(transaction.balanceBefore.toStringAsFixed(2)),
                     index: 5,
                   ),
                   _detailRow(
                     context,
                     label: Loc.balanceAfterTransaction(),
-                    value: Loc.amountRiyal(transaction.balanceAfter.toStringAsFixed(0)),
+                    value: Loc.amountRiyal(transaction.balanceAfter.toStringAsFixed(2)),
                     index: 6,
                   ),
                   _detailRow(

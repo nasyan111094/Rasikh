@@ -85,8 +85,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     _navTimer?.cancel();
     _fallbackTimer?.cancel();
     _controller.dispose();
-    _appVersionCubit.close();
 
+    // Do NOT close getIt-owned cubits here; their lifecycle belongs to DI.
     // Restore full-screen system UI for the rest of the app
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.edgeToEdge,
@@ -125,15 +125,23 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
 
 
-    // Check if user is already logged in
-    final currentToken = getIt<CacheHelper>().currentToken;
-    if (currentToken != null && currentToken.isNotEmpty) {
+    // Use the values resolved by the bloc listener instead of
+    // re-reading the cache directly.
+    if (_stateResolved && _hasUser) {
       Nav.layout(context);
       return;
     }
+    if (!_stateResolved) {
+      // Bloc hasn't responded (fallback path): read cache directly once.
+      final currentToken = getIt<CacheHelper>().currentToken;
+      if (currentToken != null && currentToken.isNotEmpty) {
+        Nav.layout(context);
+        return;
+      }
+    }
 
     // Check if onboarding is done
-    if (getIt<CacheHelper>().onBoardingDone) {
+    if (_stateResolved ? _onBoardingDone : getIt<CacheHelper>().onBoardingDone) {
       Nav.account_type_screen(context);
     } else {
       Nav.onBoarding(context);

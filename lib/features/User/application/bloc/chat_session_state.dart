@@ -75,6 +75,10 @@ class ChatSessionState {
   final String? lawyerId;
   final String? clientId;
 
+  // ── No-show eligibility (lawyer only) ──────────────────────────────────────
+  final bool canLawyerEndAsNoShow;
+  final String? noShowEligibleAfter;
+
   // ── Error ──────────────────────────────────────────────────────────────────
   final String? errorMessage;
 
@@ -87,6 +91,8 @@ class ChatSessionState {
     this.peerPhotoUrl,
     this.lawyerId,
     this.clientId,
+    this.canLawyerEndAsNoShow = false,
+    this.noShowEligibleAfter,
     this.errorMessage,
   });
 
@@ -99,6 +105,8 @@ class ChatSessionState {
     String? peerPhotoUrl,
     String? lawyerId,
     String? clientId,
+    bool? canLawyerEndAsNoShow,
+    String? noShowEligibleAfter,
     String? errorMessage,
     bool clearError = false,
   }) {
@@ -112,6 +120,9 @@ class ChatSessionState {
       peerPhotoUrl: peerPhotoUrl ?? this.peerPhotoUrl,
       lawyerId: lawyerId ?? this.lawyerId,
       clientId: clientId ?? this.clientId,
+      canLawyerEndAsNoShow:
+          canLawyerEndAsNoShow ?? this.canLawyerEndAsNoShow,
+      noShowEligibleAfter: noShowEligibleAfter ?? this.noShowEligibleAfter,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
     );
   }

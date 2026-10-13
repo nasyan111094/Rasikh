@@ -88,8 +88,40 @@ class _VideoCallView extends StatefulWidget {
   State<_VideoCallView> createState() => _VideoCallViewState();
 }
 
-class _VideoCallViewState extends State<_VideoCallView> {
+class _VideoCallViewState extends State<_VideoCallView>
+    with WidgetsBindingObserver {
   bool _timerExpiredDialogShown = false;
+  bool _navigatedOnce = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state != AppLifecycleState.resumed) return;
+    if (!mounted) return;
+    VideoCallCubit? cubit;
+    try {
+      cubit = context.read<VideoCallCubit>();
+    } catch (_) {
+      return;
+    }
+    final phase = cubit.state.phase;
+    if (phase == VideoCallPhase.permissionDenied ||
+        phase == VideoCallPhase.permissionPermanentlyDenied) {
+      cubit.initialize();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +138,9 @@ class _VideoCallViewState extends State<_VideoCallView> {
         }
 
         if (state.phase == VideoCallPhase.ended) {
+          if (_navigatedOnce) return;
+          if (!context.mounted) return;
+          _navigatedOnce = true;
           final cubit = context.read<VideoCallCubit>();
           Navigator.of(context).pushAndRemoveUntil(
             MaterialPageRoute(
@@ -232,9 +267,22 @@ class _VideoCallViewState extends State<_VideoCallView> {
     if (cubit.isLawyer) {
       await showCallSummaryDialog(
         context,
+        noShowEligible: cubit.state.canLawyerEndAsNoShow,
+        onSubmitNoShow: (summary) async {
+          await cubit.submitCallSummary(summary, endAsNoShow: true);
+          await cubit.endSession();
+          _navigatedOnce = true;
+          if (context.mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LayoutPage()),
+                  (route) => false,
+            );
+          }
+        },
         onSubmit: (summary) async {
           await cubit.submitCallSummary(summary);
           await cubit.endSession();
+          _navigatedOnce = true;
           if (context.mounted) {
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (_) => const LayoutPage()),
@@ -244,6 +292,7 @@ class _VideoCallViewState extends State<_VideoCallView> {
         },
         onSkip: () async {
           await cubit.endSession();
+          _navigatedOnce = true;
           if (context.mounted) {
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (_) => const LayoutPage()),
@@ -255,6 +304,9 @@ class _VideoCallViewState extends State<_VideoCallView> {
     } else {
       final csState = cubit.state;
 
+      await cubit.endSession();
+      _navigatedOnce = true;
+      if (!context.mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
           builder: (_) => cubit.isLawyer ? LayoutPage(): EndSessionScreen(
@@ -265,7 +317,6 @@ class _VideoCallViewState extends State<_VideoCallView> {
         ),
             (route) => false,
       );
-      await cubit.endSession();
     }
   }
 }
@@ -396,53 +447,12 @@ class _EndSessionDialog {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    Future<void> _handleEndingSession(BuildContext context) async {
-      final cubit = context.read<VideoCallCubit>();
-
-      if (cubit.isLawyer) {
-        await showCallSummaryDialog(
-          context,
-          onSubmit: (summary) async {
-            await cubit.submitCallSummary(summary);
-            await cubit.endSession();
-            if (context.mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LayoutPage()),
-                    (route) => false,
-              );
-            }
-          },
-          onSkip: () async {
-            await cubit.endSession();
-            if (context.mounted) {
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LayoutPage()),
-                    (route) => false,
-              );
-            }
-          },
-        );
-      } else {
-        final cubit = context.read<VideoCallCubit>();
-        final vsState = cubit.state;
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(
-            builder: (_) => cubit.isLawyer ? LayoutPage() : EndSessionScreen(
-              consultationId: consultationId,
-              lawyerId: vsState.lawyerId ?? '',
-              clientId: vsState.clientId ?? '',
-            ),
-          ),
-              (route) => false,
-        );
-        await cubit.endSession();
-      }
-    }
-
+    // NOTE: pop FIRST with true/false, then the caller runs the ending
+    // logic outside the dialog based on the result.
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => Dialog(
+      builder: (dialogContext) => Dialog(
         backgroundColor: colorScheme.surface,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
@@ -475,7 +485,8 @@ class _EndSessionDialog {
                     children: [
                       Expanded(
                         child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context, false),
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(false),
                           style: OutlinedButton.styleFrom(
                             side: BorderSide(color: colorScheme.outline),
                             shape: RoundedRectangleBorder(
@@ -495,7 +506,8 @@ class _EndSessionDialog {
                       const SizedBox(width: 12),
                       Expanded(
                         child: ElevatedButton(
-                          onPressed: () => _handleEndingSession(context),
+                          onPressed: () =>
+                              Navigator.of(dialogContext).pop(true),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: colorScheme.error,
                             shape: RoundedRectangleBorder(
@@ -734,7 +746,22 @@ class _ErrorOverlay extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () async {
+                  VideoCallCubit? cubit;
+                  try {
+                    cubit = context.read<VideoCallCubit>();
+                  } catch (_) {}
+                  try {
+                    await cubit?.endSession();
+                  } catch (_) {}
+                  if (context.mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(
+                          builder: (_) => const LayoutPage()),
+                      (route) => false,
+                    );
+                  }
+                },
                 child: Text(Loc.goBack()),
               ),
             ],
@@ -953,10 +980,18 @@ class _BottomControls extends StatelessWidget {
       consultationId: consultationId,
     );
     if (confirmed != true) return;
+    if (!context.mounted) return;
 
     if (cubit.isLawyer) {
+      final noShowEligible = cubit.state.canLawyerEndAsNoShow;
+      if (!context.mounted) return;
       await showCallSummaryDialog(
         context,
+        noShowEligible: noShowEligible,
+        onSubmitNoShow: (summary) async {
+          await cubit.submitCallSummary(summary, endAsNoShow: true);
+          await cubit.endSession();
+        },
         onSubmit: (summary) async {
           await cubit.submitCallSummary(summary);
           await cubit.endSession();
@@ -966,7 +1001,19 @@ class _BottomControls extends StatelessWidget {
         },
       );
     } else {
+      final vsState = cubit.state;
       await cubit.endSession();
+      if (!context.mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) => EndSessionScreen(
+            consultationId: consultationId,
+            lawyerId: vsState.lawyerId ?? '',
+            clientId: vsState.clientId ?? '',
+          ),
+        ),
+            (route) => false,
+      );
     }
   }
 }

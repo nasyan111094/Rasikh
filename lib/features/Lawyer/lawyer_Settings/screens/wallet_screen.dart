@@ -14,6 +14,8 @@ import 'package:rasikh/core/widgets/picture.dart';
 import 'package:rasikh/features/User/profile/bloc/wallet_cubit.dart';
 import 'package:rasikh/features/User/profile/bloc/wallet_state.dart';
 import 'package:rasikh/features/User/profile/models/wallet_models.dart';
+import 'package:rasikh/features/User/profile/repo/wallet_repo.dart'
+    show normalizeIban, validateIban;
 import 'package:rasikh/features/User/profile/screens/financial_transactions_screen.dart';
 import 'package:rasikh/features/User/profile/widgets/transaction_card.dart';
 import 'package:rasikh/features/common/Auth/models/auth_model.dart';
@@ -68,7 +70,7 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
     return Future.wait([
       cubit.getWallet(),
       cubit.getBankAccounts(),
-      cubit.getTransactions(limit: 5),
+      cubit.getTransactions(limit: 10),
     ]);
   }
 
@@ -82,7 +84,7 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
       create: (_) => _cubit = getIt<WalletCubit>()
         ..getWallet()
         ..getBankAccounts()
-        ..getTransactions(limit: 5),
+        ..getTransactions(limit: 10),
       child: Scaffold(
         appBar:  GeneralAppBar(
           title: Loc.electronicWallet(),
@@ -259,9 +261,10 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
       BuildContext context, WalletModel? wallet) {
     final isUser = getIt<CacheHelper>().cachedVendorType == VendorType.user;
     final totalBalance = wallet?.totalBalance ?? 0;
-    final availableBalance = wallet?.availableBalance ?? 10;
+    final availableBalance = wallet?.availableBalance ?? 0;
     final pendingBalance = wallet?.pendingBalance ?? 0;
     final clientTotalBalance = availableBalance + pendingBalance;
+    final isBalanceLoading = wallet == null;
 
 
 
@@ -287,13 +290,23 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
           Gap(10.h),
           Text(Loc.currentBalance(), style: text.bodyMedium),
           const SizedBox(height: 8),
-          Text(
-            Loc.amountRiyal((isUser ? clientTotalBalance : totalBalance).toStringAsFixed(2)),
-            style: text.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFFC7A47B),
+          if (isBalanceLoading)
+            SizedBox(
+              width: 120,
+              child: LinearProgressIndicator(
+                color: const Color(0xFFC7A47B),
+                backgroundColor:
+                    const Color(0xFFC7A47B).withOpacity(0.2),
+              ),
+            )
+          else
+            Text(
+              Loc.amountRiyal((isUser ? clientTotalBalance : totalBalance).toStringAsFixed(2)),
+              style: text.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFFC7A47B),
+              ),
             ),
-          ),
           GeneralDivider(height: 20.h),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -557,7 +570,7 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
-                          Loc.amountRiyal(tx.amount.toStringAsFixed(0)),
+                          Loc.amountRiyal(tx.amount.toStringAsFixed(2)),
                           style: text.bodyMedium?.copyWith(
                             color: primary,
                             fontWeight: FontWeight.w700,
@@ -740,8 +753,8 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
                 ? null
                 : () => _showDeleteConfirmationDialog(
               context,
-              acc.id,
-              acc.bankName,
+              acc,
+              state.bankAccounts,
             ),
             child: CircleIconContainer(
               icon: "Trash_Bin.svg",
@@ -759,7 +772,60 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
   }
 
   void _showDeleteConfirmationDialog(
-      BuildContext context, String accountId, String bankName) {
+      BuildContext context, BankAccountModel account, List<BankAccountModel> accounts) {
+    // The default account cannot be deleted directly — another account must
+    // be chosen as default first (reuses the existing set-default API).
+    if (account.isDefault) {
+      final others = accounts.where((a) => a.id != account.id).toList();
+      showDialog(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Text(Loc.confirmDeletion()),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'لا يمكن حذف الحساب الافتراضي، اختر حسابًا آخر كافتراضي أولاً', // TODO(l10n)
+                ),
+                if (others.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  ...others.map(
+                    (other) => ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(other.bankName),
+                      subtitle: Text(other.iban),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.star_outline,
+                            color: Color(0xFFC7A47B)),
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          context
+                              .read<WalletCubit>()
+                              .setDefaultBankAccount(id: other.id);
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: Text(Loc.cancel()),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+    final accountId = account.id;
+    final bankName = account.bankName;
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -890,15 +956,7 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return Loc.pleaseEnterIban();
-                        }
-                        if (value.length != 24) {
-                          return Loc.ibanExactLength();
-                        }
-                        return null;
-                      },
+                      validator: validateIban,
                     ),
                   ],
                 ),
@@ -923,7 +981,7 @@ class _WalletScreenState extends State<WalletScreen> with RouteAware {
                           bankName: bankNameController.text.trim(),
                           accountHolderName:
                           accountHolderNameController.text.trim(),
-                          iban: ibanController.text.trim(),
+                          iban: normalizeIban(ibanController.text.trim()),
                         );
                       }
                     },

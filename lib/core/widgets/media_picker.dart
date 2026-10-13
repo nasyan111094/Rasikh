@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:rasikh/config/navigation/nav.dart';
 import 'package:separated_row/separated_row.dart';
@@ -37,9 +38,13 @@ class MediaPicker extends StatefulWidget {
         if (!context.mounted) return null;
         final croppedImage = await Nav.crop(context, imageData);
         if (croppedImage != null) {
-          final newFile = File(image.path);
-          await newFile.writeAsBytes(croppedImage);
-          return newFile.path;
+          // Write to a NEW temp file — never overwrite the original.
+          final dir = await getTemporaryDirectory();
+          final croppedFile = File(
+            '${dir.path}/cropped_${DateTime.now().millisecondsSinceEpoch}.jpg',
+          );
+          await croppedFile.writeAsBytes(croppedImage);
+          return croppedFile.path;
         }
       }
     }

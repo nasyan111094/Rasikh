@@ -557,12 +557,13 @@ abstract class Nav {
       );
 
   static appointmentDetailsScreen(
-      BuildContext context,
-      ) async =>
+      BuildContext context, {
+      String? consultationId,
+  }) async =>
       await _push(
         context,
         PageKey.login,
-        const AppointmentDetailsScreen(),
+        AppointmentDetailsScreen(consultationId: consultationId),
       );
 
   static selectConsulationType(

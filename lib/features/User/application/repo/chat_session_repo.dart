@@ -236,6 +236,7 @@ class ChatSessionRepo {
     required String clientId,
     required int stars,
     String? comment,
+    String? idempotencyKey,
   }) async {
     final result = await _dio.post(
       'client/ratings',
@@ -245,6 +246,8 @@ class ChatSessionRepo {
         'clientId': clientId,
         'stars': stars,
         if (comment != null && comment.isNotEmpty) 'comment': comment,
+        if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+          'idempotencyKey': idempotencyKey,
       },
     );
     if (result.isRight) return const Right(true);
@@ -257,6 +260,7 @@ class ChatSessionRepo {
     required String reason,
     required String description,
     List<String> attachments = const [],
+    String? idempotencyKey,
   }) async {
     final result = await _dio.post(
       'client/disputes',
@@ -265,6 +269,8 @@ class ChatSessionRepo {
         'reason': reason,
         'description': description,
         'attachments': attachments,
+        if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+          'idempotencyKey': idempotencyKey,
       },
     );
     if (result.isRight) return const Right(true);

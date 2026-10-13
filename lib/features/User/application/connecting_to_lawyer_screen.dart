@@ -94,8 +94,19 @@ class _ConnectingBodyState extends State<_ConnectingBody>
   }
 
   void _navigateToSession() {
-    final cubit = getIt<ConsultationApplicationCubit>();
-    final profile = getIt<ProfileCubit>().profile;
+    ConsultationApplicationCubit cubit;
+    try {
+      cubit = context.read<ConsultationApplicationCubit>();
+    } catch (_) {
+      cubit = getIt<ConsultationApplicationCubit>();
+    }
+    ProfileCubit profileCubit;
+    try {
+      profileCubit = context.read<ProfileCubit>();
+    } catch (_) {
+      profileCubit = getIt<ProfileCubit>();
+    }
+    final profile = profileCubit.profile;
 
     if (profile == null) {
       Logger().e('Profile is null , cannot navigate to session');

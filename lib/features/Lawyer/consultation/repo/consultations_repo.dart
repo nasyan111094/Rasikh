@@ -42,7 +42,7 @@ class ConsultationsRepo {
 
   Future<Either<String, ConsultationsModel>> getConsultations({
     int page = 1,
-    int limit = 3,
+    int limit = 10,
     ConsultationStatus? status,
   }) async {
     final query = <String, String>{

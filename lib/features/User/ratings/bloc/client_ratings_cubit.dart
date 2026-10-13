@@ -39,6 +39,8 @@ class ClientRatingsCubit extends Cubit<ClientRatingsState> {
   // ── Load next page ────────────────────────────────────────────────────────
 
   Future<void> loadMoreRatings() async {
+    // Guard against concurrent pagination requests.
+    if (state is ClientRatingsPaginationLoading) return;
     final current = _currentModel;
     if (current == null) return;
 
