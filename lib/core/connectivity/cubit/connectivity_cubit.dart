@@ -92,6 +92,12 @@ class ConnectivityCubit extends Cubit<ConnectionStatus> {
       if (results.isNotEmpty && results.first != ConnectivityResult.none) {
         await _updateConnectivity(results.first);
         _logger.d('Initial connectivity checked: ${results.first}');
+        
+        // Double-check internet connection after a short delay to ensure accuracy
+        await Future.delayed(const Duration(milliseconds: 500));
+        if (!isClosed) {
+          await _checkInternetConnection();
+        }
       } else {
         emit(ConnectionStatus.disconnected);
         _logger.d('Initial connectivity: disconnected');

@@ -1,19 +1,30 @@
+
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/general_divider.dart';
 import 'package:rasikh/core/widgets/picture.dart';
-
+import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 import 'package:rasikh/core/widgets/general_app_bar.dart';
 
 import '../../../config/navigation/nav.dart';
 import '../../../config/theme/colors.dart';
-import '../../../core/widgets/auth_stepper.dart';
-import 'consultation_type_screen(2).dart';
+
+import '../../../core/widgets/error_state_widget.dart';
+import 'bloc/consulation_application_cubit.dart';
+import 'bloc/consulation_application_state.dart';
+import 'models/consultation_model.dart';
+import 'widgets/consultation_flow_widgets.dart';
+import 'widgets/selection_bottom_sheet.dart';
 
 class ChooseLawyerScreen extends StatefulWidget {
-  const ChooseLawyerScreen({super.key});
+  const ChooseLawyerScreen({super.key , required this.recommended});
+
+  final bool recommended  ;
+
 
   @override
   State<ChooseLawyerScreen> createState() => _ChooseLawyerScreenState();
@@ -21,586 +32,742 @@ class ChooseLawyerScreen extends StatefulWidget {
 
 class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
   final TextEditingController searchController = TextEditingController();
+  /// Arabic label sent as `?city=` (e.g. "الرياض"), never the English key.
+  String? _cityValue;
+  _LawyerSortOption? _sort;
+
+  List<_LawyerSortOption> get _sortOptions => [
+        _LawyerSortOption(Loc.highestRated(), 'rating', 'desc'),
+        _LawyerSortOption(Loc.lowestRated(), 'rating', 'asc'),
+        _LawyerSortOption(Loc.mostExperienced(), 'experienceYears', 'desc'),
+        _LawyerSortOption(Loc.leastExperienced(), 'experienceYears', 'asc'),
+        _LawyerSortOption(Loc.nameAToZ(), 'fullName', 'asc'),
+        _LawyerSortOption(Loc.nameZToA(), 'fullName', 'desc'),
+        _LawyerSortOption(Loc.newest(), 'createdAt', 'desc'),
+        _LawyerSortOption(Loc.oldest(), 'createdAt', 'asc'),
+      ];
+
+  @override
+  void initState() {
+    super.initState();
+    final cubit = context.read<ConsultationApplicationCubit>();
+    if (cubit.state.citiesStatus != ConsultationStatus.success) {
+      cubit.loadCities();
+    }
+    if (widget.recommended) {
+      cubit.loadRecommendedLawyer();
+    } else {
+      _reloadLawyers();
+    }
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _reloadLawyers() {
+    final search = searchController.text.trim();
+    return context.read<ConsultationApplicationCubit>().loadLawyers(
+          search: search.isEmpty ? null : search,
+          // Filter contract stays single-valued (?city=الرياض) and matches on
+          // the Arabic label — the backend resolves it against the lawyer's
+          // `cities` array or legacy `city`.
+          city: _cityValue,
+          sortBy: _sort?.sortBy,
+          sortOrder: _sort?.sortOrder,
+        );
+  }
+
+  Future<void> _onRefresh() async {
+    final cubit = context.read<ConsultationApplicationCubit>();
+    await Future.wait([
+      _reloadLawyers(),
+      if (widget.recommended) cubit.loadRecommendedLawyer(),
+    ]);
+  }
+
+  String _cityName(ConsultationState state, String? city) {
+    if (city == null || city.isEmpty) return '—';
+    // Filter now stores the Arabic label; still tolerate a raw key coming
+    // back from a cached/older state.
+    for (final c in state.cities) {
+      if (c.value == city || c.key == city) return c.value;
+    }
+    return city;
+  }
+
+  void _showSortBottomSheet(BuildContext context) {
+    showSelectionBottomSheet(
+      context: context,
+      builder: (_) => SelectionBottomSheet<_LawyerSortOption>(
+        title: Loc.sortBy(),
+        searchHint: Loc.searchHint(),
+        showSearch: false,
+        items: _sortOptions,
+        selectedId: _sort?.id,
+        itemId: (o) => o.id,
+        itemName: (o) => o.label,
+        emptyTitle: Loc.noResults(),
+        confirmText: Loc.applyFilter(),
+        onConfirm: (option) {
+          setState(() => _sort = option);
+          _reloadLawyers();
+        },
+      ),
+    );
+  }
+
+  void _showCityBottomSheet(BuildContext context) {
+    final cubit = context.read<ConsultationApplicationCubit>();
+    if (cubit.state.citiesStatus != ConsultationStatus.success) {
+      cubit.loadCities();
+    }
+    showSelectionBottomSheet(
+      context: context,
+      builder: (_) => BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
+        builder: (_, state) => SelectionBottomSheet<EnumValueModel>(
+          title: Loc.chooseCityLabel(),
+          searchHint: Loc.searchSpecificCity(),
+          items: state.cities,
+          selectedId: _cityValue,
+          isLoading: state.citiesStatus == ConsultationStatus.loading ||
+              state.citiesStatus == ConsultationStatus.initial,
+          errorMessage: state.citiesStatus == ConsultationStatus.failure
+              ? state.citiesError ?? Loc.unableToLoadCities()
+              : null,
+          onRetry: cubit.loadCities,
+          itemId: (c) => c.value,
+          itemName: (c) => c.value,
+          emptyIcon: Icons.location_city_outlined,
+          emptyTitle: Loc.noResults(),
+          emptyMessage: Loc.noCitiesAvailable(),
+          confirmText: Loc.applyFilter(),
+          onConfirm: (city) {
+            setState(() => _cityValue = city.value);
+            _reloadLawyers();
+          },
+        ),
+      ),
+    );
+  }
+
+
+  Future<void> _showTypeBottomSheet(BuildContext context) async {
+    final theme = Theme.of(context);
+    String? selectedOption = Loc.all();
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.onSecondary,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setModalState) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: Padding(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(Loc.sortBy(),
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                      Container(
+                        decoration: BoxDecoration(
+                            color: greyFA, shape: BoxShape.circle),
+                        child: IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ),
+                    ],
+                  ),
+                  GeneralDivider(height: 20.h),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: theme.colorScheme.primary,
+                        padding:
+                        const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(Loc.applyFilter(),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          )),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            ),
+          );
+        });
+      },
+    );
+  }
+
+
+  void _onConsult(
+      BuildContext context, ConsultationState state, dynamic lawyer) {
+    if (lawyer is LawyerDetailModel) {
+      context.read<ConsultationApplicationCubit>().selectLawyer(lawyer);
+    } else if (lawyer is LawyerDetailModel) {
+      context.read<ConsultationApplicationCubit>().selectLawyer(
+        LawyerDetailModel(
+          id: lawyer.id,
+          fullName: lawyer.fullName,
+          photoUrl: lawyer.photoUrl,
+          city: lawyer.city,
+          cities: lawyer.cities,
+          experienceYears: lawyer.experienceYears,
+          rating: lawyer.rating,
+          mainSpecializations: lawyer.mainSpecializations,
+          consultationFee: lawyer.consultationFee,
+          isCompany: lawyer.isCompany,
+          bio: lawyer.bio, subSpecializations: [], ratings: [],
+        ),
+      );
+    }
+
+    if (state.selectedConsultationType == ConsultationType.scheduled) {
+      Nav.appointmentBookingScreen(context);
+    } else {
+      context.read<ConsultationApplicationCubit>().createConsultation();
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-
-
-    Future<void> showSortBottomSheet(BuildContext context) async {
-      final theme = Theme.of(context);
-      String? selectedOption = 'الأعلى تقييماً';
-
-      final options = [
-        'الأعلى تقييماً',
-        'الأقل سعراً',
-        'الأكثر خبرة',
-        'الأقرب موقعاً',
-        'المتاح الآن',
-      ];
-
-      await showModalBottomSheet(
-        context: context,
-        backgroundColor: theme.colorScheme.onSecondary,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return Directionality(
-                textDirection: TextDirection.rtl,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Close Button + Title
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'الترتيب حسب',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Container(
-
-                            decoration: BoxDecoration(  color: greyFA , shape: BoxShape.circle),
-                            child: IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: () { Navigator.pop(context); },
-                            ),
-                          ),
-
-
-                        ],
-                      ),
-                      GeneralDivider(height: 20.h,) ,
-
-                      // Options
-                      ...options.map(
-                            (opt) => InkWell(
-                              onTap: () {
-                            setState(() => selectedOption = opt);
-                                                      },
-                              child: Padding(
-                                padding:  EdgeInsets.symmetric(vertical: 5.h),
-                                child: Container(
-                                  height: 60.h,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: theme.dividerColor)
-                                  ),
-                                  child: Padding(
-                                padding:  EdgeInsets.symmetric(vertical: 4.0 ,horizontal: 10.w),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      opt,
-                                      style: theme.textTheme.bodyLarge?.copyWith(
-                                        color: selectedOption == opt
-                                            ? theme.colorScheme.primary
-                                            : theme.textTheme.bodyLarge?.color,
-                                        fontWeight: selectedOption == opt
-                                            ? FontWeight.bold
-                                            : FontWeight.normal,
-                                      ),
-                                    ),
-                                    Spacer() ,
-                                    Checkbox(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      side: BorderSide(
-                                        color: theme.colorScheme.outline.withOpacity(0.5),
-                                      ),
-                                      activeColor: theme.colorScheme.primary,
-                                      value: selectedOption == opt,
-                                      onChanged: (val) => setState(() => selectedOption = opt),
-                                    ),
-
-
-                                  ],
-                                ),
-                                                          ),
-                                ),
-                              ),
-                            ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // Apply Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context, selectedOption);
-                          },
-                          child: Text(
-                            'تطبيق التصفية',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      );
-    }
-    Future<void> showCityBottomSheet(BuildContext context) async {
-      final theme = Theme.of(context);
-      String? selectedOption = 'الأعلى تقييماً';
-
-      final cities = [
-        'القاهرة',
-        'الجيزة',
-        'الإسكندرية',
-        'المنصورة',
-        'أسيوط',
-        'الفيوم',
-        'طنطا',
-        'الزقازيق',
-        'بورسعيد',
-        'الأقصر',
-        'أسوان',
-        'السويس',
-        'دمياط',
-        'قنا',
-        'بني سويف',
-        'المنيا',
-        'سوهاج',
-        'كفر الشيخ',
-        'مرسى مطروح',
-        'العريش',
-      ];
-
-
-      await showModalBottomSheet(
-        context: context,
-        backgroundColor: theme.colorScheme.onSecondary,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return Directionality(
-                textDirection: TextDirection.rtl,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Close Button + Title
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'الترتيب حسب',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Container(
-
-                            decoration: BoxDecoration(  color: greyFA , shape: BoxShape.circle),
-                            child: IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: () { Navigator.pop(context); },
-                            ),
-                          ),
-
-
-                        ],
-                      ),
-                      GeneralDivider(height: 20.h,) ,
-                      TextField(
-                        controller: searchController,
-                        textAlign: TextAlign.right,
-                        decoration: InputDecoration(
-                          hintText: 'بحث عن مدينه محدده...',
-                          hintStyle: theme.textTheme.bodyMedium
-                              ?.copyWith(color: theme.hintColor),
-                          prefixIcon: Padding(
-                            padding:  EdgeInsets.all(15.0.h),
-                            child: Picture(getAssetIcon("search.svg") , width:20.h,height: 20.h,),
-                          ),
-                          filled: true,
-                          fillColor: Colors.transparent,
-                          contentPadding:
-                          EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.h),
-                            borderSide: BorderSide(color: theme.dividerColor),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.h),
-                            borderSide: BorderSide(color: theme.dividerColor),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12.h),
-                            borderSide: BorderSide(color: colorScheme.primary),
-                          ),
-                        ),
-                      ),
-                      Gap(10.h)  ,
-                      // Options
-                      Container(
-                        height: 300.h,
-                        child: ListView.separated(
-                          itemCount: cities.length,
-                          separatorBuilder: (_, __) => SizedBox(height: 10.h),
-                          itemBuilder: (context, index) {
-                            final opt = cities[index];
-                            final selected = selectedOption == opt;
-
-                            return InkWell(
-                              onTap: () => setState(() => selectedOption = opt),
-                              child: Container(
-                                height: 60.h,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: theme.dividerColor),
-                                ),
-                                padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 10.w),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      opt,
-                                      style: theme.textTheme.bodyLarge?.copyWith(
-                                        color: selected
-                                            ? theme.colorScheme.primary
-                                            : theme.textTheme.bodyLarge?.color,
-                                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Checkbox(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      side: BorderSide(
-                                        color: theme.colorScheme.outline.withOpacity(0.5),
-                                      ),
-                                      activeColor: theme.colorScheme.primary,
-                                      value: selected,
-                                      onChanged: (val) => setState(() => selectedOption = opt),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ) ,
-
-
-                      const SizedBox(height: 12),
-
-                      // Apply Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context, selectedOption);
-                          },
-                          child: Text(
-                            'تطبيق التصفية',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      );
-    }
-    Future<void> showTypeBottomSheet(BuildContext context) async {
-      final theme = Theme.of(context);
-      String? selectedOption = 'الأعلى تقييماً';
-
-      final types = [
-       "الكل"  ,
-        "محامي"  ,
-        "محاميه"
-      ];
-
-
-      await showModalBottomSheet(
-        context: context,
-        backgroundColor: theme.colorScheme.onSecondary,
-        isScrollControlled: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return Directionality(
-                textDirection: TextDirection.rtl,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Close Button + Title
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'الترتيب حسب',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Container(
-
-                            decoration: BoxDecoration(  color: greyFA , shape: BoxShape.circle),
-                            child: IconButton(
-                              icon: const Icon(Icons.close),
-                              onPressed: () { Navigator.pop(context); },
-                            ),
-                          ),
-
-
-                        ],
-                      ),
-                      GeneralDivider(height: 20.h,) ,
-
-                      // Options
-                      Container(
-                        height: 60.h,
-                        child: ListView.separated(
-                          itemCount: types.length,
-                          scrollDirection: Axis.horizontal,
-                          separatorBuilder: (_, __) => SizedBox(width: 10.w),
-                          itemBuilder: (context, index) {
-                            final opt = types[index];
-                            final selected = selectedOption == opt;
-
-                            return InkWell(
-                              onTap: () => setState(() => selectedOption = opt),
-                              child: Container(
-                                height: 30.h,
-                                width: 125.w,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: theme.dividerColor),
-                                ),
-                                padding: EdgeInsets.symmetric(vertical: 4.0, horizontal: 10.w),
-                                child: Row(
-                                  children: [
-                                    Text(
-                                      opt,
-                                      style: theme.textTheme.bodyLarge?.copyWith(
-                                        color: selected
-                                            ? theme.colorScheme.primary
-                                            : theme.textTheme.bodyLarge?.color,
-                                        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Checkbox(
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      side: BorderSide(
-                                        color: theme.colorScheme.outline.withOpacity(0.5),
-                                      ),
-                                      activeColor: theme.colorScheme.primary,
-                                      value: selected,
-                                      onChanged: (val) => setState(() => selectedOption = opt),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ) ,
-
-
-                      const SizedBox(height: 12),
-
-                      // Apply Button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: theme.colorScheme.primary,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.pop(context, selectedOption);
-                          },
-                          child: Text(
-                            'تطبيق التصفية',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                    ],
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      );
-    }
-
-
-
     return Scaffold(
       appBar: GeneralAppBar(
-        title: "اختر المحامي",
+        title: Loc.chooseLawyer(),
+        backIcon: Icons.arrow_back,
+        backIconSize: 22,
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w),
-          child: Column(
-            children: [
-              Padding(
-                padding:  EdgeInsets.symmetric(vertical: 24.h ),
-                child: const AuthStepperWidget(activeStep: 4, totalSteps: 5),
+      body: BlocListener<ConsultationApplicationCubit, ConsultationState>(
+        listenWhen: (prev, curr) =>
+        prev.createStatus != curr.createStatus,
+        listener: (context, state) {
+          if (state.createStatus == ConsultationStatus.loading) {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => const PopScope(
+                canPop: false,
+                child: Center(child: CircularProgressIndicator()),
               ),
-              TextField(
-                controller: searchController,
-                textAlign: TextAlign.right,
-                decoration: InputDecoration(
-                  hintText: 'ابحث عن المحامي المناسب...',
-                  hintStyle: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.hintColor),
-                  prefixIcon: Icon(Icons.search, color: theme.hintColor),
-                  filled: true,
-                  fillColor: Colors.transparent,
-                  contentPadding:
-                  EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.h),
-                    borderSide: BorderSide(color: theme.dividerColor),
+            );
+            return;
+          }
+
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          }
+
+          if (state.createStatus == ConsultationStatus.success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                margin: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+                content: Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: 16.w, vertical: 14.h),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2E7D32), Color(0xFF43A047)],
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                    ),
+                    borderRadius: BorderRadius.circular(14.h),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2E7D32).withOpacity(0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.h),
-                    borderSide: BorderSide(color: theme.dividerColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12.h),
-                    borderSide: BorderSide(color: colorScheme.primary),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36.w,
+                        height: 36.w,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.check_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      Gap(12.w),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              Loc.consultationCreatedSuccessfully(),
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14.h,
+                              ),
+                            ),
+                            Gap(2.h),
+                            Text(
+                              Loc.redirectingToPaymentPage(),
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontSize: 12.h,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              Gap(12.h),
+            );
 
-              // ---------------- Filter Row ----------------
-              Container(
-                height: 45.h,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
+            Future.delayed(const Duration(milliseconds: 500), () {
+              if (context.mounted) Nav.paymentScreen(context);
+            });
+            return;
+          }
+
+          if (state.createStatus == ConsultationStatus.failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  state.createError ?? Loc.errorCreatingConsultation(),
+                  textDirection: TextDirection.rtl,
+                ),
+                backgroundColor: theme.colorScheme.error,
+                behavior: SnackBarBehavior.floating,
+                action: SnackBarAction(
+                  label: Loc.retryAgain(),
+                  textColor: Colors.white,
+                  onPressed: () =>
+                      context.read<ConsultationApplicationCubit>().createConsultation(),
+                ),
+              ),
+            );
+          }
+        },
+        child: SafeArea(
+          child: BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
+            builder: (context, state) {
+              return Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: ConsultationFlowSpacing.horizontal,
+                ),
+                child: Column(
                   children: [
-                    _FilterChip(
-                      icon: "filter.svg",
-                      title: 'الترتيب حسب',
-                      onTap: ()
-                      {
-                        showSortBottomSheet(context) ;
-                      },
-                    ),
+                    const ConsultationFlowStepper(activeStep: 4),
 
-                    _FilterChip(
-                      icon: "users.svg",
-                      title: 'محامي أو محامية',
-                      onTap: ()
-                      {
-                        showTypeBottomSheet(context) ;
-                      },
+                    TextField(
+                      controller: searchController,
+                      textAlign: TextAlign.right,
+                      onChanged: (_) => _reloadLawyers(),
+                      decoration: InputDecoration(
+                        hintText: Loc.searchForSuitableLawyer(),
+                        hintStyle: theme.textTheme.bodyMedium
+                            ?.copyWith(color: theme.hintColor),
+                        prefixIcon:
+                        Icon(Icons.search, color: theme.hintColor),
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16.w, vertical: 16.h),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                              ConsultationFlowSpacing.radius),
+                          borderSide:
+                          BorderSide(color: theme.dividerColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                              ConsultationFlowSpacing.radius),
+                          borderSide:
+                          BorderSide(color: theme.dividerColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                              ConsultationFlowSpacing.radius),
+                          borderSide:
+                          BorderSide(color: colorScheme.primary),
+                        ),
+                      ),
                     ),
-                    _FilterChip(
-                      icon: "City.svg",
-                      title: 'المدينه',
-                      onTap: ()
-                      {
-                        showCityBottomSheet(context) ;
-                      },
+                    Gap(ConsultationFlowSpacing.fieldGap),
+
+                    SizedBox(
+                      height: 45.h,
+                      child: Row(
+
+                        children: [
+                          Expanded(
+                            child: _FilterChip(
+                              icon: "filter.svg",
+                              title: Loc.sortBy(),
+                              onTap: () => _showSortBottomSheet(context),
+                            ),
+                          ),
+                          Expanded(
+                            child: _FilterChip(
+                              icon: "City.svg",
+                              title: Loc.city(),
+                              onTap: () => _showCityBottomSheet(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Gap(ConsultationFlowSpacing.sectionGap),
+
+                    if (widget.recommended) _buildRecommendedSection(context, state),
+
+                    if (!widget.recommended) Expanded(
+                      child: RefreshIndicator(
+                        onRefresh: _onRefresh,
+                        child: _buildLawyersList(context, state),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Gap(20.h),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
 
-              // ---------------- Lawyers List ----------------
-              Expanded(
-                child: ListView.separated(
 
-                  itemCount: 3,
-                  separatorBuilder: (context, index) => SizedBox(height: 16.h),
-                  itemBuilder: (context, index) {
-                    return LawyerCard(
-                      name: 'عبدالله بن فهد الشمري',
-                      city: 'جدة',
-                      region: 'مكة المكرمة',
-                      rating: 4.5,
-                      specialization: 'القانون المدني',
-                      experience: '2-4',
-                      price: 1200,
-                      imageUrl: 'https://amrlaw.com.sa/wp-content/uploads/2024/12/%D8%A7%D8%B3%D8%AA%D8%B4%D8%A7%D8%B1%D8%A9-%D9%82%D8%A7%D9%86%D9%88%D9%86%D9%8A%D8%A9-%D9%85%D9%87%D9%86%D9%8A%D8%A9-%D9%85%D9%86-%D9%85%D8%AD%D8%A7%D9%85%D9%8A-%D9%81%D9%8A-%D8%AC%D8%AF%D8%A9-%D8%A7%D9%84%D9%85%D9%85%D9%84%D9%83%D8%A9-%D8%A7%D9%84%D8%B9%D8%B1%D8%A8%D9%8A%D8%A9-%D8%A7%D9%84%D8%B3%D8%B9%D9%88%D8%AF%D9%8A%D8%A9.png',
-                      available: true,
-                      onConsult: () {
-                        if(selectedTypeIndex == 2)
-                        Nav.appointmentBookingScreen(context)  ;
-                        else
-                        Nav.paymentScreen(context)  ;
-                      },
-                    );
-                  },
-                )
-                ,
+  Widget _buildRecommendedSection(BuildContext context, ConsultationState state) {
+    if (state.recommendedLawyerStatus == ConsultationStatus.loading) {
+      final theme = Theme.of(context);
+      final base = theme.brightness == Brightness.light
+          ? Colors.grey.shade300
+          : Colors.grey.shade700;
+      final highlight = theme.brightness == Brightness.light
+          ? Colors.grey.shade100
+          : Colors.grey.shade600;
+      return Padding(
+        padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
+        child: Shimmer.fromColors(
+          baseColor: base,
+          highlightColor: highlight,
+          child: Container(
+            height: 150.h,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18.h),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (state.recommendedLawyerStatus == ConsultationStatus.failure) {
+      return Padding(
+        padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ErrorStateWidget(
+              title: Loc.unableToLoadRecommendedLawyer(),
+              message: state.recommendedLawyerError ?? Loc.errorConnectingToServer(),
+              actionLabel: Loc.retryAgain(),
+              onAction: () => context
+                  .read<ConsultationApplicationCubit>()
+                  .loadRecommendedLawyer(),
+            ),
+            Gap(ConsultationFlowSpacing.cardGap),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () =>
+                    Nav.chooseLawyerScreen(context, recommended: false),
+                child: const Text('عرض جميع المحامين'), // TODO(l10n)
               ),
-            ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.recommendedLawyerStatus == ConsultationStatus.success &&
+        state.recommendedLawyer == null) {
+      return Padding(
+        padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConsultationEmptyState(
+              icon: Icons.person_search_outlined,
+              title: Loc.noRecommendedLawyerNow(),
+              message: Loc.noSuitableLawyerForSpecialization(),
+            ),
+            Gap(ConsultationFlowSpacing.cardGap),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () =>
+                    Nav.chooseLawyerScreen(context, recommended: false),
+                child: const Text('عرض جميع المحامين'), // TODO(l10n)
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (state.recommendedLawyerStatus == ConsultationStatus.success && state.recommendedLawyer != null) {
+      final lawyer = state.recommendedLawyer!;
+      return Padding(
+        padding: EdgeInsets.only(bottom: ConsultationFlowSpacing.sectionGap),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LawyerCard(
+              name: lawyer.fullName,
+              city: _cityName(state, lawyer.displayCities.join('، ')),
+              region: _cityName(state, lawyer.city),
+              rating: lawyer.rating,
+              specialization: lawyer.mainSpecializations.isNotEmpty
+                  ? (lawyer.mainSpecializations.first.name ?? '—')
+                  : '—',
+              experience: lawyer.experienceYears != null
+                  ? '${lawyer.experienceYears}'
+                  : '—',
+              price: lawyer.consultationFee ?? 0,
+              pricingFallback: state.selectedPricing?.basePrice,
+              imageUrl: lawyer.photoUrl ?? '',
+              statusValue: lawyer.activityStatus,
+              isRecommended: true,
+              onConsult: () => _onConsult(context, state, lawyer),
+              onCardTap: () => Nav.lawyerDetailsScreen(context, Id: lawyer.id),
+            ),
+            Gap(ConsultationFlowSpacing.cardGap),
+          ],
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+
+  Widget _buildLawyersList(BuildContext context, ConsultationState state) {
+    if (state.lawyersStatus == ConsultationStatus.loading) {
+      return _buildLawyersShimmer(context);
+    }
+
+    if (state.lawyersStatus == ConsultationStatus.failure) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: 60.h),
+          ErrorStateWidget(
+            title: Loc.unableToLoadLawyers(),
+            message: state.lawyersError ?? Loc.errorConnectingToServer(),
+            actionLabel: Loc.retryAgain(),
+            onAction: _reloadLawyers,
+          ),
+        ],
+      );
+    }
+
+    if (state.lawyers.isEmpty &&
+        state.lawyersStatus == ConsultationStatus.success) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: 80.h),
+          ConsultationEmptyState(
+            icon: Icons.person_search_outlined,
+            title: Loc.noLawyersAvailable(),
+            message: Loc.tryChangingSearchCriteria(),
+          ),
+        ],
+      );
+    }
+
+    if (widget.recommended) {
+      if (state.recommendedLawyerStatus == ConsultationStatus.success &&
+          state.recommendedLawyer != null) {
+        final lawyers = [state.recommendedLawyer!];
+        return _buildLawyersListView(lawyers, state);
+      } else {
+        return ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: 80.h),
+            ConsultationEmptyState(
+              icon: Icons.person_search_outlined,
+              title: Loc.noRecommendedLawyer(),
+              message: Loc.noSuitableLawyerFound(),
+            ),
+          ],
+        );
+      }
+    }
+
+    final recommendedId =
+    state.recommendedLawyerStatus == ConsultationStatus.success
+        ? state.recommendedLawyer?.id
+        : null;
+    final lawyers = state.lawyers;
+
+    if (lawyers.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: 80.h),
+          ConsultationEmptyState(
+            icon: Icons.person_search_outlined,
+            title: Loc.noAdditionalLawyers(),
+            message: Loc.recommendedLawyerOnlyOption(),
+          ),
+        ],
+      );
+    }
+
+    return ListView.separated(
+      itemCount: lawyers.length,
+      separatorBuilder: (_, __) => Gap(ConsultationFlowSpacing.cardGap),
+      itemBuilder: (context, index) {
+        final lawyer = lawyers[index];
+        return LawyerCard(
+          name: lawyer.fullName,
+          city: _cityName(state, lawyer.displayCities.join('، ')),
+          region: _cityName(state, lawyer.city),
+          rating: lawyer.rating,
+          specialization: lawyer.mainSpecializations.isNotEmpty
+              ? (lawyer.mainSpecializations.first.name ?? '—')
+              : '—',
+          experience: lawyer.experienceYears != null
+              ? '${lawyer.experienceYears}'
+              : '—',
+          price: lawyer.consultationFee ?? 0,
+          pricingFallback: state.selectedPricing?.basePrice,
+          imageUrl: lawyer.photoUrl ?? '',
+          statusValue: lawyer.activityStatus,
+          onConsult: () => _onConsult(context, state, lawyer),
+          onCardTap: () => Nav.lawyerDetailsScreen(context, Id: lawyer.id),
+        );
+      },
+    );
+  }
+
+  Widget _buildLawyersListView(List<LawyerDetailModel> lawyers, ConsultationState state) {
+    return ListView.separated(
+      itemCount: lawyers.length,
+      separatorBuilder: (_, __) => Gap(ConsultationFlowSpacing.cardGap),
+      itemBuilder: (context, index) {
+        LawyerDetailModel lawyer = lawyers[index];
+        return LawyerCard(
+          name: lawyer.fullName,
+          city: _cityName(state, lawyer.displayCities.join('، ')),
+          region: _cityName(state, lawyer.city),
+          rating: lawyer.rating,
+          specialization: lawyer.mainSpecializations.isNotEmpty
+              ? (lawyer.mainSpecializations.first.name ?? '—')
+              : '—',
+          experience: lawyer.experienceYears != null
+              ? '${lawyer.experienceYears}'
+              : '—',
+          price: lawyer.consultationFee ?? 0,
+          pricingFallback: state.selectedPricing?.basePrice,
+          imageUrl: lawyer.photoUrl ?? '',
+          statusValue: lawyer.activityStatus,
+          isRecommended: widget.recommended,
+          onConsult: () => _onConsult(context, state, lawyer),
+          onCardTap: () {
+            Nav.lawyerDetailsScreen(context, Id: lawyer.id);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildLoadingOrEmptyState(ConsultationState state) {
+    if (state.recommendedLawyerStatus == ConsultationStatus.loading) {
+      return _buildLawyersShimmer(context);
+    }
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.person_search_outlined,
+            size: 48,
+            color: Theme.of(context).hintColor,
+          ),
+          Gap(12.h),
+          Text(
+            Loc.noRecommendedLawyerNow(),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).hintColor,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildLawyersShimmer(BuildContext context) {
+    final theme = Theme.of(context);
+    final base = theme.brightness == Brightness.light
+        ? Colors.grey.shade300
+        : Colors.grey.shade700;
+    final highlight = theme.brightness == Brightness.light
+        ? Colors.grey.shade100
+        : Colors.grey.shade600;
+
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: ListView.separated(
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: 4,
+        separatorBuilder: (_, __) => Gap(ConsultationFlowSpacing.cardGap),
+        itemBuilder: (_, __) => Container(
+          height: 160.h,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
           ),
         ),
       ),
@@ -608,9 +775,30 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
   }
 }
 
-// -----------------------------------------------------------------------------
-// Lawyer Card Widget
-// -----------------------------------------------------------------------------
+
+
+class LawyerStatusInfo {
+  final String label;
+  final Color color;
+
+  const LawyerStatusInfo(this.label, this.color);
+}
+
+LawyerStatusInfo? resolveLawyerStatus(String? value) {
+  switch (value) {
+    case 'available_now':
+      return LawyerStatusInfo(Loc.availableNow(), Color(0xFF2E7D32));
+    case 'busy':
+    case 'in_consultation':
+      return LawyerStatusInfo(Loc.busy(), Color(0xFFE08C00));
+    case 'offline':
+    case 'unavailable':
+    case 'away':
+      return LawyerStatusInfo(Loc.offline(), Color(0xFF9E9E9E));
+    default:
+      return null;
+  }
+}
 
 
 class LawyerCard extends StatelessWidget {
@@ -621,9 +809,12 @@ class LawyerCard extends StatelessWidget {
   final String specialization;
   final String experience;
   final double price;
+  final double? pricingFallback;
   final String imageUrl;
-  final bool available;
+  final String? statusValue;
+  final bool isRecommended;
   final VoidCallback onConsult;
+  final VoidCallback? onCardTap;
 
   const LawyerCard({
     super.key,
@@ -634,47 +825,104 @@ class LawyerCard extends StatelessWidget {
     required this.specialization,
     required this.experience,
     required this.price,
+    this.pricingFallback,
     required this.imageUrl,
-    required this.available,
+    this.statusValue,
+    this.isRecommended = false,
     required this.onConsult,
+    this.onCardTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
+    final status = resolveLawyerStatus(statusValue);
+    final hasPrice = price > 0;
 
     return GestureDetector(
-      onTap: ()
-      {
-        Nav.lawyerDetailsScreen(context) ; 
-      },
+      onTap: onCardTap,
       child: Container(
         padding: EdgeInsets.all(16.w),
         decoration: BoxDecoration(
-
+          color: isRecommended
+              ? theme.colorScheme.primary.withOpacity(0.04)
+              : null,
           borderRadius: BorderRadius.circular(16.h),
-          border: Border.all(color: theme.dividerColor),
-
+          border: Border.all(
+            color: isRecommended
+                ? theme.colorScheme.primary.withOpacity(0.5)
+                : theme.dividerColor,
+            width: isRecommended ? 1.4 : 1,
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            /// Header Row (Photo, Name, Availability)
+            if (isRecommended)
+              Padding(
+                padding: EdgeInsets.only(bottom: 12.h),
+                child: Container(
+                  padding:
+                  EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary,
+                    borderRadius: BorderRadius.circular(8.h),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome_rounded,
+                          color: Colors.white, size: 14.h),
+                      Gap(6.w),
+                      Text(
+                        Loc.bestMatchForRequest(),
+                        style: textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             Row(
               children: [
-                /// Avatar
                 Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    /// Lawyer Image
-                    CircleAvatar(
-                      radius: 35.w,
-                     child: ClipRRect(borderRadius :BorderRadius.circular(1000.h) , child: Picture(imageUrl)),
+                    Container(
+                      width: 70.w,
+                      height: 70.w,
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: theme.colorScheme.primary.withOpacity(0.6),
+                          width: 2,
+                        ),
+                      ),
+                      child: Container(
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: imageUrl.isNotEmpty
+                            ? Picture(
+                          imageUrl,
+                          fit: BoxFit.cover,
+                        )
+                            : Container(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.person,
+                            size: 40.h,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                     ),
-
-                    /// Online Status Dot
-                    if (available)
+                    if (status != null)
                       Positioned(
                         top: 2,
                         right: 2,
@@ -682,38 +930,36 @@ class LawyerCard extends StatelessWidget {
                           width: 15.w,
                           height: 15.w,
                           decoration: BoxDecoration(
-                            color: Colors.green,
+                            color: status.color,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: Theme.of(context).cardColor,
+                              color: theme.cardColor,
                               width: 1.5,
                             ),
                           ),
                         ),
                       ),
-
-                    /// Rating Badge
                     Positioned(
                       bottom: -10.h,
                       left: 3.w,
                       right: 3.w,
                       child: Container(
-                        padding: EdgeInsets.symmetric(horizontal:2.w, vertical: 2.h),
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 2.w, vertical: 2.h),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).cardColor,
+                          color: theme.cardColor,
                           borderRadius: BorderRadius.circular(10.h),
-
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                            const Icon(Icons.star_rounded,
+                                color: Colors.amber, size: 18),
                             SizedBox(width: 4.w),
                             Text(
                               rating.toStringAsFixed(1),
-                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              style: textTheme.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w600,
-                                fontFamily: "almarai"
                               ),
                             ),
                           ],
@@ -721,74 +967,91 @@ class LawyerCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ) ,
-
+                ),
                 Gap(12.w),
-
-                /// Info (Name, Location)
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        name,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text(name,
+                          style: textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
                       Gap(4.h),
                       Row(
                         children: [
                           Icon(Icons.location_on_outlined,
                               size: 16.w, color: theme.hintColor),
                           Gap(4.w),
-                          Text(
-                            '$city - $region',
-                            style: textTheme.bodySmall?.copyWith(
-                              color: theme.hintColor,
+                          Expanded(
+                            child: Text(
+                              '$city - $region',
+                              style: textTheme.bodySmall
+                                  ?.copyWith(color: theme.hintColor),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
                       ),
+                      if (status != null) ...[
+                        Gap(6.h),
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 8.w, vertical: 3.h),
+                          decoration: BoxDecoration(
+                            color: status.color.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(8.h),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                width: 6.w,
+                                height: 6.w,
+                                decoration: BoxDecoration(
+                                  color: status.color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              Gap(5.w),
+                              Text(
+                                status.label,
+                                style: textTheme.labelSmall?.copyWith(
+                                  color: status.color,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-
-                /// Rating
-
               ],
             ),
-
             Gap(12.h),
-            GeneralDivider(height: 20.h,),
-
-            /// Details Row
+            GeneralDivider(height: 20.h),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                _InfoColumn(title: Loc.yearsOfExperience(), value: experience),
+                Container(
+                    height: 40.h, width: 1, color: theme.dividerColor),
+                _InfoColumn(title: Loc.specialization(), value: specialization),
+                Container(
+                    height: 40.h, width: 1, color: theme.dividerColor),
                 _InfoColumn(
-                  title: 'سنوات الخبرة',
-                  value: experience,
-                ),
-                Container(height: 40.h,width: 1, color: theme.dividerColor,) ,
-                _InfoColumn(
-                  title: 'التخصص',
-                  value: specialization,
-                ),
-                Container(height: 40.h,width: 1   , color: theme.dividerColor,) ,
-                _InfoColumn(
-                  title: 'سعر الإستشارة',
-                  value: '${price.toStringAsFixed(0)} ريال',
+                  title: Loc.consultationPriceAlt(),
+                  value: hasPrice
+                      ? Loc.amountRiyal(price.toStringAsFixed(0))
+                      : (pricingFallback != null && pricingFallback! > 0
+                          ? Loc.amountRiyal(pricingFallback!.toStringAsFixed(0))
+                          : '—'),
                   valueColor: theme.colorScheme.primary,
                 ),
               ],
             ),
-
-
-            GeneralDivider(height: 20.h,),
-
-
-            /// Button
+            GeneralDivider(height: 20.h),
             SizedBox(
               width: double.infinity,
               height: 48.h,
@@ -800,9 +1063,10 @@ class LawyerCard extends StatelessWidget {
                   ),
                 ),
                 onPressed: onConsult,
-                child: const Text(
-                  'استشر المحامي',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                child: Text(
+                  Loc.consultNowAlt(),
+                  style: TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
@@ -818,16 +1082,12 @@ class _InfoColumn extends StatelessWidget {
   final String value;
   final Color? valueColor;
 
-  const _InfoColumn({
-    required this.title,
-    required this.value,
-    this.valueColor,
-  });
+  const _InfoColumn(
+      {required this.title, required this.value, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -845,25 +1105,17 @@ class _InfoColumn extends StatelessWidget {
   }
 }
 
-
-// -----------------------------------------------------------------------------
-// Filter Chip Widget
-// -----------------------------------------------------------------------------
 class _FilterChip extends StatelessWidget {
-  final String  icon;
+  final String icon;
   final String title;
   final VoidCallback onTap;
 
-  const _FilterChip({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-  });
+  const _FilterChip(
+      {required this.icon, required this.title, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 2.0.w),
       child: GestureDetector(
@@ -873,16 +1125,27 @@ class _FilterChip extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border.all(color: theme.dividerColor),
             borderRadius: BorderRadius.circular(10.h),
-
           ),
           child: Row(
             children: [
-              Picture(getAssetIcon(icon) , color: theme.colorScheme.onSurface,),
+              Picture(
+                getAssetIcon(icon),
+                width: 20.w,
+                height: 20.w,
+                color: theme.colorScheme.onSurface,
+              ),
               Gap(4.w),
-              Text(
-                title,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.onSurface),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: AlignmentDirectional.centerStart,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurface),
+                  ),
+                ),
               ),
               Gap(4.w),
               Container(
@@ -891,16 +1154,22 @@ class _FilterChip extends StatelessWidget {
                   color: greyF4,
                   borderRadius: BorderRadius.circular(5),
                 ),
-                child: Icon(
-                   Icons.keyboard_arrow_down,
-                  size: 13,
-                  color: Colors.black,
-                ),
-              )
+                child: const Icon(Icons.keyboard_arrow_down,
+                    size: 13, color: Colors.black),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+}
+class _LawyerSortOption {
+  const _LawyerSortOption(this.label, this.sortBy, this.sortOrder);
+
+  final String label;
+  final String sortBy;
+  final String sortOrder;
+
+  String get id => '$sortBy-$sortOrder';
 }

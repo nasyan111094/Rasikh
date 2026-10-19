@@ -60,6 +60,15 @@ class UserCompletionCubit extends Cubit<UserCompletionState> {
     );
   }
 
+  /// Clears stale form state so each entry starts fresh (singleton-safe:
+  /// controllers are cleared, not disposed).
+  void reset() {
+    fullNameController.clear();
+    emailController.clear();
+    _cachedCities = [];
+    emit(const UserCompletionInitial());
+  }
+
   @override
   Future<void> close() {
     // Registered as a singleton — controllers must NOT be disposed here.

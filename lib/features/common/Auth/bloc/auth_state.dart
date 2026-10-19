@@ -6,7 +6,7 @@
 import 'package:equatable/equatable.dart';
 
 
-import '../models/auth_model.dart';
+import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 
 class AuthState extends Equatable {
   // ── SEND OTP STATUS ───────────────────────────────────────────────────────

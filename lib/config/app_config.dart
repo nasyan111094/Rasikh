@@ -1,8 +1,20 @@
 abstract class AppConfig {
-  static String baseUrl = "http://89.117.60.202:3050/api/v1/";
+  static String baseUrl = "https://rasekhapi.alnasyan.com/api/v1/";
+  static String baseApiUrl = "https://rasekhapi.alnasyan.com/api/";
   static String baseImgUrl = "http://89.117.60.202:3050";
 
   static String version = 'v1/';
+
+  // Agora Chat SDK
+  static String agoraChatAppKey = '41200059252#200082844';
+
+  // ── Store links (fallback when the API storeUrl is missing) ──────────────
+  static const String appleStoreUrl =
+      'https://apps.apple.com/us/app/%D8%B1%D8%A7%D8%B3%D8%AE-%D8%A7%D9%84%D8%B0%D9%83%D9%8A-rasikh/id6810118137';
+  static const String googlePlayUrl =
+      'https://play.google.com/store/apps/details?id=com.rasikh.rasikh_smart';
+  static const String websiteUrl =
+      'https://v0-raskh-landing-page-design.vercel.app/';
 }
 
 ///firebase
@@ -144,4 +156,63 @@ abstract class EndPoints {
 
   static String deleteContractsWithDataBase({required String contractId}) =>
       'Order?id=$contractId';
+
+  // Payment endpoints
+  static String payWithWallet({required String consultationId}) =>
+      'client/consultations/$consultationId/pay-with-wallet';
+  static String initiatePayment({required String consultationId}) =>
+      'client/consultations/$consultationId/payment/initiate';
+
+  // Wallet endpoints (dynamic based on vendor type)
+  static String wallet({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet';
+  }
+
+  static String walletBankAccounts({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/bank-accounts';
+  }
+
+  static String walletTopupInitiate({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/topup/initiate';
+  }
+
+  static String walletTopupLimits({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/topup/limits';
+  }
+
+  static String walletTransactions({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/transactions';
+  }
+
+  static String walletTransactionById({required String id, String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/transactions/$id';
+  }
+
+  static String walletWithdrawals({String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    final postfix = vendorType == 'lawyer' ? 'withdrawal-requests' : 'withdrawals';
+
+    return '$prefix/wallet/$postfix';
+  }
+
+  static String walletDeleteBankAccount({required String id, String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/bank-accounts/$id';
+  }
+
+  static String walletSetDefaultBankAccount({required String id, String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/bank-accounts/$id/set-default';
+  }
+
+  static String walletUpdateBankAccount({required String id, String? vendorType}) {
+    final prefix = vendorType == 'lawyer' ? 'lawyer' : 'client';
+    return '$prefix/wallet/bank-accounts/$id';
+  }
 }

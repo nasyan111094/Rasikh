@@ -34,6 +34,16 @@ class CompanyCompletionCubit extends Cubit<CompanyCompletionState> {
     );
   }
 
+  /// Clears stale form state so each entry starts fresh (singleton-safe:
+  /// controllers are cleared, not disposed).
+  void reset() {
+    companyNameController.clear();
+    commercialRegController.clear();
+    emailController.clear();
+    representativeNameController.clear();
+    emit(const CompanyCompletionInitial());
+  }
+
   @override
   Future<void> close() {
     // Singleton – do NOT dispose controllers.

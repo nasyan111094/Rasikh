@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:gap/gap.dart';
@@ -137,7 +138,7 @@ class _PhoneFieldState extends State<PhoneField>
 
         inputFormatters: [
           FilteringTextInputFormatter.digitsOnly,
-          LengthLimitingTextInputFormatter(10),
+          LengthLimitingTextInputFormatter(9),
         ],
 
         validator: widget.onValidated ?? validate,
@@ -161,7 +162,7 @@ class _PhoneFieldState extends State<PhoneField>
           hintText: '5XXXXXXXX',
 
           labelText:
-          widget.showHint ? 'رقم الجوال' : null,
+          widget.showHint ? Loc.phone_number() : null,
 
           floatingLabelBehavior:
           FloatingLabelBehavior.auto,
@@ -189,9 +190,6 @@ class _PhoneFieldState extends State<PhoneField>
             fontWeight: FontWeight.w600,
           ),
 
-          // ─────────────────────────────────────
-          // Borders
-          // ─────────────────────────────────────
 
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(18.h),
@@ -225,9 +223,6 @@ class _PhoneFieldState extends State<PhoneField>
             ),
           ),
 
-          // ─────────────────────────────────────
-          // Prefix
-          // ─────────────────────────────────────
 
           prefixIcon: Padding(
             padding: EdgeInsetsDirectional.only(
@@ -246,9 +241,6 @@ class _PhoneFieldState extends State<PhoneField>
             ),
           ),
 
-          // ─────────────────────────────────────
-          // Country Code
-          // ─────────────────────────────────────
 
           suffixIcon: Container(
             margin: EdgeInsets.all(8.w),
@@ -311,17 +303,17 @@ class _PhoneFieldState extends State<PhoneField>
 
   String? validate(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'الرجاء إدخال رقم الجوال';
+      return Loc.pleaseEnterMobileNumber();
     }
 
     final phone = value.trim();
 
     final regex = RegExp(
-      r'^(5\d{8}|05\d{8})$',
+      r'^(5\d{8}|05\d{7})$',
     );
 
     if (!regex.hasMatch(phone)) {
-      return 'رقم الجوال السعودي غير صحيح';
+      return Loc.invalidSaudiMobileNumber();
     }
 
     return null;

@@ -1,14 +1,16 @@
-// features/User/profile/screens/contact_us_screen.dart
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rasikh/core/widgets/error_state_widget.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 
 import '../../../../core/get_it_service/get_it_service.dart';
+import '../../../../core/widgets/general_app_bar.dart';
 import '../../../Lawyer/lawyer_Settings/Repo/help_center_repo.dart';
 import '../../../Lawyer/lawyer_Settings/bloc/help_center/contact_cubit.dart';
 import '../widgets/contact_datail.dart';
@@ -27,7 +29,6 @@ class ContactUsScreen extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ContactUsView extends StatelessWidget {
   const _ContactUsView();
@@ -55,9 +56,9 @@ class _ContactUsView extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      appBar: const HeaderCapsuleAppBar(
-        title: 'تواصل معنا',
-        showBottomDivider: true,
+      appBar: GeneralAppBar(
+        title: Loc.contactUs(),
+
       ),
       body: BlocConsumer<ContactCubit, ContactState>(
         listenWhen: (_, s) => s is ContactFailure,
@@ -72,113 +73,113 @@ class _ContactUsView extends StatelessWidget {
           }
         },
         builder: (context, state) {
-          // ── Shimmer ───────────────────────────────────────────────────────
           if (state is ContactLoading) {
             return const _ContactShimmer();
           }
 
-          // ── Error (no data yet) ───────────────────────────────────────────
           if (state is ContactFailure) {
-            return _ErrorBody(
+            return ErrorStateWidget(
               message: state.message,
-              onRetry: () =>
-                  context.read<ContactCubit>().fetchContact(),
+              onAction: () =>
+                  context.read<ContactCubit>().fetchContact(), title: Loc.errorLoadingContactData(),
             );
           }
 
-          // ── Loaded ────────────────────────────────────────────────────────
           if (state is ContactLoaded) {
             final contact = state.contact;
 
             return RefreshIndicator(
               onRefresh: () =>
                   context.read<ContactCubit>().refreshContact(),
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.all(16.w),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    const SizedBox(height: 8),
-                    Image.asset(
-                      'assets/images/contact_us.png',
-                      height:
-                      MediaQuery.of(context).size.height * 0.28,
-                      fit: BoxFit.contain,
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  Image.asset(
+                    'assets/images/contact_us.png',
+                    height:
+                    MediaQuery.of(context).size.height * 0.28,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    Loc.contactUs(),
+                    style: textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: colorScheme.primary,
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'تواصل معنا',
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: colorScheme.primary,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    Loc.contactUsSubtitle(),
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: textTheme.bodyMedium?.color
+                          ?.withOpacity(0.7),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.all(16.w),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+
+
+                          if (contact.phone.isNotEmpty) ...[
+                            ContactTileFigma(
+                              title: Loc.contactViaSupportNumber(),
+                              subtitle: contact.phone,
+                              iconAsset: 'assets/icons/call-calling.svg',
+                              showChevron: true,
+                              onTap: () => _callPhone(contact.phone),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          if (contact.email.isNotEmpty) ...[
+                            ContactTileFigma(
+                              title: Loc.contactViaEmail(),
+                              subtitle: contact.email,
+                              iconAsset: 'assets/icons/sms.svg',
+                              showChevron: true,
+                              onTap: () => _sendEmail(contact.email),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          if (contact.whatsapp.isNotEmpty) ...[
+                            ContactTileFigma(
+                              title: Loc.contactViaWhatsapp(),
+                              subtitle: contact.whatsapp,
+                              iconAsset: 'assets/icons/whatsapp.svg',
+                              showChevron: true,
+                              onTap: () => _openWhatsApp(contact.whatsapp),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+
+                          ...contact.socialLinks.map(
+                                (link) => Padding(
+                              padding: EdgeInsets.only(bottom: 20.h),
+                              child: ContactTileFigma(
+                                title: Loc.followUsOn(link.platform),
+                                subtitle: link.url,
+                                iconAsset: 'assets/icons/link.svg',
+                                showChevron: true,
+                                onTap: () => _openUrl(link.url),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 24),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'نحن دائماً سعداء بخدمتك، ويمكنك التواصل معنا عبر الوسائل المتاحة أدناه',
-                      textAlign: TextAlign.center,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: textTheme.bodyMedium?.color
-                            ?.withOpacity(0.7),
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-
-                    // ── Phone ────────────────────────────────────────────
-                    if (contact.phone.isNotEmpty) ...[
-                      ContactTileFigma(
-                        title: 'التواصل عبر رقم الدعم الفني',
-                        subtitle: contact.phone,
-                        iconAsset: 'assets/icons/call-calling.svg',
-                        showChevron: true,
-                        onTap: () => _callPhone(contact.phone),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // ── Email ─────────────────────────────────────────────
-                    if (contact.email.isNotEmpty) ...[
-                      ContactTileFigma(
-                        title: 'التواصل عبر البريد الإلكتروني',
-                        subtitle: contact.email,
-                        iconAsset: 'assets/icons/sms.svg',
-                        showChevron: true,
-                        onTap: () => _sendEmail(contact.email),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // ── WhatsApp ──────────────────────────────────────────
-                    if (contact.whatsapp.isNotEmpty) ...[
-                      ContactTileFigma(
-                        title: 'التواصل عبر واتساب',
-                        subtitle: contact.whatsapp,
-                        iconAsset: 'assets/icons/whatsapp.svg',
-                        showChevron: true,
-                        onTap: () => _openWhatsApp(contact.whatsapp),
-                      ),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // ── Social Links ──────────────────────────────────────
-                    ...contact.socialLinks.map(
-                          (link) => Padding(
-                        padding: EdgeInsets.only(bottom: 20.h),
-                        child: ContactTileFigma(
-                          title: 'تابعنا على ${link.platform}',
-                          subtitle: link.url,
-                          iconAsset: 'assets/icons/link.svg',
-                          showChevron: true,
-                          onTap: () => _openUrl(link.url),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                  ),
+                ],
               ),
             );
           }
@@ -190,9 +191,6 @@ class _ContactUsView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Shimmer
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ContactShimmer extends StatelessWidget {
   const _ContactShimmer();
@@ -208,7 +206,6 @@ class _ContactShimmer extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 8),
-            // Image placeholder
             Container(
               height: MediaQuery.of(context).size.height * 0.28,
               width: double.infinity,
@@ -218,7 +215,6 @@ class _ContactShimmer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            // Title placeholder
             Container(
               height: 22,
               width: 140,
@@ -228,7 +224,6 @@ class _ContactShimmer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 12),
-            // Subtitle placeholder
             Container(
               height: 14,
               width: 260,
@@ -238,7 +233,6 @@ class _ContactShimmer extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 28),
-            // Tile placeholders
             ..._buildTilePlaceholders(3),
           ],
         ),
@@ -262,9 +256,6 @@ class _ContactShimmer extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Error body
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _ErrorBody extends StatelessWidget {
   const _ErrorBody({required this.message, required this.onRetry});
@@ -292,7 +283,7 @@ class _ErrorBody extends StatelessWidget {
             SizedBox(height: 20.w),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('إعادة المحاولة'),
+              child: Text(Loc.retryAgain()),
             ),
           ],
         ),

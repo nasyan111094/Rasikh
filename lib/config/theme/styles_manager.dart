@@ -8,11 +8,12 @@ TextStyle _getTextStyle(
   double fontSize,
   FontWeight fontWeight,
   Color color,
+  {String fontFamily = "almarai"}
 ) {
   return TextStyle(
     fontSize: fontSize.sp.sp,
     fontWeight: fontWeight,
-    fontFamily: almarai,
+    fontFamily: fontFamily,
     color: color,
   );
 }
@@ -89,6 +90,13 @@ TextStyle getBoldPrimary16Style() {
     primary,
   );
 }
+TextStyle getBoldPrimary20Style() {
+  return _getTextStyle(
+    20,
+    FontWeight.w700,
+    primary,
+  );
+}
 
 TextStyle getBoldPrimary14Style() {
   return _getTextStyle(
@@ -114,13 +122,6 @@ TextStyle getW700White16Style() {
   );
 }
 
-TextStyle getBoldPrimary20Style() {
-  return _getTextStyle(
-    20,
-    FontWeight.w700,
-    primary,
-  );
-}
 
 TextStyle getBoldBlack12Style() {
   return _getTextStyle(
@@ -367,6 +368,7 @@ TextStyle getRegularBlack14Style() {
     14,
     FontWeight.w400,
     Colors.black,
+
   );
 }
 

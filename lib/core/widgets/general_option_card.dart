@@ -12,6 +12,7 @@ class OptionCard extends StatelessWidget {
   final String subtitle;
   final bool isSelected;
   final VoidCallback onTap;
+  final int? subtitleMaxLines;
 
   const OptionCard({
     super.key,
@@ -22,6 +23,7 @@ class OptionCard extends StatelessWidget {
     required this.subtitle,
     required this.isSelected,
     required this.onTap,
+    this.subtitleMaxLines = 2,
   });
 
   @override
@@ -81,8 +83,10 @@ class OptionCard extends StatelessWidget {
                           color: theme.hintColor,
                           fontSize: 13.sp,
                         ),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        maxLines: subtitleMaxLines,
+                        overflow: subtitleMaxLines == null
+                            ? null
+                            : TextOverflow.ellipsis,
                       ),
                     ],
                   ),

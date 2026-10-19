@@ -37,6 +37,10 @@ class CircleIconContainer extends StatelessWidget {
         decoration: BoxDecoration(
           color: backgroundColor,
           borderRadius: BorderRadius.circular(radius),
+          border: Border.all(
+            color: backgroundColor,
+            width: 1,
+          ),
           boxShadow: hasShadow
               ? [
             BoxShadow(

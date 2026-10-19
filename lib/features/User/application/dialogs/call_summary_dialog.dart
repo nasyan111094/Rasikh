@@ -1,0 +1,316 @@
+
+import 'package:rasikh/config/localization/loc_keys.dart';
+import 'package:flutter/material.dart';
+import 'package:size_config/size_config.dart';
+
+Future<void> showCallSummaryDialog(
+    BuildContext context, {
+      required void Function(String summary) onSubmit,
+      required Future<Null> Function() onSkip,
+      bool noShowEligible = false,
+      void Function(String summary)? onSubmitNoShow,
+    }) {
+  return showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => _CallSummaryDialog(
+      onSubmit: onSubmit,
+      onSkip: onSkip,
+      noShowEligible: noShowEligible,
+      onSubmitNoShow: onSubmitNoShow,
+    ),
+  );
+}
+
+class _CallSummaryDialog extends StatefulWidget {
+  const _CallSummaryDialog({
+    Key? key,
+    required this.onSubmit,
+    required this.onSkip,
+    this.noShowEligible = false,
+    this.onSubmitNoShow,
+  }) : super(key: key);
+
+  final void Function(String summary) onSubmit;
+  final Future<Null> Function() onSkip;
+  final bool noShowEligible;
+  final void Function(String summary)? onSubmitNoShow;
+
+  @override
+  State<_CallSummaryDialog> createState() => _CallSummaryDialogState();
+}
+
+class _CallSummaryDialogState extends State<_CallSummaryDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<Offset> _offsetAnimation;
+  late final Animation<double> _scaleAnimation;
+  final _textController = TextEditingController();
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _offsetAnimation = Tween<Offset>(
+      begin: const Offset(0, 1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+
+    _scaleAnimation = Tween<double>(
+      begin: 0.9,
+      end: 1,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
+
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _textController.dispose();
+    super.dispose();
+  }
+
+  bool _validateSummary() {
+    final summary = _textController.text.trim();
+
+    if (summary.isEmpty) return false;
+
+    if (summary.length < 50) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(Loc.callSummaryMinLength()),
+        ),
+      );
+      return false;
+    }
+    return true;
+  }
+
+  void _onSend() {
+    if (!_validateSummary()) return;
+
+    final summary = _textController.text.trim();
+    Navigator.of(context).pop();
+    widget.onSubmit(summary);
+  }
+
+  void _onSendNoShow() {
+    if (!_validateSummary()) return;
+
+    final summary = _textController.text.trim();
+    Navigator.of(context).pop();
+    if (widget.onSubmitNoShow != null) {
+      widget.onSubmitNoShow!(summary);
+    } else {
+      widget.onSubmit(summary);
+    }
+  }
+
+  Future<void> _onSkipPressed() async {
+    if (_busy) return;
+    _busy = true;
+    // X / Cancel must end-or-skip the session via onSkip (which navigates
+    // away itself), never a bare pop while the session is alive.
+    await widget.onSkip();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final direction = Directionality.of(context);
+
+    return Material(
+      color: Colors.black.withOpacity(0.25),
+      child: SlideTransition(
+        position: _offsetAnimation,
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 400.w),
+              child: Directionality(
+                textDirection: direction,
+                child: Container(
+                  padding: EdgeInsets.all(16.w),
+                  decoration: BoxDecoration(
+                    color: cs.surface,
+                    borderRadius: BorderRadius.circular(16.w),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.08),
+                        blurRadius: 15.h,
+                        offset: Offset(0, 5.h),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Align(
+                        alignment: direction == TextDirection.rtl
+                            ? Alignment.topRight
+                            : Alignment.topLeft,
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.close,
+                            color: cs.onSurface.withOpacity(.6),
+                          ),
+                          onPressed: _onSkipPressed,
+                        ),
+                      ),
+
+                      Center(
+                        child: Text(
+                          Loc.callSummary(),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: cs.onSurface,
+                            fontSize: 16.sp,
+                          ),
+                        ),
+                      ),
+
+                      SizedBox(height: 20.h),
+
+                      Text.rich(
+                        TextSpan(
+                          text: Loc.writeCallSummary(),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontSize: 13.sp,
+                            fontWeight: FontWeight.w600,
+                            color: cs.onSurface,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: ' *',
+                              style:
+                              TextStyle(color: cs.error, fontSize: 14.sp),
+                            ),
+                          ],
+                        ),
+                        textAlign: direction == TextDirection.rtl
+                            ? TextAlign.right
+                            : TextAlign.left,
+                      ),
+                      SizedBox(height: 8.h),
+
+                      TextField(
+                        controller: _textController,
+                        maxLines: 5,
+                        textDirection: direction,
+                        decoration: InputDecoration(
+                          hintText: Loc.writeCallSummaryHint(),
+                          hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                            color: cs.onSurface.withOpacity(.4),
+                            fontSize: 13.sp,
+                          ),
+                          filled: true,
+                          fillColor: cs.surfaceVariant.withOpacity(.3),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.w),
+                            borderSide: BorderSide(
+                              color: cs.outlineVariant.withOpacity(.4),
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.w),
+                            borderSide: BorderSide(
+                              color: cs.outlineVariant.withOpacity(.4),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12.w),
+                            borderSide: BorderSide(color: cs.primary),
+                          ),
+                          contentPadding: EdgeInsets.all(12.w),
+                        ),
+                      ),
+
+                      SizedBox(height: 20.h),
+
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _onSkipPressed,
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: Size.fromHeight(46.h),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.h),
+                                ),
+                                backgroundColor:
+                                cs.surfaceVariant.withOpacity(.2),
+                                side: BorderSide.none,
+                              ),
+                              child: Text(
+                                Loc.cancel(),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: cs.onSurface.withOpacity(.6),
+                                  fontSize: 14.sp,
+                                ),
+                              ),
+                            ),
+                          ),
+                          SizedBox(width: 10.w),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _onSend,
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: Size.fromHeight(46.h),
+                                elevation: 0,
+                                backgroundColor: const Color(0xFFBFA171),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.h),
+                                ),
+                              ),
+                              child: Text(
+                                Loc.sendAction(),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  fontSize: 14.sp,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      if (widget.noShowEligible) ...[
+                        SizedBox(height: 10.h),
+                        SizedBox(
+                          width: double.infinity,
+                          child: TextButton(
+                            onPressed: _onSendNoShow,
+                            child: Text(
+                              // TODO(l10n): add noShow key
+                              'إنهاء كتخلف عن الحضور',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: cs.error,
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

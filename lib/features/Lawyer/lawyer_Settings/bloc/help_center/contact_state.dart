@@ -26,3 +26,18 @@ final class ContactFailure extends ContactState {
   final String message;
   ContactFailure(this.message);
 }
+final class FaqLoading extends ContactState {}
+
+final class FaqLoaded extends ContactState {
+   FaqLoaded(this.faqs);
+  final List<FaqModel> faqs;
+  @override
+  List<Object?> get props => [faqs];
+}
+
+final class FaqFailure extends ContactState {
+  FaqFailure(this.message);
+  final String message;
+  @override
+  List<Object?> get props => [message];
+}

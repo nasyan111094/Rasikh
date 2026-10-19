@@ -3,19 +3,17 @@
 //
 // Step 4 (final) – Specializations (التخصصات)
 //
-// Behaviour:
-//  • Tap a card header → expands/collapses the sub-chip section.
-//  • A card is "selected" (filled radio, coloured border) only when ≥1 sub
-//    chip has been chosen from it.
-//  • Multiple cards can be expanded and/or selected simultaneously.
-//  • "إرسال للمراجعة" is enabled once at least one main has ≥1 sub chosen.
+// مطابقة تماماً لشاشة تعديل التخصصات عبر SpecializationBookingForm المشترك:
+//  • تخصص رئيسي واحد فقط (مطلوب)
+//  • تخصص فرعي (اختياري — متعدد)
+//  • نوع دعوى (اختياري — متعدد)
+//  • "إرسال للمراجعة" مفعّل عند اختيار الرئيسي.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/auth_stepper.dart';
@@ -26,11 +24,12 @@ import 'package:rasikh/features/common/Auth/screens/auth_page.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../../Shared/bottom_sheets/terms_conditions_button_sheet.dart';
-import '../../../../Shared/widgets/specialization_card.dart';
-import '../../../../config/navigation/nav.dart';
+import '../../../../Shared/widgets/lawyer_specializations_selector.dart';
+import '../../../../Shared/widgets/specialization_booking_form.dart';
 import '../cubit/lawyer_registeration_complation_cubit.dart';
 import '../cubit/lawyer_registeration_complation_state.dart';
-import '../models/lawyer_registeration_complation_model.dart';
+import '../models/lawyer_registeration_complation_model.dart'
+    show SpecializationModel;
 
 class LawyerSpecializationPage extends StatefulWidget {
   const LawyerSpecializationPage({super.key});
@@ -42,11 +41,46 @@ class LawyerSpecializationPage extends StatefulWidget {
 
 class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
   late final LawyerCompletionCubit _cubit;
+  LawyerSpecSelection? _selection;
 
   @override
   void initState() {
     super.initState();
     _cubit = getIt<LawyerCompletionCubit>()..fetchSpecializations();
+  }
+
+  List<LawyerSpecMain> _toCatalog(
+      List<SpecializationModel> specializations) {
+    return specializations.map((s) {
+      final subs = s.subSpecializations.map((sub) {
+        final lawsuits = sub.lawsuitTypes
+            .map((l) => LawyerSpecLawsuit(id: l.id, name: l.name))
+            .toList();
+        return LawyerSpecSub(
+            id: sub.id, name: sub.name, lawsuits: lawsuits);
+      }).toList();
+      return LawyerSpecMain(id: s.id, name: s.name, subs: subs);
+    }).toList();
+  }
+
+  Map<String, Set<String>> _lawsuitsBySub(
+      List<LawyerSpecMain> catalog, List<String> lawsuitIds) {
+    final subOfLawsuit = <String, String>{};
+    for (final m in catalog) {
+      for (final s in m.subs) {
+        for (final l in s.lawsuits) {
+          subOfLawsuit[l.id] = s.id;
+        }
+      }
+    }
+    final map = <String, Set<String>>{};
+    for (final id in lawsuitIds) {
+      final subId = subOfLawsuit[id];
+      if (subId != null) {
+        map.putIfAbsent(subId, () => <String>{}).add(id);
+      }
+    }
+    return map;
   }
 
   @override
@@ -131,7 +165,8 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                           );
                         }
                         if (state is LawyerSpecializationLoaded) {
-                          if (state.specializations.isEmpty) {
+                          final mains = _toCatalog(state.specializations);
+                          if (mains.isEmpty) {
                             return Center(
                               child: Text(
                                 'لم يتم العثور على تخصصات متاحة',
@@ -140,17 +175,29 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                               ),
                             );
                           }
-                          return ListView.separated(
+                          final savedMains =
+                              _cubit.formData.mainSpecializationIds;
+                          return ListView(
                             physics: const BouncingScrollPhysics(),
                             padding: EdgeInsets.fromLTRB(
                                 20.w, 0, 20.w, 8.h),
-                            itemCount: state.specializations.length,
-                            separatorBuilder: (_, __) => Gap(12.h),
-                            itemBuilder: (_, i) => SpecializationCard(
-                              spec:  state.specializations[i],
-                              state: state,
-                              cubit: _cubit,
-                            ),
+                            children: [
+                              SpecializationBookingForm(
+                                catalog: mains,
+                                initialMainId: savedMains.isEmpty
+                                    ? null
+                                    : savedMains.first,
+                                initialSubIds: _cubit
+                                    .formData.subSpecializationIds
+                                    .toSet(),
+                                initialLawsuitsBySub: _lawsuitsBySub(
+                                  mains,
+                                  _cubit.formData.lawsuitTypeIds,
+                                ),
+                                onChanged: (sel) =>
+                                    setState(() => _selection = sel),
+                              ),
+                            ],
                           );
                         }
                         return const SizedBox.shrink();
@@ -163,7 +210,10 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                     padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 0),
                     child: Column(
                       children: [
-                        _SubmitButton(cubit: _cubit),
+                        _SubmitButton(
+                          cubit: _cubit,
+                          selection: _selection,
+                        ),
                         Gap(14.h),
                         Text.rich(
                           TextSpan(
@@ -241,27 +291,13 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _SpecializationCard
-//
-// RTL layout (what you SEE left→right on screen):
-//   [Radio/Check circle]  [Title + Description]  [Square icon]
-//
-// Tapping the header expands/collapses the sub-spec section independently
-// from other cards.  The card is highlighted (selected style) only when ≥1
-// sub has been chosen from it.
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-
-
-
-// ─────────────────────────────────────────────────────────────────────────────
 // _SubmitButton — "إرسال للمراجعة"
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _SubmitButton extends StatelessWidget {
   final LawyerCompletionCubit cubit;
-  const _SubmitButton({required this.cubit});
+  final LawyerSpecSelection? selection;
+  const _SubmitButton({required this.cubit, required this.selection});
 
   @override
   Widget build(BuildContext context) {
@@ -270,8 +306,7 @@ class _SubmitButton extends StatelessWidget {
 
     return BlocBuilder<LawyerCompletionCubit, LawyerCompletionState>(
       builder: (context, state) {
-        final canProceed   = state is LawyerSpecializationLoaded &&
-            state.canProceed;
+        final canProceed   = (selection?.isValid ?? false);
         final isSubmitting = state is LawyerProfileSubmitting;
 
         return SizedBox(
@@ -295,8 +330,9 @@ class _SubmitButton extends StatelessWidget {
               onPressed: (canProceed && !isSubmitting)
                   ? () {
                 cubit.saveSpecializations(
-                  mainIds: cubit.selectedMainIds,
-                  subIds:  cubit.selectedSubIds,
+                  mainIds: selection!.mainIds,
+                  subIds:  selection!.subIds,
+                  lawsuitIds: selection!.lawsuitIds,
                 );
                 cubit.completeProfile();
               }

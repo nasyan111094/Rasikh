@@ -27,7 +27,12 @@ class _ImageCropperState extends State<ImageCropper> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -39,7 +44,16 @@ class _ImageCropperState extends State<ImageCropper> {
               initialSize: .5,
               withCircleUi: true,
               controller: controller,
-              onCropped: (image) => Navigator.pop(context, image),
+              onCropped: (image) {
+                if (image.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(Loc.somethingWentWrong())),
+                  );
+                  Navigator.pop(context);
+                } else {
+                  Navigator.pop(context, image);
+                }
+              },
             ),
           ),
           Padding(

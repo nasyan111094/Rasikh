@@ -4,12 +4,21 @@
 
 import 'dart:convert';
 
+import 'package:rasikh/Shared/models/city_model.dart';
+
 class LawyerProfileModel {
   final String id;
   final String phone;
   final String fullName;
   final String? email;
+
+  /// Legacy single city — first entry of [cities], kept only for older
+  /// clients. Never use it for display: it does NOT hold the full list.
   final String? city;
+
+  /// Cities the lawyer serves. Empty on records created before multi-city
+  /// support; read through [displayCities] instead of touching this directly.
+  final List<String> cities;
   final String? photoUrl;
   final String? nationalId;
   final String? nationalIdDocumentUrl;
@@ -23,6 +32,9 @@ class LawyerProfileModel {
   final List<SpecializationModel> mainSpecializations;
   final List<SpecializationModel> subSpecializations;
   final List<SpecializationByMainModel> specializationsByMain;
+  /// Saved lawsuit-type ids (PUT /lawyers/update/form returns/accepts
+  /// `lawsuitTypeIds`; some responses embed `lawsuitTypes` objects instead).
+  final List<String> lawsuitTypeIds;
   final bool acceptedTerms;
   final String status;
   final String accountStatus;
@@ -39,6 +51,7 @@ class LawyerProfileModel {
     required this.fullName,
     this.email,
     this.city,
+    this.cities = const [],
     this.photoUrl,
     this.nationalId,
     this.nationalIdDocumentUrl,
@@ -52,6 +65,7 @@ class LawyerProfileModel {
     this.mainSpecializations = const [],
     this.subSpecializations = const [],
     this.specializationsByMain = const [],
+    this.lawsuitTypeIds = const [],
     this.acceptedTerms = false,
     this.status = '',
     this.accountStatus = '',
@@ -70,6 +84,7 @@ class LawyerProfileModel {
       fullName: json['fullName'] ?? '',
       email: json['email'],
       city: json['city'],
+      cities: parseCities(json),
       photoUrl: json['photoUrl'],
       nationalId: json['nationalId'],
       nationalIdDocumentUrl: json['nationalIdDocumentUrl'],
@@ -96,6 +111,7 @@ class LawyerProfileModel {
           ?.map((e) => SpecializationByMainModel.fromJson(e))
           .toList() ??
           [],
+      lawsuitTypeIds: _parseLawsuitIds(json),
       acceptedTerms: json['acceptedTerms'] ?? false,
       status: json['status'] ?? '',
       accountStatus: json['accountStatus'] ?? '',
@@ -108,12 +124,19 @@ class LawyerProfileModel {
     );
   }
 
+  /// Cities to render for this lawyer.
+  ///
+  /// Prefers the full [cities] list and falls back to the legacy single
+  /// [city] — which only ever holds the first city, so it is a last resort.
+  List<String> get displayCities => resolveDisplayCities(cities, city);
+
   Map<String, dynamic> toJson() => {
     '_id': id,
     'phone': phone,
     'fullName': fullName,
     if (email != null) 'email': email,
     if (city != null) 'city': city,
+    if (cities.isNotEmpty) 'cities': cities,
     if (photoUrl != null) 'photoUrl': photoUrl,
     if (nationalId != null) 'nationalId': nationalId,
     if (bio != null) 'bio': bio,
@@ -127,6 +150,7 @@ class LawyerProfileModel {
     String? fullName,
     String? email,
     String? city,
+    List<String>? cities,
     String? photoUrl,
     String? bio,
     int? experienceYears,
@@ -134,12 +158,14 @@ class LawyerProfileModel {
     String? nationalId,
     String? commercialRegistrationNumber,
   }) {
+    final nextCities = cities ?? this.cities;
     return LawyerProfileModel(
       id: id,
       phone: phone,
       fullName: fullName ?? this.fullName,
       email: email ?? this.email,
       city: city ?? this.city,
+      cities: nextCities,
       photoUrl: photoUrl ?? this.photoUrl,
       nationalIdDocumentUrl: nationalIdDocumentUrl,
       commercialRegistrationDocumentUrl: commercialRegistrationDocumentUrl,
@@ -153,6 +179,7 @@ class LawyerProfileModel {
       mainSpecializations: mainSpecializations,
       subSpecializations: subSpecializations,
       specializationsByMain: specializationsByMain,
+      lawsuitTypeIds: lawsuitTypeIds,
       acceptedTerms: acceptedTerms,
       status: status,
       accountStatus: accountStatus,
@@ -168,6 +195,23 @@ class LawyerProfileModel {
 }
 
 // ── License ───────────────────────────────────────────────────────────────────
+
+/// Accepts `lawsuitTypeIds: ["id", ...]` or `lawsuitTypes: [{id|_id, ...}]`.
+List<String> _parseLawsuitIds(Map<String, dynamic> json) {
+  final rawIds = json['lawsuitTypeIds'] as List<dynamic>?;
+  if (rawIds != null) {
+    return rawIds.map((e) => e.toString()).where((s) => s.isNotEmpty).toList();
+  }
+  final rawTypes = json['lawsuitTypes'] as List<dynamic>?;
+  if (rawTypes != null) {
+    return [
+      for (final e in rawTypes)
+        if (e is Map<String, dynamic>)
+          (e['id'] ?? e['_id'])?.toString() ?? '',
+    ].where((s) => s.isNotEmpty).toList();
+  }
+  return const [];
+}
 
 class LicenseModel {
   final String? number;
@@ -251,24 +295,29 @@ class SpecializationByMainModel {
 class UpdateProfileRequest {
   final String? fullName;
   final String? email;
-  final String? city;
+
+  /// Cities the lawyer serves (one or more). Serialised as a JSON array
+  /// string in the `cities` field, matching the registration payload.
+  final List<String>? cities;
   final String? bio;
   final int? experienceYears;
 
   const UpdateProfileRequest({
     this.fullName,
     this.email,
-    this.city,
+    this.cities,
     this.bio,
     this.experienceYears,
   });
 
   Map<String, String> toFormFields() {
+    // Explicit clearing: a non-null (even empty) value is sent so the user
+    // can clear a field; null means untouched and is omitted.
     final map = <String, String>{};
-    if (fullName != null && fullName!.isNotEmpty) map['fullName'] = fullName!;
-    if (email != null && email!.isNotEmpty) map['email'] = email!;
-    if (city != null && city!.isNotEmpty) map['city'] = city!;
-    if (bio != null && bio!.isNotEmpty) map['bio'] = bio!;
+    if (fullName != null) map['fullName'] = fullName!;
+    if (email != null) map['email'] = email!;
+    if (cities != null) map['cities'] = jsonEncode(cities);
+    if (bio != null) map['bio'] = bio!;
     if (experienceYears != null) {
       map['experienceYears'] = experienceYears.toString();
     }
@@ -316,14 +365,26 @@ class UpdateLicenceRequest {
 class ChangePhoneRequestModel {
   final String phone;
   const ChangePhoneRequestModel({required this.phone});
-  Map<String, dynamic> toJson() => {'phone': '+966$phone'};
+  Map<String, dynamic> toJson() => {'phone': _withPrefix(phone)};
 }
 
 class ChangePhoneVerifyModel {
   final String phone;
   final String code;
   const ChangePhoneVerifyModel({required this.phone, required this.code});
-  Map<String, dynamic> toJson() => {'phone': '+966$phone', 'code': code};
+  Map<String, dynamic> toJson() => {'phone': _withPrefix(phone), 'code': code};
+}
+
+/// Strips any existing +966/966/leading-0 then prepends +966 once.
+String _withPrefix(String phone) {
+  var p = phone.trim();
+  if (p.startsWith('+966')) {
+    p = p.substring(4);
+  } else if (p.startsWith('966')) {
+    p = p.substring(3);
+  }
+  if (p.startsWith('0')) p = p.substring(1);
+  return '+966$p';
 }
 
 class ChangePhoneResponseModel {

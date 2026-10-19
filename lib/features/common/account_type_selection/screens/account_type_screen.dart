@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
@@ -30,37 +31,42 @@ class AccountTypeScreen extends StatefulWidget {
 
 class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
+  /// Local source of truth for the highlighted card. Seeded to
+  /// [VendorType.user] so "التسجيل كمستخدم" is selected by default.
+  late VendorType _selectedType;
+
   @override
   void initState() {
-    // TODO: implement initState
-    getIt<CacheHelper>().cachedVendorType = VendorType.user ;
-    getIt<CacheHelper>().setCurrentVendorType(VendorType.user) ;
+    super.initState();
+    _selectedType = VendorType.user;
 
-    Logger().i(getIt<CacheHelper>().cachedVendorType);
+    // Reset any vendor type left over from a previous session (e.g. the app
+    // was killed while "lawyer" was selected) so the screen always opens on
+    // "user". Persisted too, because the auth flow reads the vendor type from
+    // cache — pressing "التالي" without tapping a card must still work.
+    final cacheHelper = getIt<CacheHelper>();
+    cacheHelper.cachedVendorType = _selectedType;
+    cacheHelper.setCurrentVendorType(_selectedType);
+
+    Logger().i('Default account type set to: ${_selectedType.name}');
   }
 
 
-  final List<AccountTypeModel> accountTypes = const [
+  final List<AccountTypeModel> accountTypes = [
     AccountTypeModel(
       type: VendorType.user,
-      title: "التسجيل كمستخدم",
-      subtitle: "احصل على استشارة قانونية سريعة وموثوقة.",
+      title: Loc.registerAsUser(),
+      subtitle: Loc.registerAsUserSubtitle(),
       icon: "user.svg",
     ),
 
     AccountTypeModel(
       type: VendorType.lawyer,
-      title: "التسجيل كمحامي",
-      subtitle: "قدّم استشاراتك القانونية بأمان وسهولة.",
+      title: Loc.registerAsLawyer(),
+      subtitle: Loc.registerAsLawyerSubtitle(),
       icon: "lawyer.svg",
     ),
 
-    AccountTypeModel(
-      type: VendorType.company,
-      title: "التسجيل كشركة محاماه",
-      subtitle: "احصل على استشارة قانونية سريعة وموثوقة.",
-      icon: "City.svg",
-    ),
   ];
 
   @override
@@ -94,7 +100,6 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
                     children: [
                       SizedBox(height: 24.h),
 
-                      /// Logo + Title + Subtitle
                       Picture(
                         getAssetIcon("no_bg_logo.svg"),
                         width: 100.w,
@@ -104,7 +109,7 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
                       SizedBox(height: 24.h),
 
                       Text(
-                        "اختر نوع الحساب",
+                        Loc.chooseAccountType(),
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: colorScheme.primary,
@@ -114,7 +119,7 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
                       SizedBox(height: 6.h),
 
                       Text(
-                        "مستخدم أو محامي أو شركة محاماه؟ حدد حسابك لتجربة آمنة وسلسة.",
+                        Loc.chooseAccountTypeSubtitle(),
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.hintColor,
                           fontWeight: FontWeight.w500,
@@ -126,7 +131,6 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
                       SizedBox(height: 32.h),
 
-                      /// Account Types
                       Expanded(
                         child: ListView.builder(
                           physics: const BouncingScrollPhysics(),
@@ -136,12 +140,16 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
                             return AccountTypeCard(
                               item: item,
-                              selectedValue: getIt<CacheHelper>().cachedVendorType!,
+                              // Company has no card yet: fall back to user
+                              // tabs for display only. TODO: add a third
+                              // company option card.
+                              selectedValue: _selectedType,
                               onChanged: (value) {
                                 setState(() {
+                                  _selectedType = value;
 
-                                  getIt<CacheHelper>().cachedVendorType =value ;
-                                  getIt<CacheHelper>().setCurrentVendorType(value) ;
+                                  getIt<CacheHelper>().cachedVendorType = value;
+                                  getIt<CacheHelper>().setCurrentVendorType(value);
 
                                 });
                               },
@@ -152,9 +160,8 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
                       SizedBox(height: 16.h),
 
-                      /// Next Button
                       AppButton(
-                        title: "التالي",
+                        title: Loc.next(),
                         onPressed: () {
                           Nav.login(context);
                         },

@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// lawyer_completion/pages/lawyer_qualifications_page.dart
-//
-// Step 3 – Qualifications & Experience (المؤهلات والخبرات)
-// UI is 100% identical to Sign_Up_Screen__Qualifications_And_Experience_.png
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -57,7 +52,6 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
               children: [
                 Gap(16.h),
 
-                // ── Stepper ─────────────────────────────────────────────
                 const AuthStepperWidget(totalSteps: 7, activeStep: 6),
 
                 Gap(16.h),
@@ -70,7 +64,6 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Logo ────────────────────────────────────────
                           Align(
                             alignment: Alignment.centerRight,
                             child: Picture(
@@ -83,7 +76,7 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
                           Gap(12.h),
 
                           Text(
-                            "المؤهلات والخبرات",
+                            Loc.qualificationsAndExperience(),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color:      colorScheme.primary,
@@ -94,7 +87,7 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
                           Gap(4.h),
 
                           Text(
-                            "نحتاج المؤهلات والخبرات لتفعيل حسابك بالكامل.",
+                            Loc.qualificationsSubtitle(),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.hintColor,
                             ),
@@ -103,41 +96,39 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
 
                           Gap(28.h),
 
-                          // ── Qualifications multiline field ───────────────
 
                           Gap(6.h),
                           GeneralField(
                             controller:     _cubit.qualificationsController,
-                            hintText:       "أكتب هنا ...",
+                            hintText:       Loc.writeHereAlt(),
                             textInputType:  TextInputType.multiline,
                             iconPath:       "",
-                            label:          "المؤهلات والخبرات",
+                            label:          Loc.qualificationsAndExperience(),
                             showPreFixIcon: false,
                             maxLines:       6,
                             fieldValidator: (v) =>
                             v!.trim().isEmpty
-                                ? "يرجى كتابة مؤهلاتك"
+                                ? Loc.pleaseWriteQualifications()
                                 : null,
                           ),
 
                           Gap(20.h),
 
-                          // ── Years of experience ──────────────────────────
 
                           Gap(6.h),
                           GeneralField(
                             controller:     _cubit.experienceYearsController,
-                            hintText:       "10 سنوات",
+                            hintText:       Loc.tenYearsHint(),
                             textInputType:  TextInputType.number,
                             iconPath:       "Calendar.svg",
-                            label:          "سنوات الخبرة *",
+                            label:          Loc.yearsOfExperienceRequired(),
                             fieldValidator: (v) {
                               if (v == null || v.trim().isEmpty) {
-                                return "يرجى كتابة سنوات الخبرة";
+                                return Loc.pleaseWriteYearsOfExperience();
                               }
                               final years = int.tryParse(v.trim());
                               if (years == null || years <= 0) {
-                                return "يرجى إدخال عدد سنوات صحيح";
+                                return Loc.pleaseEnterValidYears();
                               }
                               return null;
                             },
@@ -150,9 +141,8 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
                   ),
                 ),
 
-                // ── Next button ──────────────────────────────────────────
                 AppButton(
-                  title: "التالي",
+                  title: Loc.next(),
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
                       _cubit.saveQualifications();
@@ -163,11 +153,10 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
 
                 Gap(20.h),
 
-                // ── Terms note ───────────────────────────────────────────
                 Center(
                   child: Text.rich(
                     TextSpan(
-                      text: "من خلال التسجيل، فإنك ",
+                      text: Loc.byRegisteringYou(),
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -183,14 +172,14 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
                               builder: (_) => const TermsBottomSheet(),
                             );
                           },
-                          text: "توافق على شروط الخدمة ",
+                          text: Loc.agreeToTermsOfServiceTrailing(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color:      colorScheme.primary,
                             decoration: TextDecoration.underline,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const TextSpan(text: "واتفاقية معالجة البيانات."),
+                        TextSpan(text: Loc.andDataProcessingAgreement()),
                       ],
                     ),
                     textAlign: TextAlign.center,
@@ -207,7 +196,6 @@ class _LawyerQualificationsPageState extends State<LawyerQualificationsPage> {
   }
 }
 
-// ── Field label helper ────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String    label;

@@ -44,6 +44,54 @@ class LawyerRatingsPaginationLoading extends LawyerRatingsState {
   });
 }
 
+// ── Rating Detail ─────────────────────────────────────────────────────────────
+
+class LawyerRatingDetailLoading extends LawyerRatingsState {}
+
+class LawyerRatingDetailLoaded extends LawyerRatingsState {
+  final RatingDetailModel detail;
+
+  LawyerRatingDetailLoaded({required this.detail});
+}
+
+class LawyerRatingDetailError extends LawyerRatingsState {
+  final String message;
+
+  LawyerRatingDetailError(this.message);
+}
+
+// ── Reply to Rating ───────────────────────────────────────────────────────────
+
+class LawyerRatingReplyLoading extends LawyerRatingsState {
+  final String ratingId;
+  final RatingDetailModel? currentDetail;
+
+  LawyerRatingReplyLoading({
+    required this.ratingId,
+    this.currentDetail,
+  });
+}
+
+class LawyerRatingReplySuccess extends LawyerRatingsState {
+  final String message;
+  final RatingDetailModel? currentDetail;
+
+  LawyerRatingReplySuccess({
+    required this.message,
+    this.currentDetail,
+  });
+}
+
+class LawyerRatingReplyError extends LawyerRatingsState {
+  final String message;
+  final RatingDetailModel? currentDetail;
+
+  LawyerRatingReplyError({
+    required this.message,
+    this.currentDetail,
+  });
+}
+
 // ── Report rating ─────────────────────────────────────────────────────────────
 
 class LawyerRatingReportLoading extends LawyerRatingsState {

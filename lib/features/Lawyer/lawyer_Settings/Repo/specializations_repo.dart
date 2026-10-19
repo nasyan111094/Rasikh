@@ -47,24 +47,8 @@ class SpecializationsRepo {
       final data = result.right.data;
       return Right(SpecializationCatalogResponse.fromJson(data));
     }
-    return Left(_extractError(result.left));
+    return Left(result.left);
   }
 
-  // ── Error helper ──────────────────────────────────────────────────────────
 
-  String _extractError(dynamic left) {
-    try {
-      if (left is DioException) {
-        final data = left.response?.data;
-        if (data is Map) {
-          return data['message']?.toString() ??
-              data['error']?['details']?.toString() ??
-              'حدث خطأ غير متوقع';
-        }
-      }
-      return left.toString();
-    } catch (_) {
-      return 'حدث خطأ غير متوقع';
-    }
-  }
 }

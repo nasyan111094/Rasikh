@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// lawyer_completion/pages/lawyer_personal_info_page.dart
-//
-// Step 1 – Personal Data (البيانات الشخصية)
-// UI is 100% identical to Sign_Up_Screen__Personal_Data_.png
-// ─────────────────────────────────────────────────────────────────────────────
-
+﻿
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
@@ -15,7 +10,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/auth_stepper.dart';
-import 'package:rasikh/core/widgets/fields/drop_down_field.dart';
 import 'package:rasikh/core/widgets/fields/email_field.dart';
 import 'package:rasikh/core/widgets/fields/name_field.dart';
 import 'package:rasikh/core/widgets/gradiant_button.dart';
@@ -24,10 +18,10 @@ import 'package:rasikh/core/widgets/user_selector/general_app_button.dart';
 import 'package:size_config/size_config.dart';
 
 import '../../../../Shared/bottom_sheets/terms_conditions_button_sheet.dart';
+import '../../../../Shared/widgets/cities_multi_select_field.dart';
 import '../../../../config/navigation/nav.dart';
 import '../../../../core/widgets/snack_bar.dart';
 import '../cubit/lawyer_registeration_complation_cubit.dart';
-import '../cubit/lawyer_registeration_complation_state.dart';
 
 class LawyerPersonalInfoPage extends StatefulWidget {
   const LawyerPersonalInfoPage({super.key});
@@ -41,7 +35,8 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
   final _formKey = GlobalKey<FormState>();
   late final LawyerCompletionCubit _cubit;
 
-  String? _selectedCityKey;
+  /// Cities the lawyer serves (one or more), stored as display values.
+  List<String> _selectedCities = [];
   File?   _profilePhoto;
   final   _picker = ImagePicker();
 
@@ -78,7 +73,6 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
               children: [
                 Gap(16.h),
 
-                // ── Progress stepper ──────────────────────────────────────
                 const AuthStepperWidget(totalSteps: 7, activeStep: 4),
 
                 Gap(16.h),
@@ -91,7 +85,6 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Logo ────────────────────────────────────────
                           Align(
                             alignment: Alignment.centerRight,
                             child: Picture(
@@ -103,9 +96,8 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                           Gap(12.h),
 
-                          // ── Page title ───────────────────────────────────
                           Text(
-                            "البيانات الشخصية",
+                            Loc.personalData(),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color:      colorScheme.primary,
@@ -116,7 +108,7 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                           Gap(4.h),
 
                           Text(
-                            "نحتاج بعض البيانات الشخصية لتفعيل حسابك بالكامل.",
+                            Loc.personalDataSubtitle(),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.hintColor,
                             ),
@@ -125,14 +117,12 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                           Gap(24.h),
 
-                          // ── Profile photo picker ─────────────────────────
                           Center(
                             child: GestureDetector(
                               onTap: _pickProfilePhoto,
                               child: Stack(
                                 clipBehavior: Clip.none,
                                 children: [
-                                  // Avatar circle
                                   CircleAvatar(
                                     radius:          48.w,
                                     backgroundColor: colorScheme.surfaceContainerHighest,
@@ -150,7 +140,6 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                                     )
                                         : null,
                                   ),
-                                  // Camera badge
                                   Positioned(
                                     bottom: 0,
                                     right:   0,
@@ -178,111 +167,54 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                           Gap(28.h),
 
-                          // ── Full name ────────────────────────────────────
-                          _FieldLabel(label: "الإسم كامل", theme: theme , isRequired: true ,),
+                          _FieldLabel(label: Loc.fullNameAlt(), theme: theme , isRequired: true ,),
                           Gap(10.h),
                           NameField(controller: _cubit.fullNameController),
 
                           Gap(30.h),
 
-                          // ── Email ────────────────────────────────────────
-                          _FieldLabel(label: "البريد الإلكتروني", theme: theme, isRequired: true ,),
+                          _FieldLabel(label: Loc.email(), theme: theme, isRequired: true ,),
                           Gap(10.h),
                           EmailField(controller: _cubit.emailController),
 
                           Gap(30.h),
 
-                          // ── City dropdown ────────────────────────────────
-                          _FieldLabel(label: "إختر المدينة", theme: theme, isRequired: true ,),
+                          _FieldLabel(label: Loc.chooseCity(), theme: theme, isRequired: true ,),
                           Gap(6.h),
 
-                          BlocBuilder<LawyerCompletionCubit,
-                              LawyerCompletionState>(
-                            builder: (context, cityState) {
-                              if (cityState is LawyerCityLoading) {
-                                return SizedBox(
-                                  height: 56.h,
-                                  child: Center(
-                                    child: SizedBox(
-                                      width:  20.w,
-                                      height: 20.w,
-                                      child:  CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color:       colorScheme.primary,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }
-
-                              if (cityState is LawyerCityError) {
-                                return _CityErrorWidget(
-                                  message: cityState.message,
-                                  onRetry: _cubit.fetchCities,
-                                  colorScheme: colorScheme,
-                                  theme:      theme,
-                                );
-                              }
-
-                              final cities = cityState is LawyerCityLoaded
-                                  ? cityState.cities
-                                  : <dynamic>[];
-
-                              final displayValues = cities
-                                  .map((c) => c.value.toString())
-                                  .toList()
-                                  .cast<String>();
-
-                              return SearchableDropdown(
-                                items:          displayValues,
-                                hint:           'إختر المدينة',
-                                label:          '',
-                                enableSearch:   true ,
-                                controller:     TextEditingController(),
-                                prefixIconPath: 'City.svg',
-                                onChanged: (displayValue) {
-                                  final match = cities
-                                      .cast<dynamic>()
-                                      .firstWhere(
-                                        (c) => c.value == displayValue,
-                                    orElse: () => null as dynamic,
-                                  );
-                                  if (match != null) {
-                                    _selectedCityKey = match.key;
-                                  }
-                                },
-                                validator: (v) =>
-                                v == null ? 'الرجاء اختيار المدينة' : null,
-                              );
-                            },
+                          // A lawyer can serve one or more cities.
+                          CitiesMultiSelectField(
+                            selectedValues: _selectedCities,
+                            onChanged: (values) =>
+                                setState(() => _selectedCities = values),
                           ),
 
                           Gap(32.h),
 
-                          // ── Submit button ────────────────────────────────
                           AppButton(
-                            title: "التالي",
+                            title: Loc.next(),
 
                             onPressed: () {
                               if (_formKey.currentState!.validate()) {
 
-                               if ( _selectedCityKey == null) {
+                                if (_selectedCities.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBarBuilder.showFeedBackMessage(
                                         context,
-                                        "يرجي إختيار المدينه",
+                                        Loc.pleaseChooseCityAlt(),
                                         isSuccess: false,
                                       ));
+                                  // Bail out: savePersonalInfo expects a real list.
+                                  return;
                                 }
 
-                                // Persist photo if picked
                                 if (_profilePhoto != null) {
                                   _cubit.formData = _cubit.formData.copyWith(
                                     photo: _profilePhoto,
                                   );
                                 }
                                 _cubit.savePersonalInfo(
-                                  cityKey: _selectedCityKey!,
+                                  cities: _selectedCities,
                                 );
                                 Nav.licensePracticeScreen(context);
                               }
@@ -291,11 +223,10 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
 
                           Gap(24.h),
 
-                          // ── Terms note ───────────────────────────────────
                           Center(
                             child: Text.rich(
                               TextSpan(
-                                text: "من خلال التسجيل، فإنك ",
+                                text: Loc.byRegisteringYou(),
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: colorScheme.onSurfaceVariant,
                                 ),
@@ -311,15 +242,15 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
                                         builder: (_) => const TermsBottomSheet(),
                                       );
                                     },
-                                    text: "توافق على شروط الخدمة ",
+                                    text: Loc.agreeToTermsOfServiceTrailing(),
                                     style: theme.textTheme.bodySmall?.copyWith(
                                       color:      colorScheme.primary,
                                       decoration: TextDecoration.underline,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const TextSpan(
-                                      text: "واتفاقية معالجة البيانات."),
+                                  TextSpan(
+                                      text: Loc.andDataProcessingAgreement()),
                                 ],
                               ),
                               textAlign: TextAlign.center,
@@ -341,7 +272,6 @@ class _LawyerPersonalInfoPageState extends State<LawyerPersonalInfoPage> {
   }
 }
 
-// ── Helper widgets ────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String label;
@@ -371,52 +301,6 @@ class _FieldLabel extends StatelessWidget {
           textAlign: TextAlign.right,
         ),
       ],
-    );
-  }
-}
-
-class _CityErrorWidget extends StatelessWidget {
-  final String     message;
-  final VoidCallback onRetry;
-  final ColorScheme  colorScheme;
-  final ThemeData    theme;
-
-  const _CityErrorWidget({
-    required this.message,
-    required this.onRetry,
-    required this.colorScheme,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding:    EdgeInsets.all(12.w),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border:       Border.all(color: colorScheme.error.withOpacity(0.4)),
-        color:        colorScheme.error.withOpacity(0.05),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.error_outline_rounded,
-              color: colorScheme.error, size: 20.sp),
-          Gap(8.w),
-          Expanded(
-            child: Text(
-              'تعذر تحميل المدن',
-              style:
-              theme.textTheme.bodySmall?.copyWith(color: colorScheme.error),
-            ),
-          ),
-          TextButton(
-            onPressed: onRetry,
-            child: Text('إعادة',
-                style:
-                theme.textTheme.bodySmall?.copyWith(color: colorScheme.primary)),
-          ),
-        ],
-      ),
     );
   }
 }

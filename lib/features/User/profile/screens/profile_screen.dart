@@ -1,9 +1,15 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:rasikh/config/app_config.dart';
+import 'package:rasikh/core/cache/cache_helper.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/features/Lawyer/lawyer_Settings/screens/helping_center_screen.dart';
+import 'package:rasikh/features/Lawyer/lawyer_Settings/screens/wallet_screen.dart';
 
 import '../../../../config/navigation/nav.dart';
 import '../../../../Shared/widgets/account_item_widget.dart';
+import '../../../common/notifications/bloc/notification_badge_cubit.dart';
 import '../../../common/notifications/notifications_screen.dart';
 import '../cubit/profile_cubit.dart';
 import '../widgets/dialog_widget.dart';
@@ -11,9 +17,6 @@ import 'profile_edit_screen.dart';
 import 'financial_transactions_screen.dart';
 import 'support_help_screen.dart';
 
-// ProfileScreen reads the singleton ProfileCubit that is provided above
-// the bottom-nav scaffold via BlocProvider.value(value: getIt<ProfileCubit>()).
-// It does NOT create its own cubit.
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,7 +29,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Refresh profile each time this tab becomes active.
     context.read<ProfileCubit>().loadProfile();
   }
 
@@ -49,7 +51,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           automaticallyImplyLeading: false,
           titleSpacing: 16,
           title: Text(
-            'حسابي',
+            Loc.myAccount(),
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w700,
               color: textPrimary,
@@ -65,29 +67,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             builder: (context, state) {
               final profile = state.data;
 
-              // Avatar image provider
               ImageProvider avatarImage;
               if (profile?.avatar != null) {
                 avatarImage = NetworkImage(
-                  'http://89.117.60.202:3050${profile!.avatar}',
+                  '${AppConfig.baseImgUrl}${profile!.avatar}',
                 );
               } else {
                 avatarImage = const AssetImage('assets/images/avatar.png');
               }
 
               final locationText = profile?.city != null
-                  ? 'المملكة العربية السعودية - ${profile!.city}'
-                  : 'المملكة العربية السعودية';
+                  ? Loc.saudiArabiaWithCity(profile!.city)
+                  : Loc.saudiArabiaLabel();
 
               return Column(
                 children: [
-                  // ── Header: avatar + name + city ──────────────────────────
                   Container(
                     padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        // Avatar
                         ClipOval(
                           child: state.loading && profile == null
                               ? Container(
@@ -113,7 +112,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // Name skeleton while loading
                               state.loading && profile == null
                                   ? Container(
                                 height: 16,
@@ -147,17 +145,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   divider,
                   const SizedBox(height: 20),
 
-                  // ── Menu items ────────────────────────────────────────────
                   Expanded(
                     child: ListView(
                       padding: EdgeInsets.zero,
                       children: [
                         AccountItem(
                           svgAsset: 'assets/icons/Pen_New_Square.svg',
-                          label: 'تعديل البيانات الشخصية',
+                          label: Loc.editPersonalDataAlt(),
                           trailingChevronRight: true,
                           onTap: () async {
-                            // Pass the SAME singleton cubit into the route
                             await Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => BlocProvider.value(
@@ -166,7 +162,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                             );
-                            // Refresh header after returning
                             if (context.mounted) {
                               context.read<ProfileCubit>().loadProfile();
                             }
@@ -175,26 +170,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         divider,
                         AccountItem(
                           svgAsset: 'assets/icons/Wallet_Money.svg',
-                          label: 'المعاملات المالية',
+                          label: Loc.electronicWalletAlt(),
                           trailingChevronRight: true,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) =>
-                              const FinancialTransactionsScreen(),
+                              const WalletScreen(),
                             ),
                           ),
                         ),
                         divider,
                         AccountItem(
+                          svgAsset: 'assets/icons/star.svg',
+                          label: Loc.myRatings(),
+                          trailingChevronRight: true,
+                          onTap: () => Nav.clientRatingsScreen(context),
+                        ),
+                        divider,
+                        AccountItem(
                           svgAsset: 'assets/icons/Setting_icon.svg',
-                          label: 'الإعدادات',
+                          label: Loc.settings(),
                           trailingChevronRight: true,
                           onTap: () => Nav.settings(context),
                         ),
                         divider,
                         AccountItem(
                           svgAsset: 'assets/icons/Chat_Dots.svg',
-                          label: 'الدعم والمساعدة',
+                          label: Loc.supportAndHelp(),
                           trailingChevronRight: true,
                           onTap: () => Navigator.of(context).push(
                             MaterialPageRoute(
@@ -205,19 +207,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         divider,
                         AccountItem(
                           svgAsset: 'assets/icons/Bell_Bing.svg',
-                          label: 'الإشعارات',
+                          label: Loc.notifications(),
                           trailingChevronRight: true,
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const NotificationsScreen(),
-                            ),
-                          ),
+                          onTap: () => Navigator.of(context)
+                              .push(
+                                MaterialPageRoute(
+                                  builder: (_) => const NotificationsScreen(),
+                                ),
+                              )
+                              .then((_) {
+                            if (context.mounted) {
+                              context
+                                  .read<ProfileCubit>()
+                                  .loadProfile();
+                              getIt<NotificationBadgeCubit>()
+                                  .fetchUnreadCount();
+                            }
+                          }),
                         ),
                         divider,
                         const SizedBox(height: 20),
                         AccountItem(
                           svgAsset: 'assets/icons/Logout_icon.svg',
-                          label: 'تسجيل الخروج',
+                          label: Loc.logout(),
                           trailingChevronRight: false,
                           iconbgColor: Colors.red,
                           onTap: () async {
@@ -225,13 +237,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             await showLogoutAndDeletAccountConfirmDialog(
                               context,
                               isLogout: true ,
-                              title: 'تسجيل الخروج',
+                              title: Loc.logout(),
                               message:
-                              'هل أنت متأكد من رغبتك في تسجيل الخروج؟',
+                              Loc.logoutConfirmation(),
                               svgAsset: 'assets/icons/Logout_icon.svg',
                             );
                             if (confirmed == true) {
-                              // TODO: تنفيذ عملية تسجيل الخروج هنا
+                              await getIt<CacheHelper>().clearUserSession();
+                              if (context.mounted) {
+                                Nav.account_type_screen(context);
+                              }
                             }
                           },
                         ),

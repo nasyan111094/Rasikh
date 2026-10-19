@@ -1,0 +1,234 @@
+// features/Lawyer/lawyer-home/data/lawyer_consultations_repo.dart
+
+import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
+import 'package:dio_adapter/dio_adapter.dart';
+import '../../../../../core/get_it_service/get_it_service.dart';
+import '../../../../../core/utils/api/api_handler.dart';
+import '../models/consultation_model.dart';
+import '../models/lawyer_dashboard_model.dart';
+import '../models/nearest.dart';
+
+class LawyerConsultationsEndpoints {
+  // NOTE(backend limitation): this endpoint currently returns instant items
+  // only; written/scheduled items — if the backend ever includes them here —
+  // are rendered via the type-label fallback in the UI. No new endpoint added.
+  static const String availableConsultations =
+      'lawyer/consultations/instant/available';
+
+  static String acceptInstant(String id) =>
+      'lawyer/consultations/$id/accept-instant';
+
+  static String acceptWritten(String id) =>
+      'lawyer/consultations/$id/accept-written';
+
+  static String acceptScheduled(String id) =>
+      'lawyer/consultations/$id/accept-scheduled';
+
+  static const String dashboard = 'lawyers/dashboard';
+}
+
+/// ─────────────────────────────────────────────────────────────────────────────
+/// Handles all lawyer consultation operations
+///
+/// API Endpoints:
+///   GET  /api/v1/lawyer/consultations/instant/available
+///        → Fetches pending instant consultations
+///
+///   POST /api/v1/lawyer/consultations/{id}/accept-instant
+///        → Accepts a pending instant consultation
+///        → Transitions consultation from pending → active
+///
+///   POST /api/v1/lawyer/consultations/{id}/accept-written
+///        → Accepts a pending paid written consultation
+///        → Assigns lawyer and sets status to active
+///
+///   GET  /api/v1/lawyers/dashboard
+///        → Fetches lawyer dashboard quick cards including availability,
+///          pending consultations, upcoming appointments, last financial movement,
+///          and notifications placeholder
+/// ─────────────────────────────────────────────────────────────────────────────
+
+class LawyerConsultationsRepo {
+  final DioAdapterBase _adapter = getIt<ApiHandler>().dioAdapterBase;
+
+  /// GET available consultations (instant + written)
+  ///
+  /// Fetches paginated list of pending instant consultations
+  /// that are awaiting lawyer acceptance.
+  Future<Either<String, List<Consultation>>> getAvailableConsultations({
+    int page = 1,
+    int limit = 10,
+  }) async {
+    final query = {'page': page, 'limit': limit};
+    final result = await _adapter.get(
+      LawyerConsultationsEndpoints.availableConsultations,
+      queryParameters: query,
+    );
+
+    return result.fold(
+          (error) => Left(error),
+          (response) {
+        final data = response.data as Map<String, dynamic>;
+        final List<dynamic> consultationsJson = data['data'] ?? [];
+        final consultations = consultationsJson
+            .map((json) => Consultation.fromJson(json as Map<String, dynamic>))
+            .toList();
+        return Right(consultations);
+      },
+    );
+  }
+
+  /// POST accept instant consultation
+  ///
+  /// Accepts a pending instant consultation request.
+  /// Returns: Updated consultation with status="active"
+  ///
+  /// Errors:
+  /// - 400: Consultation is not instant type or already accepted
+  /// - 401: Unauthorized
+  /// - 403: LAWYER role required
+  /// - 404: Not found
+  Future<Either<String, Consultation>> acceptInstantConsultation(
+      String id) async {
+    final result = await _adapter.post(
+      'lawyer/consultations/$id/accept-instant',
+      body: {},
+    );
+
+    return result.fold(
+          (error) => Left(error),
+          (response) {
+        final data = response.data as Map<String, dynamic>;
+        final consultationData =
+        data['data']['consultation'] as Map<String, dynamic>;
+        return Right(Consultation.fromJson(consultationData));
+      },
+    );
+  }
+
+  /// POST accept written consultation
+  ///
+  /// Accepts a pending paid written consultation.
+  /// Assigns the lawyer and transitions status to active.
+  ///
+  /// Errors:
+  /// - 400: Consultation is not written type or already accepted
+  /// - 401: Unauthorized
+  /// - 403: LAWYER role required
+  /// - 404: Not found
+  Future<Either<String, Consultation>> acceptWrittenConsultation(
+      String id) async {
+    final result = await _adapter.post(
+      'lawyer/consultations/$id/accept-written',
+      body: {},
+    );
+
+    return result.fold(
+          (error) => Left(error),
+          (response) {
+        final data = response.data as Map<String, dynamic>;
+        final consultationData =
+        data['data']['consultation'] as Map<String, dynamic>;
+        return Right(Consultation.fromJson(consultationData));
+      },
+    );
+  }
+
+  /// POST accept scheduled consultation.
+  ///
+  /// Scheduled consultations are normally pre-assigned, but if the
+  /// backend ever requires explicit acceptance this routes to the
+  /// dedicated endpoint instead of misusing accept-instant/written
+  /// (which return 400 for the wrong type).
+  Future<Either<String, Consultation>> acceptScheduledConsultation(
+      String id) async {
+    final result = await _adapter.post(
+      LawyerConsultationsEndpoints.acceptScheduled(id),
+      body: {},
+    );
+
+    return result.fold(
+      (error) => Left(error),
+      (response) {
+        final data = response.data as Map<String, dynamic>;
+        final inner = data['data'];
+        final Map<String, dynamic> consultationData = inner is Map<String, dynamic> &&
+                inner['consultation'] is Map<String, dynamic>
+            ? inner['consultation'] as Map<String, dynamic>
+            : inner as Map<String, dynamic>;
+        return Right(Consultation.fromJson(consultationData));
+      },
+    );
+  }
+
+  /// Routes to the correct accept endpoint based on consultation [type].
+  /// Returns Left for unknown types instead of calling a wrong endpoint.
+  /// NOTE: the list endpoint is not paginated server-side today, so the
+  /// home list keeps a single page (no ScrollController loadMore).
+  Future<Either<String, Consultation>> acceptConsultationByType(
+      String id, String type) async {
+    switch (type.toLowerCase().trim()) {
+      case 'written':
+        return acceptWrittenConsultation(id);
+      case 'scheduled':
+        return acceptScheduledConsultation(id);
+      case 'instant':
+        return acceptInstantConsultation(id);
+      default:
+        return Left('Unsupported consultation type: $type');
+    }
+  }
+
+
+
+  // في الـ endpoints class
+  static const String upcomingScheduled =
+      'lawyer/consultations/scheduled/upcoming';
+
+// ── GET upcoming scheduled (max 3) ──────────────────────────────────────────
+  Future<Either<String, List<ScheduledConsultation>>>
+  getUpcomingScheduled() async {
+    final result =
+    await _adapter.get(upcomingScheduled);
+
+    return result.fold(
+          (error) => Left(error),
+          (response) {
+        final body = response.data as Map<String, dynamic>;
+        // shape: { "data": { "data": [...] } }
+        final inner = body['data'];
+        final List<dynamic> list = (inner is Map ? inner['data'] : inner) ?? [];
+        return Right(
+          list
+              .cast<Map<String, dynamic>>()
+              .map(ScheduledConsultation.fromJson)
+              .toList(),
+        );
+      },
+    );
+  }
+
+  /// GET lawyer dashboard
+  ///
+  /// Fetches lawyer dashboard quick cards including availability,
+  /// pending consultations, upcoming appointments (today, max 3),
+  /// last financial movement, and notifications placeholder.
+  ///
+  /// Errors:
+  /// - 401: Unauthorized
+  /// - 403: LAWYER role required
+  Future<Either<String, LawyerDashboardResponse>> getLawyerDashboard() async {
+    final result = await _adapter.get(
+      LawyerConsultationsEndpoints.dashboard,
+    );
+
+    return result.fold(
+          (error) => Left(error),
+          (response) {
+        final data = response.data as Map<String, dynamic>;
+        return Right(LawyerDashboardResponse.fromJson(data));
+      },
+    );
+  }
+}

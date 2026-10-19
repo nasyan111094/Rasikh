@@ -18,6 +18,7 @@ class LawyerRatingsCubit extends Cubit<LawyerRatingsState> {
   // ── Internal state helpers ────────────────────────────────────────────────
 
   LawyerRatingsModel? _currentModel;
+  RatingDetailModel? _currentRatingDetail;
   Set<String> _reportedIds = {};
   int _currentPage = 1;
   static const int _pageSize = 10;
@@ -79,6 +80,56 @@ class LawyerRatingsCubit extends Cubit<LawyerRatingsState> {
         emit(LawyerRatingsLoaded(
           ratingsModel: merged,
           reportedIds: _reportedIds,
+        ));
+      },
+    );
+  }
+
+  // ── Fetch single rating details ────────────────────────────────────────────
+
+  Future<void> fetchRatingDetail(String ratingId) async {
+    emit(LawyerRatingDetailLoading());
+    
+    final result = await _repo.getRatingById(ratingId);
+
+    result.fold(
+      (error) => emit(LawyerRatingDetailError(error)),
+      (detail) {
+        _currentRatingDetail = detail;
+        emit(LawyerRatingDetailLoaded(detail: detail));
+      },
+    );
+  }
+
+  // ── Reply to a rating ──────────────────────────────────────────────────────
+
+  Future<void> replyToRating({
+    required String ratingId,
+    required String reply,
+  }) async {
+    final currentDetail = _currentRatingDetail;
+    
+    emit(LawyerRatingReplyLoading(
+      ratingId: ratingId,
+      currentDetail: currentDetail,
+    ));
+
+    final result = await _repo.replyToRating(
+      ratingId: ratingId,
+      reply: reply,
+    );
+
+    result.fold(
+      (error) => emit(LawyerRatingReplyError(
+        message: error,
+        currentDetail: currentDetail,
+      )),
+      (successMessage) {
+        // Refresh the rating detail to get updated data
+        fetchRatingDetail(ratingId);
+        emit(LawyerRatingReplySuccess(
+          message: successMessage,
+          currentDetail: currentDetail,
         ));
       },
     );

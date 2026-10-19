@@ -1,24 +1,11 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// shared/auth/bloc/auth_cubit.dart
-//
-// Manages the entire phone-OTP auth flow:
-//   1. login / register  → sends OTP → state.sendOtpStatus
-//   2. verifyOtp         → validates code → state.verifyOtpStatus
-//   3. resendOtp         → re-fires OTP   → state.resendOtpStatus
-//   4. Timer             → counts from 60 down to 0, then canResend = true
-//
-// Validation at the UI layer (Form + PhoneField validator) guards against empty
-// input before any cubit method is called.  Guards inside the cubit act as a
-// second line of defence only.
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
-
-import '../models/auth_model.dart';
+import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 import '../repo/auth_repo.dart';
 import 'auth_state.dart';
 
@@ -29,18 +16,31 @@ class AuthCubit extends Cubit<AuthState> {
 
   Timer? _timer;
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LOGIN — send OTP for existing account
-  // ═══════════════════════════════════════════════════════════════════════════
+  /// Returns the selected vendor, or emits a clear error when none was
+  /// chosen yet (e.g. account-type step skipped) instead of crashing on `!`.
+  VendorType? _requireVendor() {
+    final vendor = getIt<CacheHelper>().cachedVendorType;
+    if (vendor == null) {
+      emit(state.copyWith(
+        sendOtpStatus: RequestStatus.error,
+        errorMessage: Loc.unexpectedError(),
+      ));
+    }
+    return vendor;
+  }
+
 
   Future<void> login({required String phone}) async {
     if (phone.trim().isEmpty) {
       emit(state.copyWith(
         sendOtpStatus: RequestStatus.error,
-        errorMessage:  'يرجى إدخال رقم الهاتف',
+        errorMessage:  Loc.pleaseEnterPhoneNumber(),
       ));
       return;
     }
+
+    final vendor = _requireVendor();
+    if (vendor == null) return;
 
     emit(state.copyWith(
       sendOtpStatus: RequestStatus.loading,
@@ -50,7 +50,7 @@ class AuthCubit extends Cubit<AuthState> {
 
     final result = await _repo.login(
       phone:  phone,
-      vendor: getIt<CacheHelper>().cachedVendorType!,
+      vendor: vendor,
     );
 
     result.fold(
@@ -66,18 +66,18 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // REGISTER — send OTP for new account
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> register({required String phone}) async {
     if (phone.trim().isEmpty) {
       emit(state.copyWith(
         sendOtpStatus: RequestStatus.error,
-        errorMessage:  'يرجى إدخال رقم الهاتف',
+        errorMessage:  Loc.pleaseEnterPhoneNumber(),
       ));
       return;
     }
+
+    final vendor = _requireVendor();
+    if (vendor == null) return;
 
     emit(state.copyWith(
       sendOtpStatus: RequestStatus.loading,
@@ -87,7 +87,7 @@ class AuthCubit extends Cubit<AuthState> {
 
     final result = await _repo.register(
       phone:  phone,
-      vendor: getIt<CacheHelper>().cachedVendorType!,
+      vendor: vendor,
     );
 
     result.fold(
@@ -103,9 +103,6 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // VERIFY OTP
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> verifyOtp({
     required String phone,
@@ -114,7 +111,7 @@ class AuthCubit extends Cubit<AuthState> {
     if (code.length != 6) {
       emit(state.copyWith(
         verifyOtpStatus: RequestStatus.error,
-        errorMessage:    'يرجى إدخال رمز التحقق كاملاً',
+        errorMessage:    Loc.pleaseEnterFullVerificationCode(),
       ));
       return;
     }
@@ -124,10 +121,19 @@ class AuthCubit extends Cubit<AuthState> {
       errorMessage:    '',
     ));
 
+    final vendor = getIt<CacheHelper>().cachedVendorType;
+    if (vendor == null) {
+      emit(state.copyWith(
+        verifyOtpStatus: RequestStatus.error,
+        errorMessage:    Loc.unexpectedError(),
+      ));
+      return;
+    }
+
     final result = await _repo.verifyOtp(
       phone:  phone,
       code:   code,
-      vendor: getIt<CacheHelper>().cachedVendorType!,
+      vendor: vendor,
     );
 
     result.fold(
@@ -142,16 +148,27 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RESEND OTP
-  // ═══════════════════════════════════════════════════════════════════════════
 
   Future<void> resendOtp({required String phone}) async {
+    // Guard: ignore taps while the cooldown timer is still running.
+    if (!state.canResend || state.resendOtpStatus == RequestStatus.loading) {
+      return;
+    }
+
+    final vendor = getIt<CacheHelper>().cachedVendorType;
+    if (vendor == null) {
+      emit(state.copyWith(
+        resendOtpStatus: RequestStatus.error,
+        errorMessage:    Loc.unexpectedError(),
+      ));
+      return;
+    }
+
     emit(state.copyWith(resendOtpStatus: RequestStatus.loading));
 
     final result = await _repo.resendOtp(
       phone:      phone,
-      vendor:     getIt<CacheHelper>().cachedVendorType!,
+      vendor:     vendor,
       isRegister: state.isRegister,
     );
 
@@ -167,12 +184,7 @@ class AuthCubit extends Cubit<AuthState> {
     );
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // TIMER — 60 s countdown; canResend becomes true at 0
-  // ═══════════════════════════════════════════════════════════════════════════
 
-  /// Starts (or restarts) the 60-second OTP cooldown timer.
-  /// Call this right after navigating to OtpPage and after a successful resend.
   void startOtpTimer() {
     _timer?.cancel();
     emit(state.copyWith(secondsLeft: 60, canResend: false));
@@ -189,14 +201,18 @@ class AuthCubit extends Cubit<AuthState> {
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // RESETTERS — called after UI handles a completed state
-  // ═══════════════════════════════════════════════════════════════════════════
 
   void resetSendOtpState()   => emit(state.resetSendOtp());
   void resetVerifyOtpState() => emit(state.resetVerifyOtp());
   void resetResendOtpState() => emit(state.resetResendOtp());
   void clearErrors()         => emit(state.copyWith(errorMessage: ''));
+
+  /// Stops the resend cooldown (e.g. after a successful verification so a
+  /// stale timer can't keep emitting into a dead page).
+  void cancelTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
 
   @override
   Future<void> close() {

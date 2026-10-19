@@ -47,10 +47,11 @@ class LawyerSpecializationLoading extends LawyerCompletionState {
   const LawyerSpecializationLoading();
 }
 
-/// [selectedSubIdsByMain] maps each main-specialization id → set of selected
-/// sub-specialization ids.  A main is considered "selected" (confirmed) only
-/// when it has at least one sub selected.  The card for a main is "expanded"
-/// (showing sub-chips) when [expandedMainId] equals that main's id.
+/// [selectedSubIdsByMain] maps each SELECTED main-specialization id → set of
+/// selected sub-specialization ids (may be empty: sub is optional).
+/// A main is considered "selected" as soon as its id exists in the map.
+/// The card for a main is "expanded" (showing sub-chips) when
+/// [expandedMainId] equals that main's id.
 class LawyerSpecializationLoaded extends LawyerCompletionState {
   final List<SpecializationModel>    specializations;
 
@@ -58,8 +59,9 @@ class LawyerSpecializationLoaded extends LawyerCompletionState {
   /// null means no card is open.
   final String?                      expandedMainId;
 
-  /// mainId → Set of chosen sub-ids for that main.
-  /// A main only appears in this map once the user selects ≥1 sub from it.
+  /// mainId → Set of chosen sub-ids for that main (empty set = main only).
+  /// A main appears in this map once the user selects the main itself,
+  /// with or without subs.
   final Map<String, Set<String>>     selectedSubIdsByMain;
 
   const LawyerSpecializationLoaded({
@@ -70,26 +72,24 @@ class LawyerSpecializationLoaded extends LawyerCompletionState {
 
   // ── Derived helpers ──────────────────────────────────────────────────────
 
-  /// Is this main card confirmed (has ≥1 sub selected)?
+  /// Is this main card selected (main itself is chosen, subs optional)?
   bool isMainSelected(String mainId) =>
-      (selectedSubIdsByMain[mainId]?.isNotEmpty) ?? false;
+      selectedSubIdsByMain.containsKey(mainId);
 
   /// Is a particular sub selected under its main?
   bool isSubSelected(String mainId, String subId) =>
       selectedSubIdsByMain[mainId]?.contains(subId) ?? false;
 
-  /// All confirmed main ids (those with ≥1 sub).
-  List<String> get selectedMainIds => selectedSubIdsByMain.entries
-      .where((e) => e.value.isNotEmpty)
-      .map((e) => e.key)
-      .toList();
+  /// All selected main ids (with or without subs).
+  List<String> get selectedMainIds => selectedSubIdsByMain.keys.toList();
 
-  /// All selected sub ids across every main (flat list for the API).
+  /// All selected sub ids across every main (flat list for the API, may be empty).
   List<String> get allSelectedSubIds => selectedSubIdsByMain.values
       .expand((s) => s)
       .toList();
 
-  /// The form can be submitted when at least one main has ≥1 sub.
+  /// The form can be submitted when at least one main is selected.
+  /// Sub-specializations are optional.
   bool get canProceed => selectedMainIds.isNotEmpty;
 
   // ── copyWith ─────────────────────────────────────────────────────────────

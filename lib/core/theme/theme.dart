@@ -34,6 +34,7 @@ class TAppTheme {
     filledButtonTheme: TButtonsTheme.lightFilledButtonStyle,
     outlinedButtonTheme: TButtonsTheme.lightOutlinedButtonStyle,
     useMaterial3: true,
+    hintColor: Color(0xff9E9E9E) ,
   );
   static ThemeData darkTheme = ThemeData(
     brightness: Brightness.dark,
@@ -57,5 +58,6 @@ class TAppTheme {
     filledButtonTheme: TButtonsTheme.darkFilledButtonStyle,
     outlinedButtonTheme: TButtonsTheme.darkOutlinedButtonStyle,
     useMaterial3: true,
+    hintColor: Color(0xff9E9E9E) ,
   );
 }

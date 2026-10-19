@@ -1,23 +1,25 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:rasikh/config/app_config.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/widgets/fields/email_field.dart';
 import 'package:rasikh/core/widgets/fields/name_field.dart';
+import 'package:rasikh/core/widgets/media_picker.dart';
 import 'package:size_config/size_config.dart';
 
 
 import '../../../../core/widgets/fields/prefix_text_filed_icon.dart';
+import '../../../../core/widgets/general_app_bar.dart';
+import '../../application/bloc/consulation_application_cubit.dart';
+import '../../application/bloc/consulation_application_state.dart';
 import '../cubit/profile_cubit.dart';
 import '../models/update_profile_parameters.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
 
-// ProfileEditScreen does NOT create its own cubit.
-// It is always pushed via BlocProvider.value from ProfileScreen,
-// inheriting the singleton ProfileCubit.
 
 class ProfileEditScreen extends StatefulWidget {
   const ProfileEditScreen({super.key});
@@ -36,38 +38,49 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   static const Color kGrey60 = Color(0xFF9E9E9E);
 
-  // ── Pre-fill fields once (runs at most once when data is available) ────────
   void _prefill() {
 
     _nameCtrl.text  = getIt<ProfileCubit>().profile?.fullName ?? '';
     _emailCtrl.text = getIt<ProfileCubit>().profile?.email    ?? '';
-    const valid = {'الرياض', 'جدة', 'الدمام', 'مكة', 'المدينة'};
-    if (getIt<ProfileCubit>().profile?.city != null && valid.contains(getIt<ProfileCubit>().profile?.city)) {
+
+    if (getIt<ProfileCubit>().profile?.city != null) {
       setState(() => _city = getIt<ProfileCubit>().profile?.city);
     }
   }
   Future<void> _pickImage() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 80,
-    );
-    if (picked != null) setState(() => _avatarFile = File(picked.path));
+    try {
+      final path = await MediaPicker.pickAndCropImage(context);
+      if (path != null && mounted) {
+        setState(() => _avatarFile = File(path));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(Loc.somethingWentWrong())),
+        );
+      }
+    }
   }
 
   void _submit(BuildContext context) {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    final city = _city;
+    if (city == null || city.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.pleaseSelectCity())),
+      );
+      return;
+    }
     context.read<ProfileCubit>().updateProfile(
       UpdateProfileParam(
         fullName: _nameCtrl.text.trim(),
         email:    _emailCtrl.text.trim(),
-        city:     _city!,
+        city:     city,
         avatar:   _avatarFile,
       ),
     );
   }
 
-  // ── Label styles (unchanged from original) ────────────────────────────────
   TextStyle _labelStyle(BuildContext context) {
     final theme = Theme.of(context);
     return theme.textTheme.bodyMedium!.copyWith(
@@ -96,7 +109,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     _prefill() ;
   }
@@ -126,7 +138,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(
-                'تم تحديث البيانات بنجاح',
+                Loc.dataUpdatedSuccessfully(),
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onPrimary,
                 ),
@@ -145,7 +157,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: Scaffold(
-            appBar: const HeaderCapsuleAppBar(title: 'تعديل الملف الشخصي'),
+            appBar: GeneralAppBar(title: Loc.editProfile()),
             body: SafeArea(
               child: Form(
                 key: _formKey,
@@ -156,7 +168,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     children: [
                       Gap(40.h),
 
-                      // ── Avatar ──────────────────────────────────────────
                       Center(
                         child: GestureDetector(
                           onTap: _pickImage,
@@ -170,7 +181,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                                     ? FileImage(_avatarFile!) as ImageProvider
                                     : (state.data?.avatar != null
                                     ? NetworkImage(
-                                  'http://89.117.60.202:3050${state.data!.avatar}',
+                                  '${AppConfig.baseImgUrl}${state.data!.avatar}',
                                 )
                                     : const AssetImage(
                                   'assets/images/avatar.png',
@@ -204,9 +215,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
                       SizedBox(height: 28.h),
 
-                      // ── Name ────────────────────────────────────────────
                       _FieldLabel(
-                        'الاسم كامل',
+                        Loc.fullNameShort(),
                         labelStyle: _labelStyle(context),
                         starStyle: _labelStarStyle,
                         requiredMark: true,
@@ -216,9 +226,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
                       SizedBox(height: 30.h),
 
-                      // ── Email ───────────────────────────────────────────
                       _FieldLabel(
-                        'البريد الإلكتروني',
+                        Loc.email(),
                         labelStyle: _labelStyle(context),
                         starStyle: _labelStarStyle,
                       ),
@@ -227,9 +236,8 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
                       SizedBox(height: 30.h),
 
-                      // ── City ────────────────────────────────────────────
                       _FieldLabel(
-                        'اختر المدينة',
+                        Loc.chooseCityLabel(),
                         labelStyle: _labelStyle(context),
                         starStyle: _labelStarStyle,
                         requiredMark: true,
@@ -247,7 +255,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ),
             ),
 
-            // ── Save button ─────────────────────────────────────────────
             bottomNavigationBar: SafeArea(
               minimum: EdgeInsets.fromLTRB(16.w, 0, 16.w, 16.h),
               child: SizedBox(
@@ -274,7 +281,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       color: theme.colorScheme.onPrimary,
                     ),
                   )
-                      : const Text('تحديث البيانات'),
+                      : Text(Loc.updateData()),
                 ),
               ),
             ),
@@ -285,9 +292,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _FieldLabel — unchanged from original
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String text;
@@ -323,9 +327,6 @@ class _FieldLabel extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CityDropdownField — unchanged from original
-// ─────────────────────────────────────────────────────────────────────────────
 
 class CityDropdownField extends StatefulWidget {
   final String? value;
@@ -354,6 +355,11 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
     _focusNode.addListener(() {
       setState(() => isFocused = _focusNode.hasFocus);
     });
+    // Cities come from the shared enums API (mirrors chooseLawyerScreen).
+    final cubit = getIt<ConsultationApplicationCubit>();
+    if (cubit.state.citiesStatus != ConsultationStatus.success) {
+      cubit.loadCities();
+    }
   }
 
   @override
@@ -367,22 +373,45 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
     final theme       = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Focus(
+    return BlocBuilder<ConsultationApplicationCubit, ConsultationState>(
+      builder: (context, cityState) {
+        final loading = cityState.citiesStatus == ConsultationStatus.loading ||
+            cityState.citiesStatus == ConsultationStatus.initial;
+        final failed =
+            cityState.citiesStatus == ConsultationStatus.failure;
+        // Keep the current value selectable even if absent from the API list.
+        final keys = cityState.cities.map((c) => c.key).toList();
+        final showCurrentAsExtra =
+            widget.value != null && !keys.contains(widget.value);
+        final errorText = failed
+            ? (cityState.citiesError ?? Loc.unableToLoadCities())
+            : null;
+
+        return Focus(
       focusNode: _focusNode,
       child: DropdownButtonFormField<String>(
         value: widget.value,
         isExpanded: true,
         dropdownColor: colorScheme.onSecondary,
-        icon: Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: isFocused
-              ? colorScheme.primary.withOpacity(0.8)
-              : colorScheme.onSurfaceVariant,
-          size: 20.sp,
-        ),
+        icon: loading
+            ? SizedBox(
+                width: 20.sp,
+                height: 20.sp,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colorScheme.primary,
+                ),
+              )
+            : Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: isFocused
+                    ? colorScheme.primary.withOpacity(0.8)
+                    : colorScheme.onSurfaceVariant,
+                size: 20.sp,
+              ),
         style: theme.textTheme.bodyMedium?.copyWith(fontSize: 15.sp),
         decoration: InputDecoration(
-          hintText: 'اختر المدينة',
+          hintText: Loc.chooseCityLabel(),
           hintStyle: theme.inputDecorationTheme.hintStyle ??
               theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurfaceVariant,
@@ -420,17 +449,27 @@ class _CityDropdownFieldState extends State<CityDropdownField> {
             vertical: 18.h,
           ),
         ),
-        items: const [
-          DropdownMenuItem(value: 'الرياض',  child: Text('الرياض')),
-          DropdownMenuItem(value: 'جدة',     child: Text('جدة')),
-          DropdownMenuItem(value: 'الدمام',  child: Text('الدمام')),
-          DropdownMenuItem(value: 'مكة',     child: Text('مكة')),
-          DropdownMenuItem(value: 'المدينة', child: Text('المدينة')),
+        items: [
+          ...cityState.cities.map(
+            (c) => DropdownMenuItem(value: c.key, child: Text(c.value)),
+          ),
+          if (showCurrentAsExtra)
+            DropdownMenuItem(
+              value: widget.value,
+              child: Text(widget.value!),
+            ),
         ],
-        onChanged: widget.onChanged,
+        onChanged: failed && cityState.cities.isEmpty && !showCurrentAsExtra
+            ? null
+            : widget.onChanged,
         validator: widget.validator ??
-                (v) => (v == null) ? 'من فضلك اختر المدينة' : null,
+            (v) {
+              if (failed) return errorText;
+              return (v == null) ? Loc.pleaseSelectCity() : null;
+            },
       ),
+    );
+      },
     );
   }
 }

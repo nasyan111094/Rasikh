@@ -73,13 +73,16 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
     final current = state;
     if (current is! LawyerSpecializationLoaded) return;
 
-    final filtered = query.trim().isEmpty
+    final q = query.trim().toLowerCase();
+    final filtered = q.isEmpty
         ? _allSpecializations
         : _allSpecializations.where((spec) {
-      final matchesMain = spec.name.contains(query);
+      final matchesMain = spec.name.toLowerCase().contains(q);
       final matchesSub  = spec.subSpecializations
-          .any((s) => s.name.contains(query));
-      return matchesMain || matchesSub;
+          .any((s) => s.name.toLowerCase().contains(q));
+      final matchesLawsuit = spec.subSpecializations.any((s) => s.lawsuitTypes
+          .any((l) => l.name.toLowerCase().contains(q)));
+      return matchesMain || matchesSub || matchesLawsuit;
     }).toList();
 
     emit(current.copyWith(specializations: filtered));
@@ -87,9 +90,8 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
 
   /// Tap on a main-specialization card header:
   ///  - If already expanded → collapse (close) it.
-  ///  - If not expanded → expand it so the user can choose subs.
-  ///  - Expanding does NOT auto-select the main; it only becomes "selected"
-  ///    once the user picks at least one sub from inside it.
+  ///  - If not expanded → expand it so the user can optionally choose subs.
+  ///  Expanding does NOT change selection; selection is done via [toggleMain].
   void toggleExpanded(String mainId) {
     final current = state;
     if (current is! LawyerSpecializationLoaded) return;
@@ -101,10 +103,30 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
     ));
   }
 
+  /// Toggle selection of a main specialization itself.
+  /// Sub-specializations are optional: selecting a main creates an entry with
+  /// an empty sub-set; deselecting removes the entry entirely.
+  void toggleMain(String mainId) {
+    final current = state;
+    if (current is! LawyerSpecializationLoaded) return;
+
+    final updated = Map<String, Set<String>>.fromEntries(
+      current.selectedSubIdsByMain.entries
+          .map((e) => MapEntry(e.key, Set<String>.from(e.value))),
+    );
+
+    if (updated.containsKey(mainId)) {
+      updated.remove(mainId);
+    } else {
+      updated[mainId] = <String>{};
+    }
+
+    emit(current.copyWith(selectedSubIdsByMain: updated));
+  }
+
   /// Toggle a sub-specialization chip under [mainId].
-  ///  - Adds/removes the sub from the map.
-  ///  - If the last sub under a main is deselected, removes that main's entry
-  ///    from the map entirely (so it is no longer considered selected).
+  ///  - Selecting a sub auto-selects its main (if not already selected).
+  ///  - Deselecting the last sub keeps the main selected (subs are optional).
   void toggleSub(String mainId, String subId) {
     final current = state;
     if (current is! LawyerSpecializationLoaded) return;
@@ -118,7 +140,6 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
     final subs = updated.putIfAbsent(mainId, () => <String>{});
     if (subs.contains(subId)) {
       subs.remove(subId);
-      if (subs.isEmpty) updated.remove(mainId);
     } else {
       subs.add(subId);
     }
@@ -148,11 +169,11 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
   // Step savers (called from each page before navigating forward)
   // ══════════════════════════════════════════════════════════════════════════
 
-  void savePersonalInfo({required String cityKey}) {
+  void savePersonalInfo({required List<String> cities}) {
     formData = formData.copyWith(
       fullName: fullNameController.text.trim(),
       email:    emailController.text.trim(),
-      cityKey:  cityKey,
+      cities:   cities,
     );
   }
 
@@ -161,11 +182,15 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
     File? nationalIdDocument,
     File? commercialRegistrationDocument,
     required bool isCompany,
+    DateTime? licenseExpiryDate,
   }) {
     formData = formData.copyWith(
       nationalId:                     nationalIdController.text.trim(),
       licenseNumber:                  licenseController.text.trim(),
       commercialRegistrationNumber:   commercialRegController.text.trim(),
+      licenseExpiryDate: licenseExpiryDate != null
+          ? licenseExpiryDate.toUtc().toIso8601String()
+          : formData.licenseExpiryDate,
       isCompany:                      isCompany,
       licenseImage:                   licenseImage,
       nationalIdDocument:             nationalIdDocument,
@@ -186,10 +211,12 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
   void saveSpecializations({
     required List<String> mainIds,
     required List<String> subIds,
+    List<String> lawsuitIds = const [],
   }) {
     formData = formData.copyWith(
       mainSpecializationIds: mainIds,
       subSpecializationIds:  subIds,
+      lawsuitTypeIds:        lawsuitIds,
     );
   }
 

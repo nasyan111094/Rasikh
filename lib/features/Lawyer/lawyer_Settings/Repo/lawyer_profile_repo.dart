@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_adapter/dio_adapter.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:rasikh/features/common/Auth/models/auth_model.dart';
 
 import '../../../../../../core/cache/cache_helper.dart';
@@ -67,7 +68,7 @@ class LawyerProfileRepo {
       if (photo != null)
         'photo': await MultipartFile.fromFile(
           photo.path,
-          filename: photo.path.split('/').last,
+          filename: photo.path.split(RegExp(r'[/\\]')).last,
         ),
     });
 
@@ -84,20 +85,37 @@ class LawyerProfileRepo {
 
   // ── UPDATE specializations (multipart/form-data) ───────────────────────────
   //
-  // Sends only the specialization fields:
-  //   mainSpecializations  → JSON-encoded array of main spec IDs
-  //   subSpecializations   → JSON-encoded array of sub  spec IDs
+  // Per API docs (PUT /api/v1/lawyers/update/form):
+  //   mainSpecializations / subSpecializations / lawsuitTypeIds
+  //   are JSON-as-string arrays, e.g. '["id1","id2"]'.
+  // Server validates hierarchy: subs must belong to the selected mains,
+  // and lawsuit types must belong to the selected subs.
   //
   // Returns the refreshed profile so the cubit can cache it.
 
   Future<Either<String, LawyerProfileModel>> updateSpecializations({
     required List<String> mainSpecializationIds,
     required List<String> subSpecializationIds,
+    List<String> lawsuitTypeIds = const [],
   }) async {
     final formData = FormData.fromMap({
       'mainSpecializations': jsonEncode(mainSpecializationIds),
       'subSpecializations': jsonEncode(subSpecializationIds),
+      'lawsuitTypeIds': jsonEncode(lawsuitTypeIds),
     });
+
+    // Debug
+    debugPrint('========== FormData ==========');
+    for (final field in formData.fields) {
+      debugPrint('${field.key}: ${field.value}');
+    }
+
+    if (formData.files.isNotEmpty) {
+      for (final file in formData.files) {
+        debugPrint('${file.key}: ${file.value.filename}');
+      }
+    }
+    debugPrint('==============================');
 
     final result = await _adapter.put(
       _ProfileEndpoints.update,
@@ -105,9 +123,9 @@ class LawyerProfileRepo {
     );
 
     if (result.isRight) {
-      // Re-fetch the full profile so callers always get the canonical model.
       return getProfile();
     }
+
     return Left(_extractError(result.left));
   }
 
@@ -126,20 +144,20 @@ class LawyerProfileRepo {
     if (licenseImage != null) {
       fields['licenseImage'] = await MultipartFile.fromFile(
         licenseImage.path,
-        filename: licenseImage.path.split('/').last,
+        filename: licenseImage.path.split(RegExp(r'[/\\]')).last,
       );
     }
     if (nationalIdDocument != null) {
       fields['nationalIdDocument'] = await MultipartFile.fromFile(
         nationalIdDocument.path,
-        filename: nationalIdDocument.path.split('/').last,
+        filename: nationalIdDocument.path.split(RegExp(r'[/\\]')).last,
       );
     }
     if (commercialRegistrationDocument != null) {
       fields['commercialRegistrationDocument'] =
       await MultipartFile.fromFile(
         commercialRegistrationDocument.path,
-        filename: commercialRegistrationDocument.path.split('/').last,
+        filename: commercialRegistrationDocument.path.split(RegExp(r'[/\\]')).last,
       );
     }
 
@@ -151,7 +169,12 @@ class LawyerProfileRepo {
     );
 
     if (result.isRight) {
-      return Right(LawyerProfileModel.fromJson(result.right.data));
+      final raw = result.right.data;
+      final unwrapped = raw is Map<String, dynamic>
+          ? (raw['data'] ?? raw)
+          : raw;
+      return Right(LawyerProfileModel.fromJson(
+          unwrapped as Map<String, dynamic>));
     }
     return Left(_extractError(result.left));
   }

@@ -4,28 +4,58 @@
 // All models exclusive to the lawyer profile-completion flow.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:rasikh/Shared/models/city_model.dart';
 
 
 
 // ── Specialization models (GET /api/v1/specializations/active) ────────────────
 
-class SubSpecializationModel {
+class LawsuitTypeModel {
   final String id;
   final String name;
   final bool   isActive;
 
-  const SubSpecializationModel({
+  const LawsuitTypeModel({
     required this.id,
     required this.name,
     required this.isActive,
   });
 
+  factory LawsuitTypeModel.fromJson(Map<String, dynamic> json) {
+    return LawsuitTypeModel(
+      id:       json['id'] as String? ?? json['_id'] as String? ?? '',
+      name:     json['name']     as String? ?? '',
+      isActive: json['isActive'] as bool?   ?? true,
+    );
+  }
+}
+
+class SubSpecializationModel {
+  final String id;
+  final String name;
+  final bool   isActive;
+  final List<LawsuitTypeModel> lawsuitTypes;
+
+  const SubSpecializationModel({
+    required this.id,
+    required this.name,
+    required this.isActive,
+    this.lawsuitTypes = const [],
+  });
+
   factory SubSpecializationModel.fromJson(Map<String, dynamic> json) {
+    final rawLawsuits = json['lawsuitTypes'] as List<dynamic>? ?? [];
     return SubSpecializationModel(
       id:       json['id']       as String? ?? '',
       name:     json['name']     as String? ?? '',
       isActive: json['isActive'] as bool?   ?? false,
+      lawsuitTypes: rawLawsuits
+          .map((e) => LawsuitTypeModel.fromJson(e as Map<String, dynamic>))
+          .where((l) => l.isActive)
+          .toList(),
     );
   }
 }
@@ -76,7 +106,12 @@ class LawyerProfileCompletionModel {
   final String fullName;
   final String phone;
   final String email;
+
+  /// Legacy single city — first entry of [cities] only.
   final String city;
+
+  /// Cities the lawyer serves. Empty on pre-multi-city records.
+  final List<String> cities;
   final String nationalId;
   final String nationalIdDocumentUrl;
   final String photoUrl;
@@ -95,6 +130,7 @@ class LawyerProfileCompletionModel {
     required this.phone,
     required this.email,
     required this.city,
+    this.cities = const [],
     required this.nationalId,
     required this.nationalIdDocumentUrl,
     required this.photoUrl,
@@ -117,6 +153,7 @@ class LawyerProfileCompletionModel {
       phone:                 data['phone']                  as String? ?? '',
       email:                 data['email']                  as String? ?? '',
       city:                  data['city']                   as String? ?? '',
+      cities:                parseCities(data),
       nationalId:            data['nationalId']             as String? ?? '',
       nationalIdDocumentUrl: data['nationalIdDocumentUrl']  as String? ?? '',
       photoUrl:              data['photoUrl']               as String? ?? '',
@@ -127,6 +164,9 @@ class LawyerProfileCompletionModel {
       accountStatus:         data['accountStatus']          as String? ?? '',
     );
   }
+
+  /// Cities to render: full [cities] first, legacy single [city] as fallback.
+  List<String> get displayCities => resolveDisplayCities(cities, city);
 }
 
 // ── Accumulated form data (grows across multi-step screens) ───────────────────
@@ -135,7 +175,10 @@ class LawyerRegistrationFormData {
   // Step 1 – Personal Info
   String fullName;
   String email;
-  String cityKey;
+
+  /// Cities the lawyer serves — one or more. Sent to the backend as a
+  /// JSON array string in the `cities` field.
+  List<String> cities;
 
   // Step 2 – License & Documents
   String nationalId;
@@ -156,13 +199,14 @@ class LawyerRegistrationFormData {
   // Step 4 – Specializations
   List<String> mainSpecializationIds;
   List<String> subSpecializationIds;
+  List<String> lawsuitTypeIds;
 
   bool acceptedTerms;
 
   LawyerRegistrationFormData({
     this.fullName                        = '',
     this.email                           = '',
-    this.cityKey                         = '',
+    this.cities                          = const [],
     this.nationalId                      = '',
     this.licenseNumber                   = '',
     this.licenseExpiryDate               = '2030-12-31T23:59:59.999Z',
@@ -176,11 +220,12 @@ class LawyerRegistrationFormData {
     this.experienceYears                 = 0,
     this.mainSpecializationIds           = const [],
     this.subSpecializationIds            = const [],
+    this.lawsuitTypeIds                  = const [],
     this.acceptedTerms                   = false,
   });
 
   bool get isPersonalInfoComplete =>
-      fullName.isNotEmpty && email.isNotEmpty && cityKey.isNotEmpty;
+      fullName.isNotEmpty && email.isNotEmpty && cities.isNotEmpty;
 
   bool get isLicenseComplete =>
       nationalId.isNotEmpty &&
@@ -202,20 +247,27 @@ class LawyerRegistrationFormData {
           acceptedTerms;
 
   Map<String, dynamic> toFormFields() {
+    final licensePayload = jsonEncode({
+      'number': licenseNumber,
+      'expiryDate': licenseExpiryDate,
+    });
     return {
       'fullName':   fullName,
       'email':      email,
-      'city':       cityKey,
+      // One or more service cities, as a JSON array string (same shape the
+      // API already uses for mainSpecializations).
+      'cities':     jsonEncode(cities),
       'nationalId': nationalId,
-      'license':
-      '{"number":"$licenseNumber","expiryDate":"$licenseExpiryDate"}',
+      'license': licensePayload,
       'isCompany': isCompany.toString(),
       if (isCompany && commercialRegistrationNumber.isNotEmpty)
         'commercialRegistrationNumber': commercialRegistrationNumber,
       'qualifications':    qualifications,
       'experienceYears':   experienceYears.toString(),
-      'mainSpecializations': mainSpecializationIds,
-      'subSpecializations':  subSpecializationIds,
+      'mainSpecializations': jsonEncode(mainSpecializationIds),
+      'subSpecializations': jsonEncode(subSpecializationIds),
+      if (lawsuitTypeIds.isNotEmpty)
+        'lawsuitTypeIds': jsonEncode(lawsuitTypeIds),
       'acceptedTerms':     acceptedTerms.toString(),
     };
   }
@@ -223,7 +275,7 @@ class LawyerRegistrationFormData {
   LawyerRegistrationFormData copyWith({
     String?       fullName,
     String?       email,
-    String?       cityKey,
+    List<String>? cities,
     String?       nationalId,
     String?       licenseNumber,
     String?       licenseExpiryDate,
@@ -237,12 +289,13 @@ class LawyerRegistrationFormData {
     int?          experienceYears,
     List<String>? mainSpecializationIds,
     List<String>? subSpecializationIds,
+    List<String>? lawsuitTypeIds,
     bool?         acceptedTerms,
   }) {
     return LawyerRegistrationFormData(
       fullName:                       fullName                       ?? this.fullName,
       email:                          email                          ?? this.email,
-      cityKey:                        cityKey                        ?? this.cityKey,
+      cities:                          cities                          ?? this.cities,
       nationalId:                     nationalId                     ?? this.nationalId,
       licenseNumber:                  licenseNumber                  ?? this.licenseNumber,
       licenseExpiryDate:              licenseExpiryDate              ?? this.licenseExpiryDate,
@@ -256,6 +309,7 @@ class LawyerRegistrationFormData {
       experienceYears:                experienceYears                ?? this.experienceYears,
       mainSpecializationIds:          mainSpecializationIds          ?? this.mainSpecializationIds,
       subSpecializationIds:           subSpecializationIds           ?? this.subSpecializationIds,
+      lawsuitTypeIds:                 lawsuitTypeIds                 ?? this.lawsuitTypeIds,
       acceptedTerms:                  acceptedTerms                  ?? this.acceptedTerms,
     );
   }

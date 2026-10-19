@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// lawyer_completion/pages/lawyer_license_page.dart
-//
-// Step 2 – Professional License (رخصة مزاولة المهنة)
-// UI is 100% identical to Sign_Up_Screen__Professional_License_.png
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:dotted_border/dotted_border.dart';
@@ -38,14 +33,23 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
   late final LawyerCompletionCubit _cubit;
   final _picker = ImagePicker();
 
-  // Documents
   File? _nationalIdFile;
   File? _licenseImageFile;
   File? _commercialRegFile;
 
-  // Always show commercial reg field based on image (visible in screenshot)
-  // The checkbox triggers showing/hiding the commercial reg document tile
   bool _isCompany = false;
+  DateTime? _licenseExpiryDate;
+
+  Future<void> _pickExpiryDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _licenseExpiryDate ?? now,
+      firstDate: DateTime(now.year - 20),
+      lastDate: DateTime(now.year + 30),
+    );
+    if (picked != null) setState(() => _licenseExpiryDate = picked);
+  }
 
   @override
   void initState() {
@@ -61,10 +65,9 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
     return picked != null ? File(picked.path) : null;
   }
 
-  // ── All document slots (always: ID + License; company: + CommercialReg) ──
   List<_DocSlot> get _docSlots => [
     _DocSlot(
-      label:    'صورة الهوية',
+      label:    Loc.idImage(),
       file:     _nationalIdFile,
       onPick:   () async {
         final f = await _pickImage();
@@ -73,7 +76,7 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
       onRemove: () => setState(() => _nationalIdFile = null),
     ),
     _DocSlot(
-      label:    'صورة الترخيص',
+      label:    Loc.licenseImage(),
       file:     _licenseImageFile,
       onPick:   () async {
         final f = await _pickImage();
@@ -83,7 +86,7 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
     ),
     if (_isCompany)
       _DocSlot(
-        label:    'صورة السجل التجاري',
+        label:    Loc.commercialRegisterImage(),
         file:     _commercialRegFile,
         onPick:   () async {
           final f = await _pickImage();
@@ -109,7 +112,6 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
               children: [
                 Gap(16.h),
 
-                // ── Stepper ─────────────────────────────────────────────
                 const AuthStepperWidget(totalSteps: 7, activeStep: 5),
 
                 Gap(16.h),
@@ -122,7 +124,6 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── Logo ────────────────────────────────────────
                           Align(
                             alignment: Alignment.centerRight,
                             child: Picture(
@@ -135,7 +136,7 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
                           Gap(12.h),
 
                           Text(
-                            "رخصة مزاولة المهنة",
+                            Loc.practiceLicense(),
                             style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w700,
                               color:      colorScheme.primary,
@@ -146,7 +147,7 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
                           Gap(4.h),
 
                           Text(
-                            "نحتاج رخصة مزاولة المهنة لتفعيل حسابك بالكامل.",
+                            Loc.practiceLicenseSubtitle(),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: theme.hintColor,
                             ),
@@ -155,7 +156,6 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
 
                           Gap(24.h),
 
-                          // ── رقم الهوية ───────────────────────────────────
 
                           Gap(6.h),
                           GeneralField(
@@ -163,15 +163,14 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
                             hintText:       "99384859283",
                             textInputType:  TextInputType.number,
                             iconPath:       "user_id.svg",
-                            label:          "رقم الهوية ",
+                            label:          Loc.idNumberLabel(),
                             isRequired: true ,
                             fieldValidator: (v) =>
-                            v!.isEmpty ? "أدخل رقم الهوية" : null,
+                            v!.isEmpty ? Loc.enterIdNumber() : null,
                           ),
 
                           Gap(16.h),
 
-                          // ── رقم الترخيص ──────────────────────────────────
 
                           Gap(6.h),
                           GeneralField(
@@ -179,15 +178,14 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
                             hintText:       "LAW-4567",
                             textInputType:  TextInputType.text,
                             iconPath:       "user_id.svg",
-                            label:          "رقم الترخيص ",
+                            label:          Loc.licenseNumberLabel(),
                             isRequired: true ,
                             fieldValidator: (v) =>
-                            v!.isEmpty ? "أدخل رقم الترخيص" : null,
+                            v!.isEmpty ? Loc.enterLicenseNumber() : null,
                           ),
 
                           Gap(16.h),
 
-                          // ── رقم السجل التجاري (always visible like image) ─
 
                           Gap(6.h),
                           GeneralField(
@@ -195,48 +193,41 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
                             hintText:       "1092837477384",
                             textInputType:  TextInputType.number,
                             iconPath:       "City.svg",
-                            label:          "رقم السجل التجاري ",
+                            label:          Loc.commercialRegisterNumberLabel(),
                             isRequired: true ,
                             fieldValidator: (_isCompany)
                                 ? (v) => v!.isEmpty
-                                ? "أدخل رقم السجل التجاري"
+                                ? Loc.enterCommercialRegisterNumber()
                                 : null
                                 : null,
                           ),
 
                           Gap(30.h),
 
-                          // ── Company checkbox ─────────────────────────────
-                          // Row(
-                          //   mainAxisAlignment: MainAxisAlignment.start,
-                          //   children: [
-                          //     SizedBox(
-                          //       width:  24.w,
-                          //       height: 24.w,
-                          //       child: Checkbox(
-                          //         value:      _isCompany,
-                          //         onChanged:  (v) =>
-                          //             setState(() => _isCompany = v ?? false),
-                          //         activeColor: colorScheme.primary,
-                          //         shape: RoundedRectangleBorder(
-                          //           borderRadius: BorderRadius.circular(4),
-                          //         ),
-                          //       ),
-                          //     ),
-                          //     Gap(10.w) ,
-                          //     Text(
-                          //       "حساب شركة",
-                          //       style: theme.textTheme.bodyMedium,
-                          //     ),
-                          //
-                          //   ],
-                          // ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  // TODO(l10n): add Loc key for license expiry label
+                                  _licenseExpiryDate == null
+                                      ? 'تاريخ انتهاء الرخصة *'
+                                      : '${_licenseExpiryDate!.day}/${_licenseExpiryDate!.month}/${_licenseExpiryDate!.year}',
+                                  style: theme.textTheme.bodyMedium,
+                                  textAlign: TextAlign.right,
+                                ),
+                              ),
+                              Gap(8.w),
+                              OutlinedButton(
+                                onPressed: _pickExpiryDate,
+                                child: Text(Loc.pleaseSelectDate()),
+                              ),
+                            ],
+                          ),
 
                           Gap(24.h),
 
-                          // ── Document uploads label ───────────────────────
                           Text(
-                            "يرجى إرفاق الصور المطلوبة *",
+                            Loc.pleaseAttachRequiredImagesRequired(),
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: colorScheme.onSurface,
                             ),
@@ -245,11 +236,10 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
 
                           Gap(8.h),
 
-                          // ── Bullet list of required docs ─────────────────
                           ...[
-                            "صورة الهوية",
-                            "صورة الترخيص",
-                            if (_isCompany) "صورة السجل التجاري",
+                            Loc.idImage(),
+                            Loc.licenseImage(),
+                            if (_isCompany) Loc.commercialRegisterImage(),
                           ].map(
                                 (label) => Padding(
                               padding: EdgeInsets.only(bottom: 2.h),
@@ -274,13 +264,11 @@ class _LawyerLicensePageState extends State<LawyerLicensePage> {
 
                           Gap(12.h),
 
-                          // ── Document tiles (horizontal scroll) ───────────
                           DottedBorder(
                             radius: Radius.circular(20.h),
                             borderType: BorderType.RRect,
                             color: borderColor,
 
-                            // 👇 التحكم في شكل الـ dashes
                             dashPattern: [12, 8],
 strokeWidth: 2,
                             child: Padding(
@@ -308,14 +296,13 @@ strokeWidth: 2,
                   ),
                 ),
 
-                // ── Next button (outside scroll) ─────────────────────────
                 AppButton(
-                  title: "التالي",
+                  title: Loc.next(),
                  onPressed: () {
                     if (_nationalIdFile == null) {
                       SnackBarBuilder.showFeedBackMessage(
                         context,
-                        'يرجى رفع صورة الهوية',
+                        Loc.pleaseUploadIdImage(),
                         isSuccess: false,
                       );
                       return;
@@ -323,7 +310,7 @@ strokeWidth: 2,
                     if (_licenseImageFile == null) {
                       SnackBarBuilder.showFeedBackMessage(
                         context,
-                        'يرجى رفع صورة رخصة المزاولة',
+                        Loc.pleaseUploadPracticeLicenseImage(),
                         isSuccess: false,
                       );
                       return;
@@ -331,17 +318,28 @@ strokeWidth: 2,
                     if (_isCompany && _commercialRegFile == null) {
                       SnackBarBuilder.showFeedBackMessage(
                         context,
-                        'يرجى رفع صورة السجل التجاري',
+                        Loc.pleaseUploadCommercialRegisterImage(),
                         isSuccess: false,
                       );
                       return;
                     }
                     if (_formKey.currentState!.validate()) {
+                      if (_licenseExpiryDate == null ||
+                          !_licenseExpiryDate!.isAfter(DateTime.now())) {
+                        SnackBarBuilder.showFeedBackMessage(
+                          context,
+                          // TODO(l10n): add Loc key for expired license date
+                          'تاريخ انتهاء الرخصة يجب أن يكون في المستقبل',
+                          isSuccess: false,
+                        );
+                        return;
+                      }
                       _cubit.saveLicenseInfo(
                         licenseImage:                   _licenseImageFile,
                         nationalIdDocument:             _nationalIdFile,
                         commercialRegistrationDocument: _commercialRegFile,
                         isCompany:                      _isCompany,
+                        licenseExpiryDate:              _licenseExpiryDate,
                       );
                       Nav.qualificationsSExperienceScreen(context);
                     }
@@ -358,7 +356,6 @@ strokeWidth: 2,
   }
 }
 
-// ── Document slot model ───────────────────────────────────────────────────────
 
 class _DocSlot {
   final String     label;
@@ -373,7 +370,6 @@ class _DocSlot {
   });
 }
 
-// ── Document tile widget (matches image: document icon card with delete badge) ─
 
 class _DocumentTile extends StatelessWidget {
   final _DocSlot slot;
@@ -392,7 +388,6 @@ class _DocumentTile extends StatelessWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // ── Main card ─────────────────────────────────────────────────
             Container(
               width:  100.w,
               height: 100.h,
@@ -418,7 +413,6 @@ class _DocumentTile extends StatelessWidget {
                   : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Document illustration (matches image)
                  Picture(
                    getAssetImage("docs.png" ) ,
                    fit: BoxFit.cover,
@@ -428,7 +422,6 @@ class _DocumentTile extends StatelessWidget {
               ),
             ),
 
-            // ── Delete badge ─────────────────────────────────────────────
             Positioned(
               top:   -6,
               right: -6,
@@ -456,7 +449,6 @@ class _DocumentTile extends StatelessWidget {
   }
 }
 
-// ── Field label helper ────────────────────────────────────────────────────────
 
 class _FieldLabel extends StatelessWidget {
   final String    label;

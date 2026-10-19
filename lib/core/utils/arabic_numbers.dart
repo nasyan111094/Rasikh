@@ -1,25 +1,27 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
+
 String? getArabicNumber(int index) {
   String? r;
   final i = index + 1;
-  const String x1 = 'الاول';
-  const String x2 = 'الثاني';
-  const String x3 = 'الثالث';
-  const String x4 = 'الرابع';
-  const String x5 = 'الخامس';
-  const String x6 = 'السادس';
-  const String x7 = 'السابع';
-  const String x8 = 'الثامن';
-  const String x9 = 'التاسع';
-  const String x10 = 'العاشر';
-  const String x20 = 'العشرون';
-  const String x30 = 'الثلاثون';
-  const String x40 = 'الاربعون';
-  const String x50 = 'الخمسون';
-  const String x60 = 'الستون';
-  const String x70 = 'السبعون';
-  const String x80 = 'الثمانون';
-  const String x90 = 'التسعون';
-  const String x100 = 'المائة';
+  final String x1 = Loc.ordinalFirst();
+  final String x2 = Loc.ordinalSecond();
+  final String x3 = Loc.ordinalThird();
+  final String x4 = Loc.ordinalFourth();
+  final String x5 = Loc.ordinalFifth();
+  final String x6 = Loc.ordinalSixth();
+  final String x7 = Loc.ordinalSeventh();
+  final String x8 = Loc.ordinalEighth();
+  final String x9 = Loc.ordinalNinth();
+  final String x10 = Loc.ordinalTenth();
+  final String x20 = Loc.ordinalTwentieth();
+  final String x30 = Loc.ordinalThirtieth();
+  final String x40 = Loc.ordinalFortieth();
+  final String x50 = Loc.ordinalFiftieth();
+  final String x60 = Loc.ordinalSixtieth();
+  final String x70 = Loc.ordinalSeventieth();
+  final String x80 = Loc.ordinalEightieth();
+  final String x90 = Loc.ordinalNinetieth();
+  final String x100 = Loc.ordinalHundredth();
   final x = [
     '',
     x1,
@@ -53,14 +55,14 @@ String? getArabicNumber(int index) {
     final nn = i ~/ 10;
     if (nn == 1) {
       if (n == 1) {
-        return 'الاحدي عشر';
+        return Loc.ordinalEleventh();
       }
-      return '${x[n]} عشر';
+      return Loc.ordinalTeen(x[n]);
     }
     if (n == 0) {
       return xx[nn];
     }
-    return '${n == 1 ? 'الواحد' : x[n]} و ${xx[nn]}';
+    return Loc.ordinalCompound(n == 1 ? Loc.ordinalOne() : x[n], xx[nn]);
   }
   if (i == 100) {
     return x100;

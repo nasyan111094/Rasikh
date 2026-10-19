@@ -2,6 +2,7 @@
 
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../User/profile/models/faq_model.dart';
 import '../../Repo/help_center_repo.dart';
 import '../../models/help_center_models.dart';
 
@@ -45,4 +46,15 @@ class ContactCubit extends Cubit<ContactState> {
       (contact) => emit(ContactLoaded(contact)),
     );
   }
+  Future<void> fetchFaqs() async {
+    emit(FaqLoading());
+    final result = await _repo.getFaqs();
+    result.fold(
+          (err) => emit(FaqFailure(err)),
+          (faqs) => emit(FaqLoaded(faqs)),
+    );
+  }
+
+  Future<void> refreshFaqs() => fetchFaqs();
+
 }

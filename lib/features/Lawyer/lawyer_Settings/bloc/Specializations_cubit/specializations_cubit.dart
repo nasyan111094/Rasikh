@@ -51,12 +51,14 @@ class SpecializationsCubit extends Cubit<SpecializationsState> {
   Future<void> saveSpecializations({
     required List<String> mainSpecializationIds,
     required List<String> subSpecializationIds,
+    List<String> lawsuitTypeIds = const [],
   }) async {
     emit(SaveSpecializationsLoading());
 
     final result = await _profileRepo.updateSpecializations(
       mainSpecializationIds: mainSpecializationIds,
       subSpecializationIds: subSpecializationIds,
+      lawsuitTypeIds: lawsuitTypeIds,
     );
 
     result.fold(

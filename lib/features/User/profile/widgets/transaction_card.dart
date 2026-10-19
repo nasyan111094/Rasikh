@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:size_config/size_config.dart';
 import '../../../../config/theme/colors.dart' as AppColors;
@@ -5,7 +6,6 @@ import '../../../../core/utils/get_asset_path.dart';
 import '../../../../core/widgets/picture.dart';
 
 
-/// حالة العملية
 enum TxStatus { paid, failed }
 
 class TransactionCard extends StatelessWidget {
@@ -29,9 +29,8 @@ class TransactionCard extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    // 🎨 ألوان ديناميكية حسب الثيم
     final bgColor = theme.cardColor;
-    final borderColor = theme.dividerColor.withOpacity(0.2);
+
     final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black87;
     final secondaryTextColor = theme.textTheme.bodyMedium?.color?.withOpacity(0.7);
     final dividerColor = theme.dividerColor.withOpacity(0.2);
@@ -41,14 +40,13 @@ class TransactionCard extends StatelessWidget {
       decoration: BoxDecoration(
 
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1),
+        border: Border.all(color: AppColors.borderColor, width: 1),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── الصف العلوي
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -65,14 +63,12 @@ class TransactionCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 10),
-            Divider(height: 1, thickness: 1, color: dividerColor),
+            Divider(height: 1, thickness: 1, color: AppColors.borderColor),
             const SizedBox(height: 12),
 
-            // ── الصف الرئيسي
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // 1️⃣ الأيقونة
                 Container(
                   width: 48,
                   height: 48,
@@ -86,7 +82,6 @@ class TransactionCard extends StatelessWidget {
 
                 const SizedBox(width: 12),
 
-                // 2️⃣ العنوان والمبلغ
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,8 +112,8 @@ class TransactionCard extends StatelessWidget {
                 const SizedBox(width: 12),
 
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center, // يوسّط كل المحتوى أفقياً
-                  crossAxisAlignment: CrossAxisAlignment.center, // يوسّطهم عمودياً
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                    Picture(getAssetIcon("Calendar.svg") , width: 20.w,height: 20.w,),
                     const SizedBox(width: 6),
@@ -142,7 +137,6 @@ class TransactionCard extends StatelessWidget {
   }
 }
 
-/// شارة الحالة: "تم الدفع" أو "فشل الدفع"
 class _StatusChip extends StatelessWidget {
   final TxStatus status;
   const _StatusChip({required this.status});
@@ -152,7 +146,6 @@ class _StatusChip extends StatelessWidget {
     final theme = Theme.of(context);
     final isPaid = status == TxStatus.paid;
 
-    // 🎨 ديناميكية حسب الثيم
     final bg = isPaid
         ? Colors.green.withOpacity(0.1)
         : theme.colorScheme.error.withOpacity(0.1);
@@ -160,7 +153,7 @@ class _StatusChip extends StatelessWidget {
         ? Colors.green
         : theme.colorScheme.error;
 
-    final text = isPaid ? 'تم الدفع' : 'فشل الدفع';
+    final text = isPaid ? Loc.paid() : Loc.paymentFailed();
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

@@ -1,196 +1,484 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
 import 'package:rasikh/config/theme/colors.dart';
+import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/picture.dart';
+import 'package:rasikh/features/User/profile/bloc/wallet_cubit.dart';
+import 'package:rasikh/features/User/profile/bloc/wallet_state.dart';
+import 'package:rasikh/features/User/profile/models/wallet_models.dart';
 import 'package:size_config/size_config.dart';
 import '../../../../Shared/widgets/icon_with_bg.dart';
+import '../../../../core/widgets/general_app_bar.dart';
 import '../../../User/profile/widgets/header_capsule_appbar_widget.dart';
+import 'add_bank_account_screen.dart';
 
-class WithdrawRequestScreen extends StatelessWidget {
-  const WithdrawRequestScreen({super.key});
+class WithdrawRequestScreen extends StatefulWidget {
+  /// Shared cubit (e.g. from WalletScreen) so success updates the same state
+  /// instance. When null, the screen creates its own.
+  final WalletCubit? walletCubit;
+
+  const WithdrawRequestScreen({super.key, this.walletCubit});
+
+  @override
+  State<WithdrawRequestScreen> createState() => _WithdrawRequestScreenState();
+}
+
+class _WithdrawRequestScreenState extends State<WithdrawRequestScreen> {
+  final TextEditingController _amountController = TextEditingController();
+  String? _selectedBankAccountId;
+  // No server-driven withdrawal limits endpoint exists (topup has
+  // getTopupLimits; wallet_repo/app_config expose no withdrawal equivalent),
+  // so the minimum stays a named constant with a balance-based max check.
+  static const double kMinWithdrawalAmount = 50.0;
+  bool _hasAutoSelected = false;
+
+  /// Ensures success pops exactly once with `true`.
+  bool _hasHandledWithdrawalResult = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Shared cubit may already hold data; fetch only what's missing.
+    final shared = widget.walletCubit;
+    if (shared != null) {
+      if (shared.state.wallet == null) shared.getWallet();
+      if (shared.state.bankAccounts.isEmpty &&
+          shared.state.bankAccountsStatus != WalletStatus.loading) {
+        shared.getBankAccounts();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleWithdrawal(BuildContext context) async {
+    if (_selectedBankAccountId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.pleaseChooseBankAccount())),
+      );
+      return;
+    }
+
+    final amountText = _amountController.text.trim();
+    if (amountText.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.pleaseEnterAmount())),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(amountText);
+    if (amount == null || amount <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.pleaseEnterValidAmount())),
+      );
+      return;
+    }
+
+    if (amount < kMinWithdrawalAmount) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.minimumWithdrawalIs(kMinWithdrawalAmount))),
+      );
+      return;
+    }
+
+    // Refresh the wallet first so the balance check uses fresh data.
+    await context.read<WalletCubit>().getWallet();
+    if (!context.mounted) return;
+    final availableBalance =
+        context.read<WalletCubit>().state.wallet?.availableBalance ?? 0;
+    if (amount > availableBalance) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(Loc.insufficientBalanceForWithdrawal())),
+      );
+      return;
+    }
+
+    context.read<WalletCubit>().createWithdrawal(
+      amount: amount,
+      bankAccountId: _selectedBankAccountId!,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final textTheme = theme.textTheme;
 
-    return SafeArea(
-      child: Scaffold(
-        appBar: const HeaderCapsuleAppBar(
-          title: 'طلب سحب',
-          icon: Icons.arrow_back_ios_rounded,
-        ),
-        body: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 💰 الرصيد المتاح للسحب
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(12.h),
-                  border: Border.all(color: theme.disabledColor.withOpacity(.1)),
+    final body = BlocListener<WalletCubit, WalletState>(
+        listener: (context, state) {
+          if (state.withdrawalRequestStatus == WalletStatus.success &&
+              !_hasHandledWithdrawalResult) {
+            _hasHandledWithdrawalResult = true;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(Loc.withdrawRequestSentSuccessfully())),
+            );
+            context.read<WalletCubit>().resetWithdrawalRequest();
+            Navigator.pop(context, true);
+          } else if (state.withdrawalRequestStatus == WalletStatus.failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(state.withdrawalRequestError ?? Loc.withdrawRequestFailed())),
+            );
+          }
+        },
+        child: BlocBuilder<WalletCubit, WalletState>(
+          builder: (context, state) {
+            final wallet = state.wallet;
+            final bankAccounts = state.bankAccounts;
+            final availableBalance = wallet?.availableBalance ?? 0;
+            final isLoading = state.withdrawalRequestStatus == WalletStatus.loading;
+
+            // Drop a selection whose account no longer exists (e.g. deleted
+            // from the wallet screen) so a stale id can never be submitted.
+            if (_selectedBankAccountId != null &&
+                bankAccounts.isNotEmpty &&
+                !bankAccounts.any((a) => a.id == _selectedBankAccountId)) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _selectedBankAccountId = null;
+                    _hasAutoSelected = false;
+                  });
+                }
+              });
+            }
+
+            if (!_hasAutoSelected &&
+                state.bankAccountsStatus == WalletStatus.success &&
+                bankAccounts.isNotEmpty &&
+                _selectedBankAccountId == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    _selectedBankAccountId = bankAccounts
+                        .firstWhere(
+                          (a) => a.isDefault,
+                          orElse: () => bankAccounts.first,
+                        )
+                        .id;
+                    _hasAutoSelected = true;
+                  });
+                }
+              });
+            }
+
+            return SafeArea(
+              child: Scaffold(
+                appBar: GeneralAppBar(
+                  title: Loc.withdrawRequest(),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                body: Column(
                   children: [
-                    Row(
-                      children: [
-                        CircleIconContainer(
-                          icon: "wallet.svg",
-                          backgroundColor: const Color(0xffF7F4F0),
-                          iconColor: const Color(0xFFC7A47B),
-                          size: 40.w,
-                          iconSize: 20.w,
-                          hasShadow: false,
-                        ),
-                        Gap(10.w),
-                        Column(
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 20.h),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 14.h),
+                              decoration: BoxDecoration(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(12.h),
+                                border: Border.all(color: theme.disabledColor.withOpacity(.1)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      CircleIconContainer(
+                                        icon: "wallet.svg",
+                                        backgroundColor: const Color(0xffF7F4F0),
+                                        iconColor: const Color(0xFFC7A47B),
+                                        size: 40.w,
+                                        iconSize: 20.w,
+                                        hasShadow: false,
+                                      ),
+                                      Gap(10.w),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            Loc.availableBalanceForWithdrawal(),
+                                            style: textTheme.bodyMedium?.copyWith(
+                                              fontWeight: FontWeight.w600,
+                                              color: theme.colorScheme.onSurface,
+                                            ),
+                                          ),
+                                          Gap(3.h),
+                                          Text(
+                                            Loc.amountRiyal(availableBalance.toStringAsFixed(2)),
+                                            style: textTheme.titleMedium?.copyWith(
+                                              fontWeight: FontWeight.bold,
+                                              color: const Color(0xFFC7A47B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            Gap(40.h),
+
                             Text(
-                              "الرصيد المتاح للسحب",
-                              style: textTheme.bodyMedium?.copyWith(
+                              Loc.chooseBankAccountRequired(),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.onSurface,
                               ),
                             ),
-                            Gap(3.h),
+                            Gap(15.h),
+                            if (state.bankAccountsStatus == WalletStatus.loading)
+                              Container(
+                                height: 60.h,
+                                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12.h),
+                                  border: Border.all(color: theme.disabledColor.withOpacity(.2)),
+                                ),
+                                child: Center(
+                                  child: SizedBox(
+                                    height: 24,
+                                    width: 24,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        theme.primaryColor,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else if (bankAccounts.isEmpty)
+                              Column(
+                                children: [
+                                  Container(
+                                    height: 60.h,
+                                    padding: EdgeInsets.symmetric(horizontal: 12.w),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12.h),
+                                      border: Border.all(color: Colors.red.withOpacity(.5)),
+                                      color: Colors.red.withOpacity(0.05),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.warning, color: Colors.red.shade700, size: 20),
+                                        Gap(8.w),
+                                        Expanded(
+                                          child: Text(
+                                            Loc.noBankAccountsDefined(),
+                                            style: textTheme.bodySmall?.copyWith(
+                                              color: Colors.red.shade700,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Gap(15.h),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    height: 48.h,
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        showAddBankAccountDialog(context);
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12.h),
+                                          side: BorderSide(
+                                            color: const Color(0xFFC7A47B),
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        Loc.addBankAccountPlus(),
+                                        style: textTheme.bodyMedium?.copyWith(
+                                          color: const Color(0xFFC7A47B),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              )
+                            else
+                              Container(
+                                height: 60.h,
+                                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12.h),
+                                  border: Border.all(color: theme.disabledColor.withOpacity(.2)),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.account_balance, color: Colors.grey),
+                                    Gap(8.w),
+                                    Expanded(
+                                      child: DropdownButtonHideUnderline(
+                                        child: DropdownButton<String>(
+                                          value: _selectedBankAccountId,
+                                          hint: Text(
+                                            Loc.chooseAccount(),
+                                            style: textTheme.bodyMedium?.copyWith(
+                                              color: theme.hintColor,
+                                            ),
+                                          ),
+                                          items: bankAccounts.map((account) {
+                                            return DropdownMenuItem<String>(
+                                              value: account.id,
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  Text(account.bankName),
+                                                  Text(
+                                                    account.accountHolderName,
+                                                    style: textTheme.bodySmall?.copyWith(
+                                                      color: Colors.grey,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }).toList(),
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _selectedBankAccountId = value;
+                                            });
+                                          },
+                                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                                          style: textTheme.bodyMedium,
+                                          isExpanded: true,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                            Gap(40.h),
+
                             Text(
-                              "950 ريال",
-                              style: textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: const Color(0xFFC7A47B),
+                              Loc.withdrawAmountRequired(),
+                              style: textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
+                            Gap(20.h),
+                            Container(
+                              height: 60.h,
+                              padding: EdgeInsets.symmetric(horizontal: 12.w),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12.h),
+                                border: Border.all(color: theme.disabledColor.withOpacity(.2)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Picture(
+                                    getAssetIcon("riyal.svg"),
+                                    width: 18.w,
+                                    height: 18.w,
+                                  ),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _amountController,
+                                      keyboardType: TextInputType.number,
+                                      decoration: InputDecoration(
+                                        border: InputBorder.none,
+                                        hintText: '0.00',
+                                        hintStyle: textTheme.bodyMedium?.copyWith(
+                                          color: theme.hintColor,
+                                        ),
+                                      ),
+                                      style: textTheme.bodyMedium,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            Gap(20.h),
                           ],
                         ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-      
-              Gap(40.h),
-      
-              // 🏦 اختيار الحساب البنكي
-              Text(
-                "اختر الحساب البنكي *",
-                style: textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gap(15.h),
-              Container(
-                height: 60.h,
-                padding: EdgeInsets.symmetric(horizontal: 12.w),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12.h),
-                  border: Border.all(color: theme.disabledColor.withOpacity(.2)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.account_balance, color: Colors.grey),
-                    Gap(8.w),
-                    Expanded(
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: 'بنك الأهلي السعودي',
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'بنك الأهلي السعودي',
-                              child: Text('بنك الأهلي السعودي'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'بنك الراجحي',
-                              child: Text('بنك الراجحي'),
-                            ),
-                          ],
-                          onChanged: (value) {},
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                          style: textTheme.bodyMedium,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-      
-              Gap(40.h),
-      
-              // 💵 المبلغ المطلوب للسحب
-              Text(
-                "المبلغ المطلوب للسحب *",
-                style: textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Gap(20.h),
-              Container(
-                height: 60.h,
-                padding: EdgeInsets.symmetric(horizontal: 12.w),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12.h),
-                  border: Border.all(color: theme.disabledColor.withOpacity(.2)),
-                ),
-                child: Row(
-                  children: [
-                    Picture(
-                      getAssetIcon("riyal.svg"),
-                      width: 18.w,
-                      height: 18.w,
-                    ),
-                    Expanded(
-                      child: TextField(
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          border: InputBorder.none,
-                          hintText: '0.00',
-                          hintStyle: textTheme.bodyMedium?.copyWith(
-                            color: theme.hintColor,
-                          ),
-                        ),
-                        style: textTheme.bodyMedium,
                       ),
                     ),
 
+                    Container(
+                      padding: EdgeInsets.fromLTRB(16.w, 12.h, 16.w, 12.h),
+                      decoration: BoxDecoration(
+                        color: theme.scaffoldBackgroundColor,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 12,
+                            offset: const Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 48.h,
+                        child: ElevatedButton(
+                          onPressed: isLoading ? null : () => _handleWithdrawal(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFC7A47B),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.h),
+                            ),
+                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            ),
+                          )
+                              : Text(
+                            Loc.confirmWithdrawal(),
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
-      
-              const Spacer(),
-      
-              // 🟡 زر تأكيد السحب
-              SizedBox(
-                width: double.infinity,
-                height: 48.h,
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFC7A47B),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.h),
-                    ),
-                  ),
-                  child: Text(
-                    'تأكيد السحب',
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              Gap(10.h),
-            ],
-          ),
+            );
+          },
         ),
-      ),
+      );
+
+    // Shared cubit keeps both screens on the same state instance;
+    // otherwise the screen owns a fresh one.
+    final shared = widget.walletCubit;
+    if (shared != null) {
+      return BlocProvider.value(value: shared, child: body);
+    }
+    return BlocProvider(
+      create: (_) => getIt<WalletCubit>()
+        ..getWallet()
+        ..getBankAccounts(),
+      child: body,
     );
   }
 }

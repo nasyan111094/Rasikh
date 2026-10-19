@@ -1,3 +1,4 @@
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -36,25 +37,49 @@ class _LayoutPageState extends State<LayoutPage> {
     return [
       NavItem(
         svgIcon: "assets/icons/home.svg",
-        label: 'الرئيسيه',
+        label: Loc.navHome(),
         color: theme.colorScheme.primary,
       ),
       NavItem(
         svgIcon: "assets/icons/consultation.svg",
-        label: "إستشاراتي",
+        label: Loc.myConsultations(),
         color: theme.colorScheme.primary,
       ),
       NavItem(
         svgIcon: "assets/icons/Calendar.svg",
-        label: "مواعيدي",
+        label: Loc.myAppointments(),
         color: theme.colorScheme.primary,
       ),
       NavItem(
-        svgIcon: "assets/icons/user.svg",
-        label: "حسابي",
+        svgIcon: "assets/icons/settings.svg",
+        label: Loc.myAccount(),
         color: theme.colorScheme.primary,
       ),
     ];
+  }
+
+  /// Resolves the tab body explicitly per vendor type. Company has no
+  /// dedicated tabs yet, so it safely falls back to the user tabs.
+  /// TODO: add dedicated company tabs.
+  Widget _bodyForIndex(int index, VendorType? vendor) {
+    switch (vendor) {
+      case VendorType.user:
+      case VendorType.company:
+      case null:
+        return switch (index) {
+          0 => const HomePage(),
+          1 => const LawerConsultationsScreen(),
+          2 => const MyAppointmentsScreen(),
+          _ => const ProfileScreen(),
+        };
+      case VendorType.lawyer:
+        return switch (index) {
+          0 => const LawyerHomeScreen(),
+          1 => const LawerConsultationsScreen(),
+          2 => const LawyerAppointmentsScreen(),
+          _ => const LawyerSettingsScreen(),
+        };
+    }
   }
 
   @override
@@ -68,15 +93,10 @@ class _LayoutPageState extends State<LayoutPage> {
     return AppWrapper(
       withSafeArea: true,
       child: Scaffold(
-        body: _selectedIndex == 0
-            ? (getIt<CacheHelper>().cachedVendorType == VendorType.user ? HomePage() : LawyerHomeScreen())
-            : _selectedIndex == 1
-                ? LawerConsultationsScreen()
-                : _selectedIndex == 2
-                    ? (getIt<CacheHelper>().cachedVendorType  == VendorType.user ?  MyAppointmentsScreen() :LawyerAppointmentsScreen())
-                    : getIt<CacheHelper>().cachedVendorType == VendorType.user ? ProfileScreen()  : LawyerSettingsScreen (),
+        body: _bodyForIndex(
+            _selectedIndex, getIt<CacheHelper>().cachedVendorType),
         bottomNavigationBar: Container(
-          height: 100.h, // 👈 ارتفاع ثابت للبار
+          height: 100.h,
 
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal:0.w, vertical: 0.h),
@@ -147,7 +167,7 @@ class NavBarItem extends StatelessWidget {
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, // يوسّط الأيقونة والليبل
+        mainAxisAlignment: MainAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
           AnimatedContainer(

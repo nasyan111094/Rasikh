@@ -1,14 +1,13 @@
+
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:size_config/size_config.dart';
 
-import '../../../../core/widgets/picture.dart' show Picture;
+import '../../../../../core/widgets/picture.dart';
 
 class AppointmentsScreenTitle extends StatelessWidget {
-  const AppointmentsScreenTitle({
-    super.key,
-    required this.theme,
-  });
+  const AppointmentsScreenTitle({super.key, required this.theme});
 
   final ThemeData theme;
 
@@ -19,30 +18,29 @@ class AppointmentsScreenTitle extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Picture(getAssetIcon("Calendar.svg"),
-              width: 30.w, height: 30.w , color: theme.colorScheme.onSecondaryContainer,),
+          Picture(
+            getAssetIcon('Calendar.svg'),
+            width: 30.w,
+            height: 30.w,
+            color: theme.colorScheme.onSecondaryContainer,
+          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text(
-                      "مواعيد العمل",
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  Loc.workAppointments(),
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.w),
                 child: Text(
-                  "اضبط أوقات العمل والتحكم فيها.",
+                  Loc.workAppointmentsSubtitle(),
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.hintColor,
                   ),

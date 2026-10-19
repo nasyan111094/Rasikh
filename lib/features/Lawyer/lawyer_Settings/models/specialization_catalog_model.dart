@@ -4,15 +4,36 @@
 // Models for GET /api/v1/specializations/active
 // ─────────────────────────────────────────────────────────────────────────────
 
+class LawsuitTypeCatalogModel {
+  final String id;
+  final String name;
+  final bool isActive;
+
+  const LawsuitTypeCatalogModel({
+    required this.id,
+    required this.name,
+    this.isActive = true,
+  });
+
+  factory LawsuitTypeCatalogModel.fromJson(Map<String, dynamic> json) =>
+      LawsuitTypeCatalogModel(
+        id: json['id'] ?? json['_id'] ?? '',
+        name: json['name'] ?? '',
+        isActive: json['isActive'] ?? true,
+      );
+}
+
 class SubSpecializationCatalogModel {
   final String id;
   final String name;
   final bool isActive;
+  final List<LawsuitTypeCatalogModel> lawsuitTypes;
 
   const SubSpecializationCatalogModel({
     required this.id,
     required this.name,
     this.isActive = true,
+    this.lawsuitTypes = const [],
   });
 
   factory SubSpecializationCatalogModel.fromJson(Map<String, dynamic> json) =>
@@ -20,6 +41,12 @@ class SubSpecializationCatalogModel {
         id: json['id'] ?? json['_id'] ?? '',
         name: json['name'] ?? '',
         isActive: json['isActive'] ?? true,
+        lawsuitTypes: (json['lawsuitTypes'] as List<dynamic>?)
+                ?.map((e) => LawsuitTypeCatalogModel.fromJson(
+                    e as Map<String, dynamic>))
+                .where((l) => l.isActive)
+                .toList() ??
+            [],
       );
 }
 

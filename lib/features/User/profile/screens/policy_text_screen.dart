@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:size_config/size_config.dart';
 
+import '../../../../core/widgets/general_app_bar.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
 
 class PolicySection {
@@ -27,7 +28,7 @@ class PolicyTextScreen extends StatelessWidget {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        appBar: HeaderCapsuleAppBar(title: pageTitle),
+        appBar: GeneralAppBar(title: pageTitle),
         body: ListView.separated(
           padding: EdgeInsets.only(
             top: 20.h,

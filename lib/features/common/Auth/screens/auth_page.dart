@@ -1,24 +1,9 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// shared/auth/pages/auth_page.dart
-//
-// Handles both Login and Register phone-entry screens.
-// UI matches Login_Screen.png and Sign_Up_Screen.png 100%.
-//
-// Layout (top → bottom):
-//   • AuthStepperWidget
-//   • Logo (right-aligned)
-//   • Heading + subtitle
-//   • Phone label (رقم الجوال *)
-//   • PhoneField
-//   • Submit button (دخول / التالي)
-//   • Switch link row (ليس لديك حساب؟ / هل لديك حساب؟)
-//   • Spacer
-//   • Terms footer (pinned to bottom)
-// ─────────────────────────────────────────────────────────────────────────────
 
+import 'package:rasikh/config/localization/loc_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:gap/gap.dart';
+import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:rasikh/core/get_it_service/get_it_service.dart';
 import 'package:rasikh/core/utils/get_asset_path.dart';
 import 'package:rasikh/core/widgets/fields/phone_field.dart';
@@ -60,6 +45,9 @@ class _AuthPageState extends State<AuthPage>
   void initState() {
     super.initState();
     _cubit = getIt<AuthCubit>();
+    // Clear any stale send-otp status from a previous visit instead of
+    // resetting after navigation (the cubit is a shared LazySingleton).
+    _cubit.resetSendOtpState();
   }
 
   @override
@@ -110,7 +98,6 @@ class _AuthPageState extends State<AuthPage>
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      // ── Scrollable content ────────────────────────────
                       Expanded(
                         child: SingleChildScrollView(
                           padding: EdgeInsets.symmetric(horizontal: 20.w),
@@ -121,7 +108,6 @@ class _AuthPageState extends State<AuthPage>
                               children: [
                                 Gap(16.h),
 
-                                // Step indicator
                                 AuthStepperWidget(
                                   totalSteps: currentView == AuthViewType.phoneLogin ? 3 : 7,
                                   activeStep: 2,
@@ -129,7 +115,6 @@ class _AuthPageState extends State<AuthPage>
 
                                 Gap(24.h),
 
-                                // Logo
                                 Align(
                                   alignment: Alignment.centerRight,
                                   child: Picture(
@@ -141,11 +126,10 @@ class _AuthPageState extends State<AuthPage>
 
                                 Gap(20.h),
 
-                                // Heading
                                 Text(
                                   currentView == AuthViewType.phoneLogin
-                                      ? 'تسجيل الدخول إلى حسابك'
-                                      : 'إنشاء حساب جديد',
+                                      ? Loc.loginToYourAccountTitle()
+                                      : Loc.createNewAccount(),
                                   style: theme.textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                     color:      cs.primary,
@@ -157,8 +141,8 @@ class _AuthPageState extends State<AuthPage>
 
                                 Text(
                                   currentView == AuthViewType.phoneLogin
-                                      ? 'أدخل رقم هاتفك لتسجيل الدخول .'
-                                      : 'أدخل رقم هاتفك لتسجيل حسابك في المنصة .',
+                                      ? Loc.enterPhoneToLogin()
+                                      : Loc.enterPhoneToRegister(),
                                   style: theme.textTheme.bodyMedium?.copyWith(
                                     color: theme.hintColor,
                                   ),
@@ -167,12 +151,11 @@ class _AuthPageState extends State<AuthPage>
 
                                 Gap(28.h),
 
-                                // Phone label
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.start,
                                   children: [
                                     Text(
-                                      'رقم الجوال',
+                                      Loc.phone_number(),
                                       style: theme.textTheme.bodyMedium?.copyWith(
                                         fontWeight: FontWeight.w600,
                                         color:      cs.onSurface,
@@ -191,7 +174,6 @@ class _AuthPageState extends State<AuthPage>
 
                                 Gap(10.h),
 
-                                // Phone field
                                 ValueListenableBuilder<String>(
                                   valueListenable: _countryCodeNotifier,
                                   builder: (_, code, __) {
@@ -201,10 +183,10 @@ class _AuthPageState extends State<AuthPage>
                                       onValidated: (value) {
                                         final phone = (value ?? '').trim();
                                         if (phone.isEmpty) {
-                                          return 'يرجى إدخال رقم الهاتف';
+                                          return Loc.pleaseEnterPhoneNumber();
                                         }
                                         if (!RegExp(r'^\d{9,15}$').hasMatch(phone)) {
-                                          return 'رقم الهاتف غير صحيح';
+                                          return Loc.invalidPhoneNumber();
                                         }
                                         return null;
                                       },
@@ -216,31 +198,28 @@ class _AuthPageState extends State<AuthPage>
 
                                 Gap(28.h),
 
-                                // Submit button
                                 AppButton(
                                   isLoading: isLoading,
                                   title: currentView == AuthViewType.phoneLogin
-                                      ? 'دخول'
-                                      : 'التالي',
+                                      ? Loc.signIn()
+                                      : Loc.next(),
                                   onPressed: () {
                                     if (isLoading) return;
                                     _submit(currentView);
                                   },
                                 ),
 
-                                Gap(20.h),
+                                Gap(40.h),
 
-                                // Switch view row
                                 Center(
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
 
-                                      // Static text
                                       Text(
                                         currentView == AuthViewType.phoneLogin
-                                            ? 'ليس لديك حساب؟'
-                                            : 'هل لديك حساب من قبل؟',
+                                            ? Loc.dontHaveAnAccount()
+                                            : Loc.alreadyHaveAccountQuestion(),
                                         style: theme.textTheme.bodyMedium?.copyWith(
                                           color: theme.hintColor,
                                         ),
@@ -248,7 +227,6 @@ class _AuthPageState extends State<AuthPage>
 
                                       Gap(6.w),
 
-                                      // Link part
                                       GestureDetector(
                                         onTap: () => _switchView(
                                           currentView == AuthViewType.phoneLogin
@@ -257,8 +235,8 @@ class _AuthPageState extends State<AuthPage>
                                         ),
                                         child: Text(
                                           currentView == AuthViewType.phoneLogin
-                                              ? 'إنشاء حساب'
-                                              : 'تسجيل الدخول',
+                                              ? Loc.createAccount()
+                                              : Loc.loginAction(),
                                           style: theme.textTheme.bodyMedium?.copyWith(
                                             fontWeight: FontWeight.w700,
                                             color:      cs.primary,
@@ -279,7 +257,6 @@ class _AuthPageState extends State<AuthPage>
                         ),
                       ),
 
-                      // ── Pinned terms footer ───────────────────────────
                       _TermsFooter(cs: cs, theme: theme),
                     ],
                   );
@@ -316,10 +293,6 @@ class _AuthPageState extends State<AuthPage>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _TermsFooter — pinned at bottom
-// "من خلال التسجيل، فإنك [توافق على شروط الخدمة] واتفاقية معالجة البيانات."
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _TermsFooter extends StatelessWidget {
   final ColorScheme cs;
@@ -333,7 +306,7 @@ class _TermsFooter extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(20.w, 8.h, 20.w, 16.h),
       child: Text.rich(
         TextSpan(
-          text:  'من خلال التسجيل، فإنك ',
+          text:  Loc.byRegisteringYou(),
           style: theme.textTheme.bodySmall?.copyWith(
             color: cs.onSurfaceVariant,
           ),
@@ -344,7 +317,7 @@ class _TermsFooter extends StatelessWidget {
               child: GestureDetector(
                 onTap: () => _showTerms(context),
                 child: Text(
-                  'توافق على شروط الخدمة',
+                  Loc.agreeToTermsOfService(),
                   style: theme.textTheme.bodySmall?.copyWith(
                     color:           cs.primary,
                     fontWeight:      FontWeight.w700,
@@ -354,7 +327,7 @@ class _TermsFooter extends StatelessWidget {
                 ),
               ),
             ),
-            const TextSpan(text: ' واتفاقية معالجة البيانات.'),
+            TextSpan(text: Loc.andDataProcessingAgreementLeading()),
           ],
         ),
         textAlign: TextAlign.center,

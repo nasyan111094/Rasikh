@@ -576,11 +576,11 @@ class CacheHelper {
     await _ensureInitialized();
 
     try {
-      final vendorTypeStr = getData(PrefKeys.cachedVendorType);
+      final vendorTypeStr = await getData(PrefKeys.cachedVendorType);
       if (vendorTypeStr == null ) {
         return cachedVendorType;
       }
-      cachedVendorType = VendorType.values.byName(vendorTypeStr as String);
+      cachedVendorType = VendorType.values.byName(vendorTypeStr);
     } catch (e) {
       _logger.w('Failed to get cached vendor type: $e');
     }
@@ -636,8 +636,10 @@ class CacheHelper {
     await _ensureInitialized();
 
     currentToken = null;
+    registerToken = null;
 
     currentUser = null;
+    cachedVendorType = null;
 
     await removeData(
       PrefKeys.userToken,
@@ -650,11 +652,78 @@ class CacheHelper {
     );
 
     await removeData(
+      PrefKeys.lawyerToken,
+      isSensitive: true,
+    );
+
+    await removeData(
+      PrefKeys.otpToken,
+      isSensitive: true,
+    );
+
+    await removeData(
       PrefKeys.currentUser,
       isSensitive: true,
     );
 
+    await removeData(
+      PrefKeys.cachedVendorType,
+    );
+
     _logger.i('User session cleared');
+  }
+
+  /// Wipes ALL cached data after an unrecoverable session expiry:
+  /// tokens, user/vendor data, preferences and secure storage.
+  /// Only app language, theme choice and onboarding state are preserved so
+  /// the user lands back on a usable login screen.
+  Future<void> clearAllData() async {
+    await _ensureInitialized();
+
+    // ── Preserve UX preferences ──────────────────────────────────────────
+    final lang = _prefs.getString(PrefKeys.userLangKey);
+    final onboardingDone = _prefs.getBool(PrefKeys.onBoardingDone);
+    final onboardingSkipped = _prefs.getBool(PrefKeys.userOnBoardIsSkipped);
+    final isDark = _prefs.getBool(PrefKeys.kIsDarkTheme);
+    final themeMode = _prefs.getString(PrefKeys.themeModeKey);
+
+    // ── Reset in-memory state ────────────────────────────────────────────
+    currentToken = null;
+    registerToken = null;
+    currentUser = null;
+    cachedVendorType = null;
+
+    // ── Wipe persistent storage ──────────────────────────────────────────
+    await _prefs.clear();
+    try {
+      await _secureStorage.deleteAll(
+        iOptions: _getIOSOptions(),
+        aOptions: _getAndroidOptions(),
+      );
+    } catch (e, st) {
+      _logger.e('Failed to clear secure storage', error: e, stackTrace: st);
+    }
+
+    // ── Restore preserved preferences ────────────────────────────────────
+    if (lang != null) await _prefs.setString(PrefKeys.userLangKey, lang);
+    if (onboardingDone != null) {
+      await _prefs.setBool(PrefKeys.onBoardingDone, onboardingDone);
+    } else {
+      onBoardingDone = false;
+    }
+    if (onboardingSkipped != null) {
+      await _prefs.setBool(
+          PrefKeys.userOnBoardIsSkipped, onboardingSkipped);
+    }
+    if (isDark != null) {
+      await _prefs.setBool(PrefKeys.kIsDarkTheme, isDark);
+      isDarkTheme = isDark;
+    }
+    if (themeMode != null) {
+      await _prefs.setString(PrefKeys.themeModeKey, themeMode);
+    }
+
+    _logger.i('All cached data cleared (session expired)');
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -839,28 +908,6 @@ class CacheHelper {
   }
 
 
-  Future<UserProfileData?> _readCachedVendorType() async {
-    try {
-      final encoded = await _readSecureDirect(
-        PrefKeys.currentUser,
-      );
-
-      if (encoded == null) {
-        return null;
-      }
-
-      final decoded = jsonDecode(encoded);
-
-      if (decoded is! Map<String, dynamic>) {
-        return null;
-      }
-
-      return UserProfileData.fromJson(decoded);
-    } catch (_) {
-      return null;
-    }
-  }
-
   // ─────────────────────────────────────────────────────────────────────────
   // Secure Storage Options
   // ─────────────────────────────────────────────────────────────────────────
@@ -874,9 +921,7 @@ class CacheHelper {
   }
 
   AndroidOptions _getAndroidOptions() {
-    return const AndroidOptions(
-      encryptedSharedPreferences: true,
-    );
+    return const AndroidOptions();
   }
 
   // ─────────────────────────────────────────────────────────────────────────
