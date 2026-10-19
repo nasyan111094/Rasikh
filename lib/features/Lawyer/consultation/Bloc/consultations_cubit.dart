@@ -240,7 +240,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
           currentPage: _currentPage,
         ));
       },
-          (_) {
+          (policy) {
         _consultations =
             _consultations.where((c) => c.id != consultationId).toList();
 
@@ -253,6 +253,7 @@ class ConsultationsCubit extends Cubit<ConsultationsState> {
             selectedStatus: currentSelectedStatus,
             hasMorePages: _hasMorePages,
             currentPage: _currentPage,
+            refundPercent: policy.refundPercent,
           ));
         }
       },

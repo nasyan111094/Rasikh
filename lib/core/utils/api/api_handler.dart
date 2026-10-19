@@ -184,7 +184,8 @@ class ApiHandler {
     try {
       return await _retryRequest(failedRequest)
           .timeout(const Duration(seconds: 30));
-    } catch (_) {
+    } catch (e) {
+      Logger().e('Retry after token refresh failed: $e');
       return null;
     }
   }
@@ -300,13 +301,28 @@ class ApiHandler {
     dio.options.connectTimeout = const Duration(seconds: 30);
     dio.options.receiveTimeout = const Duration(seconds: 30);
 
+    // A FormData body is single-use: the failed attempt already streamed it
+    // (finalize() was called), so re-sending the same instance throws
+    // StateError and the retry would silently degrade into a forced logout.
+    // clone() rebuilds the multipart payload (same boundary) so multipart
+    // endpoints such as `client/consultations` survive a token refresh.
+    final originalData = requestOptions.data;
+    final data = originalData is FormData ? originalData.clone() : originalData;
+
+    // Content headers describe the first attempt; let Dio recompute them for
+    // the retried body instead of replaying a stale length/boundary.
+    final headers = Map<String, dynamic>.from(requestOptions.headers);
+    headers
+      ..remove(Headers.contentLengthHeader)
+      ..remove(Headers.contentTypeHeader);
+
     return await dio.request(
       requestOptions.path,
-      data: requestOptions.data,
+      data: data,
       queryParameters: requestOptions.queryParameters,
       options: Options(
         method: requestOptions.method,
-        headers: requestOptions.headers,
+        headers: headers,
         contentType: requestOptions.contentType,
         responseType: requestOptions.responseType,
         followRedirects: requestOptions.followRedirects,

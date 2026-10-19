@@ -129,7 +129,7 @@ class ConsultationRescheduleError extends ConsultationsState {
 
 // ── Cancel States ─────────────────────────────────────────────────────────────
 
-/// A cancel PATCH is in flight for [consultationId].
+/// A cancel request is in flight for [consultationId].
 class ConsultationCancelling extends ConsultationsState {
   final String consultationId;
   final List<ConsultationModel> currentConsultations;
@@ -151,12 +151,16 @@ class ConsultationCancelled extends ConsultationsState {
   final bool hasMorePages;
   final int currentPage;
 
+  /// From the cancel endpoint's `data.policy` (may be absent on old responses).
+  final int? refundPercent;
+
   const ConsultationCancelled({
     required this.cancelledId,
     required this.consultations,
     required this.selectedStatus,
     required this.hasMorePages,
     required this.currentPage,
+    this.refundPercent,
   });
 }
 

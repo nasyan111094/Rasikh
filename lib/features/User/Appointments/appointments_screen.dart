@@ -177,9 +177,12 @@ class _MyAppointmentsScreenState extends State<MyAppointmentsScreen> {
               ),
             );
           } else if (state is ConsultationCancelled) {
+            final refund = state.refundPercent;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(Loc.consultationCancelledSuccessfully()),
+                content: Text(refund == null
+                    ? Loc.consultationCancelledSuccessfully()
+                    : '${Loc.consultationCancelledSuccessfully()} — ${Loc.refunded()} $refund%'),
                 backgroundColor: Colors.green,
               ),
             );

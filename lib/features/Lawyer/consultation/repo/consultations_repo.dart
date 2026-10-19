@@ -34,6 +34,38 @@ class _Endpoints {
 }
 
 
+/// Refund policy returned by `PATCH client/consultations/{id}/cancel`.
+///
+/// Response shape: `{ ..., "data": { "policy": {
+///   "refundPercent": 100, "window": "gt2h",
+///   "msToStart": 89993110, "applyLawyerFaultPenalty": false } } }`
+class CancelPolicy {
+  final int? refundPercent;
+  final String? window;
+  final int? msToStart;
+  final bool applyLawyerFaultPenalty;
+
+  const CancelPolicy({
+    this.refundPercent,
+    this.window,
+    this.msToStart,
+    this.applyLawyerFaultPenalty = false,
+  });
+
+  factory CancelPolicy.fromJson(Map<String, dynamic> json) {
+    int? asInt(dynamic v) =>
+        v is num ? v.toInt() : int.tryParse(v?.toString() ?? '');
+    return CancelPolicy(
+      refundPercent: asInt(json['refundPercent']),
+      window: json['window']?.toString(),
+      msToStart: asInt(json['msToStart']),
+      applyLawyerFaultPenalty:
+          json['applyLawyerFaultPenalty'] as bool? ?? false,
+    );
+  }
+}
+
+
 class ConsultationsRepo {
   ConsultationsRepo() : _adapter = getIt<ApiHandler>().dioAdapterBase;
 
@@ -122,7 +154,7 @@ class ConsultationsRepo {
   }
 
 
-  Future<Either<String, bool>> cancelConsultation({
+  Future<Either<String, CancelPolicy>> cancelConsultation({
     required String id,
   }) async {
     final result = await _adapter.put(
@@ -130,7 +162,18 @@ class ConsultationsRepo {
     );
 
     if (result.isRight) {
-      return const Right(true);
+      final data = result.right.data;
+      Map<String, dynamic>? policyJson;
+      if (data is Map<String, dynamic>) {
+        final inner = data['data'];
+        if (inner is Map<String, dynamic>) {
+          final policy = inner['policy'];
+          if (policy is Map<String, dynamic>) policyJson = policy;
+        }
+      }
+      return Right(policyJson != null
+          ? CancelPolicy.fromJson(policyJson)
+          : const CancelPolicy());
     }
     return Left(_extractError(result.left));
   }

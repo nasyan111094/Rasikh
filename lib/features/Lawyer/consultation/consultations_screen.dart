@@ -159,7 +159,13 @@ class _LawerConsultationsScreenState extends State<LawerConsultationsScreen> {
           } else if (state is ConsultationRescheduleError) {
             _showSnack(context, state.message, Colors.red);
           } else if (state is ConsultationCancelled) {
-            _showSnack(context, Loc.consultationCancelledSuccessfully(), Colors.green);
+            final refund = state.refundPercent;
+            _showSnack(
+                context,
+                refund == null
+                    ? Loc.consultationCancelledSuccessfully()
+                    : '${Loc.consultationCancelledSuccessfully()} — ${Loc.refunded()} $refund%',
+                Colors.green);
           } else if (state is ConsultationCancelError) {
             _showSnack(context, state.message, Colors.red);
           } else if (state is ConsultationRatingSubmitted) {

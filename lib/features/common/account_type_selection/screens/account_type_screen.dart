@@ -31,12 +31,24 @@ class AccountTypeScreen extends StatefulWidget {
 
 class _AccountTypeScreenState extends State<AccountTypeScreen> {
 
+  /// Local source of truth for the highlighted card. Seeded to
+  /// [VendorType.user] so "التسجيل كمستخدم" is selected by default.
+  late VendorType _selectedType;
+
   @override
   void initState() {
     super.initState();
-    // Do NOT pre-select a vendor here: the choice is persisted only when
-    // the user explicitly taps a card below.
-    Logger().i(getIt<CacheHelper>().cachedVendorType);
+    _selectedType = VendorType.user;
+
+    // Reset any vendor type left over from a previous session (e.g. the app
+    // was killed while "lawyer" was selected) so the screen always opens on
+    // "user". Persisted too, because the auth flow reads the vendor type from
+    // cache — pressing "التالي" without tapping a card must still work.
+    final cacheHelper = getIt<CacheHelper>();
+    cacheHelper.cachedVendorType = _selectedType;
+    cacheHelper.setCurrentVendorType(_selectedType);
+
+    Logger().i('Default account type set to: ${_selectedType.name}');
   }
 
 
@@ -131,14 +143,13 @@ class _AccountTypeScreenState extends State<AccountTypeScreen> {
                               // Company has no card yet: fall back to user
                               // tabs for display only. TODO: add a third
                               // company option card.
-                              selectedValue: getIt<CacheHelper>()
-                                      .cachedVendorType ??
-                                  VendorType.user,
+                              selectedValue: _selectedType,
                               onChanged: (value) {
                                 setState(() {
+                                  _selectedType = value;
 
-                                  getIt<CacheHelper>().cachedVendorType =value ;
-                                  getIt<CacheHelper>().setCurrentVendorType(value) ;
+                                  getIt<CacheHelper>().cachedVendorType = value;
+                                  getIt<CacheHelper>().setCurrentVendorType(value);
 
                                 });
                               },
