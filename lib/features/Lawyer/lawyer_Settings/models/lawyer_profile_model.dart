@@ -4,12 +4,21 @@
 
 import 'dart:convert';
 
+import 'package:rasikh/Shared/models/city_model.dart';
+
 class LawyerProfileModel {
   final String id;
   final String phone;
   final String fullName;
   final String? email;
+
+  /// Legacy single city — first entry of [cities], kept only for older
+  /// clients. Never use it for display: it does NOT hold the full list.
   final String? city;
+
+  /// Cities the lawyer serves. Empty on records created before multi-city
+  /// support; read through [displayCities] instead of touching this directly.
+  final List<String> cities;
   final String? photoUrl;
   final String? nationalId;
   final String? nationalIdDocumentUrl;
@@ -42,6 +51,7 @@ class LawyerProfileModel {
     required this.fullName,
     this.email,
     this.city,
+    this.cities = const [],
     this.photoUrl,
     this.nationalId,
     this.nationalIdDocumentUrl,
@@ -74,6 +84,7 @@ class LawyerProfileModel {
       fullName: json['fullName'] ?? '',
       email: json['email'],
       city: json['city'],
+      cities: parseCities(json),
       photoUrl: json['photoUrl'],
       nationalId: json['nationalId'],
       nationalIdDocumentUrl: json['nationalIdDocumentUrl'],
@@ -113,12 +124,19 @@ class LawyerProfileModel {
     );
   }
 
+  /// Cities to render for this lawyer.
+  ///
+  /// Prefers the full [cities] list and falls back to the legacy single
+  /// [city] — which only ever holds the first city, so it is a last resort.
+  List<String> get displayCities => resolveDisplayCities(cities, city);
+
   Map<String, dynamic> toJson() => {
     '_id': id,
     'phone': phone,
     'fullName': fullName,
     if (email != null) 'email': email,
     if (city != null) 'city': city,
+    if (cities.isNotEmpty) 'cities': cities,
     if (photoUrl != null) 'photoUrl': photoUrl,
     if (nationalId != null) 'nationalId': nationalId,
     if (bio != null) 'bio': bio,
@@ -132,6 +150,7 @@ class LawyerProfileModel {
     String? fullName,
     String? email,
     String? city,
+    List<String>? cities,
     String? photoUrl,
     String? bio,
     int? experienceYears,
@@ -139,12 +158,14 @@ class LawyerProfileModel {
     String? nationalId,
     String? commercialRegistrationNumber,
   }) {
+    final nextCities = cities ?? this.cities;
     return LawyerProfileModel(
       id: id,
       phone: phone,
       fullName: fullName ?? this.fullName,
       email: email ?? this.email,
       city: city ?? this.city,
+      cities: nextCities,
       photoUrl: photoUrl ?? this.photoUrl,
       nationalIdDocumentUrl: nationalIdDocumentUrl,
       commercialRegistrationDocumentUrl: commercialRegistrationDocumentUrl,
@@ -274,14 +295,17 @@ class SpecializationByMainModel {
 class UpdateProfileRequest {
   final String? fullName;
   final String? email;
-  final String? city;
+
+  /// Cities the lawyer serves (one or more). Serialised as a JSON array
+  /// string in the `cities` field, matching the registration payload.
+  final List<String>? cities;
   final String? bio;
   final int? experienceYears;
 
   const UpdateProfileRequest({
     this.fullName,
     this.email,
-    this.city,
+    this.cities,
     this.bio,
     this.experienceYears,
   });
@@ -292,7 +316,7 @@ class UpdateProfileRequest {
     final map = <String, String>{};
     if (fullName != null) map['fullName'] = fullName!;
     if (email != null) map['email'] = email!;
-    if (city != null) map['city'] = city!;
+    if (cities != null) map['cities'] = jsonEncode(cities);
     if (bio != null) map['bio'] = bio!;
     if (experienceYears != null) {
       map['experienceYears'] = experienceYears.toString();

@@ -1,4 +1,4 @@
-
+﻿
 import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
@@ -17,8 +17,7 @@ import '../../../../config/app_config.dart';
 import '../../../../config/theme/colors.dart';
 import '../../../../core/widgets/fields/prefix_text_filed_icon.dart';
 import '../../../../core/widgets/general_app_bar.dart';
-import '../../lawer_register_compilation/Repo/lawyer_register_complation_repo.dart';
-import '../../../../Shared/models/city_model.dart';
+import 'package:rasikh/Shared/widgets/cities_multi_select_field.dart';
 
 import '../bloc/Profile_cubit/lawyer_cubit.dart';
 import '../bloc/Profile_cubit/lawyer_state.dart';
@@ -39,7 +38,8 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
   final _emailCtrl = TextEditingController();
   final _experienceCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
-  String? _selectedCity;
+  /// Cities the lawyer serves (one or more), stored as display values.
+  List<String> _selectedCities = [];
   File? _pickedPhoto;
 
   static final RegExp _nameRegex = RegExp(
@@ -71,7 +71,7 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
     _experienceCtrl.text =
     profile.experienceYears != null ? '${profile.experienceYears}' : '';
     _bioCtrl.text = profile.bio ?? '';
-    _selectedCity = profile.city;
+    _selectedCities = profile.cities;
   }
 
   @override
@@ -100,7 +100,7 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
     final request = UpdateProfileRequest(
       fullName: _nameCtrl.text.trim(),
       email: _emailCtrl.text.trim(),
-      city: _selectedCity,
+      cities: _selectedCities,
       bio: _bioCtrl.text.trim(),
       experienceYears: int.tryParse(_experienceCtrl.text.trim()),
     );
@@ -245,10 +245,11 @@ class _LawyerEditProfileScreenState extends State<LawyerEditProfileScreen> {
                               requiredMark: true,
                             ),
                             SizedBox(height: 6.h),
-                            CityDropdownField(
-                              value: _selectedCity,
-                              onChanged: (val) =>
-                                  setState(() => _selectedCity = val),
+                            // A lawyer can serve one or more cities.
+                            CitiesMultiSelectField(
+                              selectedValues: _selectedCities,
+                              onChanged: (values) =>
+                                  setState(() => _selectedCities = values),
                             ),
                             SizedBox(height: 18.h),
 
@@ -473,156 +474,3 @@ class _FieldLabel extends StatelessWidget {
 }
 
 
-class CityDropdownField extends StatefulWidget {
-  final String? value;
-  final Function(String?)? onChanged;
-  final String? Function(String?)? validator;
-
-  const CityDropdownField({
-    super.key,
-    this.value,
-    this.onChanged,
-    this.validator,
-  });
-
-  @override
-  State<CityDropdownField> createState() => _CityDropdownFieldState();
-}
-
-class _CityDropdownFieldState extends State<CityDropdownField> {
-  bool _isFocused = false;
-  late final FocusNode _focusNode;
-  List<CityEnumModel> _cities = const [];
-  bool _loadingCities = false;
-  String? _citiesError;
-
-  String? _normalizeValue(String? value) {
-    if (value == null || value.isEmpty) return null;
-    if (_cities.isEmpty) return value;
-    for (final c in _cities) {
-      if (c.value == value || c.key == value) return c.value;
-    }
-    return value;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode = FocusNode()
-      ..addListener(() => setState(() => _isFocused = _focusNode.hasFocus));
-    _loadCities();
-  }
-
-  Future<void> _loadCities() async {
-    // Mirrors the enums/cities pattern used in the registration flow.
-    setState(() {
-      _loadingCities = true;
-      _citiesError = null;
-    });
-    try {
-      final repo = LawyerCompletionRepo();
-      final result = await repo.getCities();
-      result.fold(
-        (err) {
-          if (mounted) {
-            setState(() {
-              _citiesError = err;
-              _loadingCities = false;
-            });
-          }
-        },
-        (list) {
-          if (mounted) {
-            setState(() {
-              _cities = list;
-              _loadingCities = false;
-            });
-          }
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _citiesError = e.toString();
-          _loadingCities = false;
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    
-    final normalizedValue = _normalizeValue(widget.value);
-
-    return Focus(
-      focusNode: _focusNode,
-      child: DropdownButtonFormField<String>(
-        value: normalizedValue,
-        isExpanded: true,
-        dropdownColor: theme.colorScheme.surface,
-        icon: Icon(
-          Icons.keyboard_arrow_down_rounded,
-          color: _isFocused ? cs.primary.withOpacity(0.8) : cs.onSurfaceVariant,
-          size: 18.sp,
-        ),
-        style: theme.textTheme.bodyMedium?.copyWith(fontSize: 14.sp),
-        decoration: InputDecoration(
-          hintText: Loc.chooseCityLabel(),
-          helperText: _citiesError,
-          hintStyle: theme.textTheme.bodyMedium?.copyWith(
-            color: cs.onSurfaceVariant,
-            fontSize: 14.sp,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: cs.primary, width: 1.2),
-            borderRadius: BorderRadius.all(Radius.circular(8.w)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: cs.outline.withOpacity(0.5)),
-            borderRadius: BorderRadius.all(Radius.circular(8.w)),
-          ),
-          errorBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: cs.error, width: 1.5),
-            borderRadius: BorderRadius.all(Radius.circular(8.w)),
-          ),
-          focusedErrorBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: cs.error, width: 1.8),
-            borderRadius: BorderRadius.all(Radius.circular(8.w)),
-          ),
-          prefixIcon: PrefixTextFiledIcon(
-            icon: 'assets/icons/City.svg',
-            colorBorer:
-            _isFocused ? cs.primary.withOpacity(.6) : cs.outline,
-            colorIcon: _isFocused ? cs.primary : cs.onSurface,
-          ),
-          fillColor: Colors.transparent,
-          filled: true,
-          contentPadding:
-          EdgeInsets.symmetric(horizontal: 12.w, vertical: 18.h),
-        ),
-        items: [
-          if (_loadingCities)
-            // TODO(l10n): add Loc key for loading
-            const DropdownMenuItem(
-                value: null, child: Text('جارٍ التحميل...')),
-          ..._cities.map((c) =>
-              DropdownMenuItem(value: c.value, child: Text(c.value))),
-          if (!_loadingCities && _cities.isEmpty && widget.value != null)
-            DropdownMenuItem(value: widget.value, child: Text(widget.value!)),
-        ],
-        onChanged: widget.onChanged,
-        validator:
-        widget.validator ?? (v) => (v == null) ? Loc.pleaseSelectCity() : null,
-      ),
-    );
-  }
-}

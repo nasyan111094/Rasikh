@@ -32,7 +32,8 @@ class ChooseLawyerScreen extends StatefulWidget {
 
 class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
   final TextEditingController searchController = TextEditingController();
-  String? _cityKey;
+  /// Arabic label sent as `?city=` (e.g. "الرياض"), never the English key.
+  String? _cityValue;
   _LawyerSortOption? _sort;
 
   List<_LawyerSortOption> get _sortOptions => [
@@ -70,7 +71,10 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
     final search = searchController.text.trim();
     return context.read<ConsultationApplicationCubit>().loadLawyers(
           search: search.isEmpty ? null : search,
-          city: _cityKey,
+          // Filter contract stays single-valued (?city=الرياض) and matches on
+          // the Arabic label — the backend resolves it against the lawyer's
+          // `cities` array or legacy `city`.
+          city: _cityValue,
           sortBy: _sort?.sortBy,
           sortOrder: _sort?.sortOrder,
         );
@@ -86,8 +90,10 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
 
   String _cityName(ConsultationState state, String? city) {
     if (city == null || city.isEmpty) return '—';
+    // Filter now stores the Arabic label; still tolerate a raw key coming
+    // back from a cached/older state.
     for (final c in state.cities) {
-      if (c.key == city) return c.value;
+      if (c.value == city || c.key == city) return c.value;
     }
     return city;
   }
@@ -125,21 +131,21 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
           title: Loc.chooseCityLabel(),
           searchHint: Loc.searchSpecificCity(),
           items: state.cities,
-          selectedId: _cityKey,
+          selectedId: _cityValue,
           isLoading: state.citiesStatus == ConsultationStatus.loading ||
               state.citiesStatus == ConsultationStatus.initial,
           errorMessage: state.citiesStatus == ConsultationStatus.failure
               ? state.citiesError ?? Loc.unableToLoadCities()
               : null,
           onRetry: cubit.loadCities,
-          itemId: (c) => c.key,
+          itemId: (c) => c.value,
           itemName: (c) => c.value,
           emptyIcon: Icons.location_city_outlined,
           emptyTitle: Loc.noResults(),
           emptyMessage: Loc.noCitiesAvailable(),
           confirmText: Loc.applyFilter(),
           onConfirm: (city) {
-            setState(() => _cityKey = city.key);
+            setState(() => _cityValue = city.value);
             _reloadLawyers();
           },
         ),
@@ -227,6 +233,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
           fullName: lawyer.fullName,
           photoUrl: lawyer.photoUrl,
           city: lawyer.city,
+          cities: lawyer.cities,
           experienceYears: lawyer.experienceYears,
           rating: lawyer.rating,
           mainSpecializations: lawyer.mainSpecializations,
@@ -553,7 +560,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
           children: [
             LawyerCard(
               name: lawyer.fullName,
-              city: _cityName(state, lawyer.city),
+              city: _cityName(state, lawyer.displayCities.join('، ')),
               region: _cityName(state, lawyer.city),
               rating: lawyer.rating,
               specialization: lawyer.mainSpecializations.isNotEmpty
@@ -662,7 +669,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
         final lawyer = lawyers[index];
         return LawyerCard(
           name: lawyer.fullName,
-          city: _cityName(state, lawyer.city),
+          city: _cityName(state, lawyer.displayCities.join('، ')),
           region: _cityName(state, lawyer.city),
           rating: lawyer.rating,
           specialization: lawyer.mainSpecializations.isNotEmpty
@@ -690,7 +697,7 @@ class _ChooseLawyerScreenState extends State<ChooseLawyerScreen> {
         LawyerDetailModel lawyer = lawyers[index];
         return LawyerCard(
           name: lawyer.fullName,
-          city: _cityName(state, lawyer.city),
+          city: _cityName(state, lawyer.displayCities.join('، ')),
           region: _cityName(state, lawyer.city),
           rating: lawyer.rating,
           specialization: lawyer.mainSpecializations.isNotEmpty

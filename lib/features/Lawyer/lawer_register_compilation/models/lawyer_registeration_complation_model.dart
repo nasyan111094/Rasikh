@@ -7,6 +7,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:rasikh/Shared/models/city_model.dart';
+
 
 
 // ── Specialization models (GET /api/v1/specializations/active) ────────────────
@@ -104,7 +106,12 @@ class LawyerProfileCompletionModel {
   final String fullName;
   final String phone;
   final String email;
+
+  /// Legacy single city — first entry of [cities] only.
   final String city;
+
+  /// Cities the lawyer serves. Empty on pre-multi-city records.
+  final List<String> cities;
   final String nationalId;
   final String nationalIdDocumentUrl;
   final String photoUrl;
@@ -123,6 +130,7 @@ class LawyerProfileCompletionModel {
     required this.phone,
     required this.email,
     required this.city,
+    this.cities = const [],
     required this.nationalId,
     required this.nationalIdDocumentUrl,
     required this.photoUrl,
@@ -145,6 +153,7 @@ class LawyerProfileCompletionModel {
       phone:                 data['phone']                  as String? ?? '',
       email:                 data['email']                  as String? ?? '',
       city:                  data['city']                   as String? ?? '',
+      cities:                parseCities(data),
       nationalId:            data['nationalId']             as String? ?? '',
       nationalIdDocumentUrl: data['nationalIdDocumentUrl']  as String? ?? '',
       photoUrl:              data['photoUrl']               as String? ?? '',
@@ -155,6 +164,9 @@ class LawyerProfileCompletionModel {
       accountStatus:         data['accountStatus']          as String? ?? '',
     );
   }
+
+  /// Cities to render: full [cities] first, legacy single [city] as fallback.
+  List<String> get displayCities => resolveDisplayCities(cities, city);
 }
 
 // ── Accumulated form data (grows across multi-step screens) ───────────────────
@@ -163,7 +175,10 @@ class LawyerRegistrationFormData {
   // Step 1 – Personal Info
   String fullName;
   String email;
-  String cityKey;
+
+  /// Cities the lawyer serves — one or more. Sent to the backend as a
+  /// JSON array string in the `cities` field.
+  List<String> cities;
 
   // Step 2 – License & Documents
   String nationalId;
@@ -191,7 +206,7 @@ class LawyerRegistrationFormData {
   LawyerRegistrationFormData({
     this.fullName                        = '',
     this.email                           = '',
-    this.cityKey                         = '',
+    this.cities                          = const [],
     this.nationalId                      = '',
     this.licenseNumber                   = '',
     this.licenseExpiryDate               = '2030-12-31T23:59:59.999Z',
@@ -210,7 +225,7 @@ class LawyerRegistrationFormData {
   });
 
   bool get isPersonalInfoComplete =>
-      fullName.isNotEmpty && email.isNotEmpty && cityKey.isNotEmpty;
+      fullName.isNotEmpty && email.isNotEmpty && cities.isNotEmpty;
 
   bool get isLicenseComplete =>
       nationalId.isNotEmpty &&
@@ -239,7 +254,9 @@ class LawyerRegistrationFormData {
     return {
       'fullName':   fullName,
       'email':      email,
-      'city':       cityKey,
+      // One or more service cities, as a JSON array string (same shape the
+      // API already uses for mainSpecializations).
+      'cities':     jsonEncode(cities),
       'nationalId': nationalId,
       'license': licensePayload,
       'isCompany': isCompany.toString(),
@@ -258,7 +275,7 @@ class LawyerRegistrationFormData {
   LawyerRegistrationFormData copyWith({
     String?       fullName,
     String?       email,
-    String?       cityKey,
+    List<String>? cities,
     String?       nationalId,
     String?       licenseNumber,
     String?       licenseExpiryDate,
@@ -278,7 +295,7 @@ class LawyerRegistrationFormData {
     return LawyerRegistrationFormData(
       fullName:                       fullName                       ?? this.fullName,
       email:                          email                          ?? this.email,
-      cityKey:                        cityKey                        ?? this.cityKey,
+      cities:                          cities                          ?? this.cities,
       nationalId:                     nationalId                     ?? this.nationalId,
       licenseNumber:                  licenseNumber                  ?? this.licenseNumber,
       licenseExpiryDate:              licenseExpiryDate              ?? this.licenseExpiryDate,

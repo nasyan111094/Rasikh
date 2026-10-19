@@ -3,6 +3,7 @@ import 'package:rasikh/config/localization/loc_keys.dart';
 import 'dart:io';
 
 import 'package:rasikh/config/app_config.dart';
+import 'package:rasikh/Shared/models/city_model.dart';
 
 
 class EnumValueModel {
@@ -163,7 +164,13 @@ class LawyerModel {
   final String id;
   final String fullName;
   final String? photoUrl;
+
+  /// Legacy single city — first entry of [cities] only. Use
+  /// [displayCities] for anything user-facing.
   final String? city;
+
+  /// Cities the lawyer serves. Empty on pre-multi-city records.
+  final List<String> cities;
   final int? experienceYears;
   final double rating;
   final List<LawyerSpecializationRef> mainSpecializations;
@@ -177,6 +184,7 @@ class LawyerModel {
     required this.fullName,
     this.photoUrl,
     this.city,
+    this.cities = const [],
     this.experienceYears,
     required this.rating,
     required this.mainSpecializations,
@@ -186,11 +194,16 @@ class LawyerModel {
     this.bio,
   });
 
+  /// Cities to render: the full [cities] list, falling back to the legacy
+  /// single [city] (first city only).
+  List<String> get displayCities => resolveDisplayCities(cities, city);
+
   factory LawyerModel.fromJson(Map<String, dynamic> json) => LawyerModel(
     id: json['id'] as String,
     fullName: json['fullName'] as String,
     photoUrl: json['photoUrl'] != null ? AppConfig.baseImgUrl + (json['photoUrl'] as String) : null,
     city: json['city'] as String?,
+    cities: parseCities(json),
     experienceYears: json['experienceYears'] as int?,
     rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
     mainSpecializations:
@@ -287,6 +300,7 @@ class LawyerDetailModel extends LawyerModel {
     required super.fullName,
     super.photoUrl,
     super.city,
+    super.cities,
     super.experienceYears,
     required super.rating,
     required super.mainSpecializations,
@@ -310,6 +324,7 @@ class LawyerDetailModel extends LawyerModel {
         fullName: json['fullName'] as String,
         photoUrl: json['photoUrl'] != null ? AppConfig.baseImgUrl + (json['photoUrl'] as String) : null,
         city: json['city'] as String?,
+        cities: parseCities(json),
         experienceYears: json['experienceYears'] as int?,
         rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
         mainSpecializations:

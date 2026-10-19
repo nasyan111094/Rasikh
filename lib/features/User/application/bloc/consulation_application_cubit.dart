@@ -577,6 +577,7 @@ class ConsultationApplicationCubit extends Cubit<ConsultationState> {
       fullName: detail.fullName,
       photoUrl: detail.photoUrl,
       city: detail.city,
+      cities: detail.cities,
       experienceYears: detail.experienceYears,
       rating: detail.rating,
       mainSpecializations: detail.mainSpecializations,

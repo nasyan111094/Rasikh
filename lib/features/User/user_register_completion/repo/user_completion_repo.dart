@@ -30,6 +30,7 @@ class UserCompletionRepo {
 
   // ── Cities ────────────────────────────────────────────────────────────────
 
+
   Future<Either<String, List<CityEnumModel>>> getCities() async {
     final result = await _adapter.get(_cities);
     if (result.isRight) {

@@ -154,15 +154,20 @@ class _AddingWorkAppointmentScreenState
       return;
     }
 
-    // Reject start < now (stale slot).
-    if (_sessionSettings.startDate!.isBefore(DateTime.now())) {
+    // Reject only when EVERY selected day is already in the past.
+    //
+    // [startDate] is a wall-clock time packed into TODAY's date (the picker
+    // only returns hours/minutes), while the real calendar day comes from the
+    // selected weekday offsets. Comparing it against `now` directly would
+    // reject valid slots — picking 09:00 for tomorrow while it is 10:00 today
+    // looked "past" even though tomorrow 09:00 is still ahead.
+    if (!_hasUpcomingOccurrence(_sessionSettings.startDate!)) {
       if (mounted) {
         ScaffoldMessenger.of(context)
           ..hideCurrentSnackBar()
           ..showSnackBar(
-            const SnackBar(
-              // TODO(l10n): add Loc key for past start-time error
-              content: Text('وقت البدء يجب أن يكون في المستقبل'),
+            SnackBar(
+              content: Text(Loc.newAppointmentMustBeInFuture()),
               backgroundColor: Colors.red,
               behavior: SnackBarBehavior.floating,
             ),
@@ -257,6 +262,25 @@ class _AddingWorkAppointmentScreenState
     dt = dt .toLocal() ;
     final two = (int v) => v.toString().padLeft(2, '0');
     return '${two(dt.hour)}:${two(dt.minute)}';
+  }
+
+  /// Builds the real timestamp of the slot for one selected day offset
+  /// ([dayIndex] = 0 is today, 1 is tomorrow, ...), using [timeOfDay] only
+  /// for its hour/minute — the calendar date comes from the day offset.
+  DateTime _occurrenceOnDay(int dayIndex, DateTime timeOfDay) {
+    final now = DateTime.now();
+    final date = DateTime(now.year, now.month, now.day)
+        .add(Duration(days: dayIndex));
+    return DateTime(
+        date.year, date.month, date.day, timeOfDay.hour, timeOfDay.minute);
+  }
+
+  /// True when at least one selected day still has a start time ahead of now.
+  bool _hasUpcomingOccurrence(DateTime timeOfDay) {
+    final now = DateTime.now();
+    return _selectedDayIndexes
+        .map((i) => _occurrenceOnDay(i, timeOfDay))
+        .any((occurrence) => occurrence.isAfter(now));
   }
 
 

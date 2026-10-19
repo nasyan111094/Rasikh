@@ -169,11 +169,11 @@ class LawyerCompletionCubit extends Cubit<LawyerCompletionState> {
   // Step savers (called from each page before navigating forward)
   // ══════════════════════════════════════════════════════════════════════════
 
-  void savePersonalInfo({required String cityKey}) {
+  void savePersonalInfo({required List<String> cities}) {
     formData = formData.copyWith(
       fullName: fullNameController.text.trim(),
       email:    emailController.text.trim(),
-      cityKey:  cityKey,
+      cities:   cities,
     );
   }
 

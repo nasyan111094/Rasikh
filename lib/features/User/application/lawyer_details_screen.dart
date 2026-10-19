@@ -439,7 +439,9 @@ class _LawyerDetailsScreenState extends State<LawyerDetailsScreen>
                               size: 16.w, color: theme.hintColor),
                           Gap(4.w),
                           Text(
-                            lawyer.city ?? '—',
+                            lawyer.displayCities.isEmpty
+                                ? '—'
+                                : lawyer.displayCities.join('، '),
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall

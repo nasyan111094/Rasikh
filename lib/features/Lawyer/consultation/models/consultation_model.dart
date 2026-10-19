@@ -1,4 +1,6 @@
-import 'package:rasikh/config/localization/loc_keys.dart';
+import 'package:rasikh/Shared/models/city_model.dart';
+
+import '../../../../config/localization/loc_keys.dart';
 
 
 
@@ -111,7 +113,13 @@ class ConsultationLawyer {
   final String id;
   final String fullName;
   final double? rating;
+
+  /// Legacy single city — first entry of [cities] only. Use
+  /// [displayCities] for anything user-facing.
   final String? city;
+
+  /// Cities the lawyer serves. Empty on pre-multi-city records.
+  final List<String> cities;
   final String? photoUrl;
 
   const ConsultationLawyer({
@@ -119,8 +127,12 @@ class ConsultationLawyer {
     required this.fullName,
     this.rating,
     this.city,
+    this.cities = const [],
     this.photoUrl,
   });
+
+  /// Full city list, falling back to the legacy single [city].
+  List<String> get displayCities => resolveDisplayCities(cities, city);
 
   factory ConsultationLawyer.fromJson(Map<String, dynamic> json) {
     return ConsultationLawyer(
@@ -128,6 +140,7 @@ class ConsultationLawyer {
       fullName: json['fullName']?.toString() ?? '',
       rating: (json['rating'] as num?)?.toDouble(),
       city: json['city']?.toString(),
+      cities: parseCities(json),
       photoUrl: json['photoUrl']?.toString(),
     );
   }
