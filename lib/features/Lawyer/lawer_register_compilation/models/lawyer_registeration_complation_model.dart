@@ -237,7 +237,8 @@ class LawyerRegistrationFormData {
   bool get isQualificationsComplete =>
       qualifications.isNotEmpty && experienceYears > 0;
 
-  bool get isSpecializationsComplete => mainSpecializationIds.isNotEmpty;
+  // التخصص الرئيسي اختياري — لا يمنع إكمال التسجيل.
+  bool get isSpecializationsComplete => true;
 
   bool get isReadyToSubmit =>
       isPersonalInfoComplete &&

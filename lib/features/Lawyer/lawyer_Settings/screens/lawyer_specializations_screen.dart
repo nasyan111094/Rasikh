@@ -3,9 +3,14 @@
 //
 // تعديل تخصصات المحامي — نفس شكل ومنطق شاشة التسجيل تماماً عبر
 // SpecializationBookingForm المشترك:
-//  • تخصص رئيسي واحد فقط (مطلوب)
+//  • تخصص رئيسي (اختياري — متعدد؛ عند تركه فارغاً تُعرض كل الفرعية والدعاوى)
 //  • تخصص فرعي (اختياري — متعدد)
 //  • نوع دعوى (اختياري — متعدد)
+//
+// عند الحفظ يُرسل فقط ما تغيّر فعلاً:
+//  • لم تتغيّر الأقسام        → لا يُرسل mainSpecializations إطلاقاً
+//  • مسح المستخدم كل الأقسام  → يُرسل mainSpecializations: []
+//  • غيّر الأقسام             → تُرسل القيم الجديدة
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
@@ -38,10 +43,42 @@ class _LawyerSpecializationsScreenState
   bool _ready = false;
   String? _loadError;
 
-  String? _initialMainId;
+  /// الأقسام الرئيسية كما كانت عند فتح الشاشة — تُقارن عند الحفظ للتفرقة
+  /// بين "لم يغيّر الأقسام" و"مسحها بالكامل".
+  List<String> _initialMainIds = const [];
   Map<String, Set<String>> _initialSubsByMain = const {};
   Map<String, Set<String>> _initialLawsuitsBySub = const {};
   LawyerSpecSelection? _selection;
+
+  /// هل تغيّر أي من الاختيارات عن الحالة الأصلية؟
+  /// القائمة الفارغة وحدها لا تكفي للحكم — قد تعني "لم يتغيّر شيء" أو
+  /// "مسح المستخدم كل اختياراته عمداً"، ولذلك نقارن بالحالة الأصلية.
+  bool _sameSelection(List<String> initial, List<String> current) {
+    final a = initial.toSet();
+    final b = current.toSet();
+    return a.length == b.length && a.containsAll(b);
+  }
+
+  bool get _mainIdsChanged =>
+      !_sameSelection(_initialMainIds, _selection?.mainIds ?? const []);
+
+  bool get _lawsuitIdsChanged =>
+      _mainIdsChanged ||
+      !_sameSelection(
+        _initialLawsuitsBySub.values.expand((s) => s).toList(),
+        _selection?.lawsuitIds ?? const [],
+      );
+
+  // الفرعية تُرسل أيضاً عند تغيّر الرئيسية أو الدعاوى: الـ API يتحقق من
+  // التسلسل الهرمي داخل نفس الطلب (كل دعوى تتبع فرعياً، وكل فرعي يتبع
+  // رئيسياً مُرسلاً معه)، فلا يجوز إرسال دعوى بلا فرعيها.
+  bool get _subIdsChanged =>
+      _mainIdsChanged ||
+      _lawsuitIdsChanged ||
+      !_sameSelection(
+        _initialSubsByMain.values.expand((s) => s).toList(),
+        _selection?.subIds ?? const [],
+      );
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -73,60 +110,69 @@ class _LawyerSpecializationsScreenState
     final cached = context.read<LawyerProfileCubit>().cachedProfile;
     if (cached == null) return;
 
-    final activeMainIds = _cubit.catalog.map((cat) => cat.id).toSet();
+    final catalogById = {for (final c in _cubit.catalog) c.id: c};
 
-    // التخصص الرئيسي واحد فقط — نأخذ أول تخصص رئيسي صالح.
-    String? mainId;
-    List<String> savedSubIds = const [];
+    // ── الأقسام الرئيسية المحفوظة (متعددة) ────────────────────────────────
+    final savedMainIds = <String>[];
+    final savedSubIds = <String>[];
 
-    if (cached.specializationsByMain.isNotEmpty) {
-      for (final main in cached.specializationsByMain) {
-        if (activeMainIds.contains(main.id)) {
-          mainId = main.id;
-          savedSubIds = [
-            for (final sub in main.selectedSubSpecializations) sub.id
-          ];
-          break;
-        }
-      }
-    } else if (cached.mainSpecializations.isNotEmpty) {
+    for (final main in cached.specializationsByMain) {
+      if (!catalogById.containsKey(main.id)) continue;
+      savedMainIds.add(main.id);
+      savedSubIds.addAll([
+        for (final sub in main.selectedSubSpecializations) sub.id,
+      ]);
+    }
+
+    // توافق مع الشكل القديم: قائمة رئيسية واحدة لكل سجل مع قائمة فرعية مسطّحة.
+    if (savedMainIds.isEmpty && cached.mainSpecializations.isNotEmpty) {
       for (final main in cached.mainSpecializations) {
-        if (activeMainIds.contains(main.id)) {
-          mainId = main.id;
-          savedSubIds = [
-            for (final sub in cached.subSpecializations) sub.id
-          ];
-          break;
-        }
+        if (!catalogById.containsKey(main.id)) continue;
+        savedMainIds.add(main.id);
+      }
+      if (savedMainIds.isNotEmpty) {
+        savedSubIds.addAll([
+          for (final sub in cached.subSpecializations) sub.id,
+        ]);
       }
     }
 
-    if (mainId == null) return;
+    _initialMainIds = savedMainIds;
 
-    final activeMain =
-        _cubit.catalog.firstWhere((cat) => cat.id == mainId);
-    final activeSubIds =
-        activeMain.subSpecializations.map((sub) => sub.id).toSet();
+    // ── الأقسام الفرعية الصالحة ضمن الأقسام الرئيسية المحفوظة ────────────
+    final validSubIds = <String>{};
+    for (final mainId in savedMainIds) {
+      final main = catalogById[mainId];
+      if (main == null) continue;
+      validSubIds.addAll(main.subSpecializations.map((sub) => sub.id));
+    }
+
     final selectedSubs = {
       for (final id in savedSubIds)
-        if (activeSubIds.contains(id)) id,
+        if (validSubIds.contains(id)) id,
     };
 
+    // ── أنواع الدعاوى محسوبة على كل الأقسام الرئيسية المحفوظة ────────────
     final lawsuitsBySub = <String, Set<String>>{};
     for (final lawsuitId in cached.lawsuitTypeIds) {
-      for (final sub in activeMain.subSpecializations) {
-        if (sub.lawsuitTypes.any((l) => l.id == lawsuitId)) {
-          lawsuitsBySub
-              .putIfAbsent(sub.id, () => <String>{})
-              .add(lawsuitId);
-          break;
+      for (final mainId in savedMainIds) {
+        final main = catalogById[mainId];
+        if (main == null) continue;
+        for (final sub in main.subSpecializations) {
+          if (!selectedSubs.contains(sub.id)) continue;
+          if (sub.lawsuitTypes.any((l) => l.id == lawsuitId)) {
+            lawsuitsBySub
+                .putIfAbsent(sub.id, () => <String>{})
+                .add(lawsuitId);
+            break;
+          }
         }
       }
     }
-    lawsuitsBySub.removeWhere((subId, _) => !selectedSubs.contains(subId));
 
-    _initialMainId = mainId;
-    _initialSubsByMain = {mainId: selectedSubs};
+    _initialSubsByMain = {
+      for (final mainId in savedMainIds) mainId: Set.of(selectedSubs),
+    };
     _initialLawsuitsBySub = lawsuitsBySub;
   }
 
@@ -139,12 +185,16 @@ class _LawyerSpecializationsScreenState
   // ── Save ───────────────────────────────────────────────────────────────────
 
   void _save() {
-    final sel = _selection;
-    if (sel == null || !sel.isValid) return;
+    // نرسل فقط ما تغيّر فعلاً:
+    //   لم يتغيّر  → null (يُحذف الحقل من الطلب)
+    //   مُسح كلياً → [] (مسح صريح)
     _cubit.saveSpecializations(
-      mainSpecializationIds: sel.mainIds,
-      subSpecializationIds: sel.subIds,
-      lawsuitTypeIds: sel.lawsuitIds,
+      mainSpecializationIds:
+          _mainIdsChanged ? (_selection?.mainIds ?? const []) : null,
+      subSpecializationIds:
+          _subIdsChanged ? (_selection?.subIds ?? const []) : null,
+      lawsuitTypeIds:
+          _lawsuitIdsChanged ? (_selection?.lawsuitIds ?? const []) : null,
     );
   }
 
@@ -216,10 +266,7 @@ class _LawyerSpecializationsScreenState
                             ? 'حفظ ($lawsuitCount دعوى)'
                             : 'حفظ',
                         isLoading: isLoading,
-                        onPressed: ((_selection?.isValid ?? false) &&
-                                !isLoading)
-                            ? _save
-                            : null,
+                        onPressed: !isLoading ? _save : null,
                       );
                     },
                   ),
@@ -275,7 +322,7 @@ class _LawyerSpecializationsScreenState
     return SingleChildScrollView(
       child: SpecializationBookingForm(
         catalog: _catalog,
-        initialMainId: _initialMainId,
+        initialMainIds: _initialMainIds,
         initialSubIds: _initialSubsByMain.values
             .expand((s) => s)
             .toSet(),

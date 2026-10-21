@@ -91,18 +91,28 @@ class LawyerProfileRepo {
   // Server validates hierarchy: subs must belong to the selected mains,
   // and lawsuit types must belong to the selected subs.
   //
+  // كل حقل يُرسل فقط إذا كانت قيمته غير null:
+  //   null  → لم يتغيّر، فيُحذف الحقل من الطلب.
+  //   []    → مسح صريح، فيُرسل '[]'.
+  //   [ids] → القيم الجديدة.
+  //
   // Returns the refreshed profile so the cubit can cache it.
 
   Future<Either<String, LawyerProfileModel>> updateSpecializations({
-    required List<String> mainSpecializationIds,
-    required List<String> subSpecializationIds,
-    List<String> lawsuitTypeIds = const [],
+    List<String>? mainSpecializationIds,
+    List<String>? subSpecializationIds,
+    List<String>? lawsuitTypeIds,
   }) async {
-    final formData = FormData.fromMap({
-      'mainSpecializations': jsonEncode(mainSpecializationIds),
-      'subSpecializations': jsonEncode(subSpecializationIds),
-      'lawsuitTypeIds': jsonEncode(lawsuitTypeIds),
-    });
+    final fields = <String, dynamic>{
+      if (mainSpecializationIds != null)
+        'mainSpecializations': jsonEncode(mainSpecializationIds),
+      if (subSpecializationIds != null)
+        'subSpecializations': jsonEncode(subSpecializationIds),
+      if (lawsuitTypeIds != null)
+        'lawsuitTypeIds': jsonEncode(lawsuitTypeIds),
+    };
+
+    final formData = FormData.fromMap(fields);
 
     // Debug
     debugPrint('========== FormData ==========');

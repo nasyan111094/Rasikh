@@ -1,8 +1,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 // Shared/widgets/specialization_booking_form.dart
 //
-// فورم اختيار التخصصات الموحّد (نفس شكل ومنطق شاشة حجز الاستشارة):
-//  • تخصص رئيسي واحد فقط (مطلوب — اختيار واحد عبر SelectionBottomSheet)
+// فورم اختيار التخصصات الموحّد:
+//  • تخصص رئيسي (اختياري — متعدد عبر MultiSelectionBottomSheet)
 //  • تخصص فرعي (اختياري — متعدد عبر MultiSelectionBottomSheet)
 //  • نوع دعوى (اختياري — متعدد عبر MultiSelectionBottomSheet)
 //
@@ -17,7 +17,6 @@ import 'package:gap/gap.dart';
 import 'package:size_config/size_config.dart';
 
 import 'package:rasikh/features/User/application/widgets/consultation_flow_widgets.dart';
-import 'package:rasikh/features/User/application/widgets/selection_bottom_sheet.dart';
 import 'package:rasikh/features/User/application/widgets/specialty_selection_field.dart';
 
 import '../bottom_sheets/multi_selection_bottom_sheet.dart';
@@ -52,7 +51,7 @@ class SpecializationBookingForm extends StatefulWidget {
   final List<LawyerSpecMain> catalog;
 
   /// Prefill (تعديل التخصصات / الرجوع في التسجيل).
-  final String? initialMainId;
+  final List<String> initialMainIds;
   final Set<String> initialSubIds;
   final Map<String, Set<String>> initialLawsuitsBySub;
 
@@ -62,7 +61,7 @@ class SpecializationBookingForm extends StatefulWidget {
     super.key,
     required this.catalog,
     required this.onChanged,
-    this.initialMainId,
+    this.initialMainIds = const [],
     this.initialSubIds = const {},
     this.initialLawsuitsBySub = const {},
   });
@@ -73,7 +72,7 @@ class SpecializationBookingForm extends StatefulWidget {
 }
 
 class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
-  String? _selectedMainId;
+  late Set<String> _selectedMainIds;
   late Set<String> _selectedSubIds;
   late Map<String, Set<String>> _lawsuitsBySub;
 
@@ -84,15 +83,15 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
   void initState() {
     super.initState();
     final byId = _byMainId;
-    _selectedMainId =
-        widget.initialMainId != null && byId.containsKey(widget.initialMainId)
-            ? widget.initialMainId
-            : null;
-    final validSubs = _availableSubs(
-      catalog: widget.catalog,
-      mainId: _selectedMainId,
-    ).map((s) => s.id).toSet();
+    // القسم الرئيسي اختياري ومتعدد
+    _selectedMainIds = widget.initialMainIds
+        .where((id) => byId.containsKey(id))
+        .toSet();
+
+    // عند عدم اختيار قسم رئيسي، تُعرض كل الأقسام الفرعية المتاحة
+    final validSubs = _subs.map((s) => s.id).toSet();
     _selectedSubIds = widget.initialSubIds.intersection(validSubs);
+
     _lawsuitsBySub = {
       for (final e in widget.initialLawsuitsBySub.entries)
         if (_selectedSubIds.contains(e.key) && e.value.isNotEmpty)
@@ -101,53 +100,49 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _emit());
   }
 
+  /// الأقسام الفرعية المتاحة:
+  ///  • لا قسم رئيسي مختار → كل الأقسام الفرعية في الكتالوج
+  ///  • يوجد أقسام مختارة → الأقسام الفرعية التابعة لها فقط
   static List<_SubOption> _availableSubs({
     required List<LawyerSpecMain> catalog,
-    required String? mainId,
+    required Set<String> mainIds,
   }) {
-    if (mainId == null) return const [];
-    LawyerSpecMain? main;
-    for (final m in catalog) {
-      if (m.id == mainId) {
-        main = m;
-        break;
-      }
-    }
-    if (main == null) return const [];
+    final mains = mainIds.isEmpty
+        ? catalog
+        : catalog.where((m) => mainIds.contains(m.id));
     return [
-      for (final s in main.subs)
-        _SubOption(id: s.id, name: s.name, parentName: main.name),
+      for (final m in mains)
+        for (final s in m.subs)
+          _SubOption(id: s.id, name: s.name, parentName: m.name),
     ];
   }
 
   List<_SubOption> get _subs => _availableSubs(
         catalog: widget.catalog,
-        mainId: _selectedMainId,
+        mainIds: _selectedMainIds,
       );
 
+  /// أنواع الدعاوى المتاحة لكل الأقسام الفرعية المعروضة حالياً.
+  /// لا تُحجب أي دعوى بسبب عدم اختيار قسم رئيسي.
   List<_LawsuitOption> get _lawsuits {
-    final main =
-        _selectedMainId == null ? null : _byMainId[_selectedMainId];
-    if (main == null) return const [];
-    final list = <_LawsuitOption>[];
-    for (final s in main.subs) {
-      if (!_selectedSubIds.contains(s.id)) continue;
-      for (final l in s.lawsuits) {
-        list.add(_LawsuitOption(
-          id: l.id,
-          name: l.name,
-          parentName: s.name,
-          subId: s.id,
-        ));
-      }
-    }
-    return list;
+    final mainsInPlay = _selectedMainIds.isEmpty
+        ? widget.catalog
+        : widget.catalog.where((m) => _selectedMainIds.contains(m.id));
+    return [
+      for (final m in mainsInPlay)
+        for (final s in m.subs)
+          for (final l in s.lawsuits)
+            _LawsuitOption(
+              id: l.id,
+              name: l.name,
+              parentName: s.name,
+              subId: s.id,
+            ),
+    ];
   }
 
   List<String> get _flatLawsuitIds =>
       _lawsuitsBySub.values.expand((e) => e).toList(growable: false);
-
-  bool get _isValid => _selectedMainId != null;
 
   void _emit() {
     final subIds = _subs
@@ -161,30 +156,40 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
     final lawsuitIds =
         activeLawsuits.values.expand((e) => e).toList(growable: false);
 
+    // كل الحقول اختيارية الآن — لا يوجد تحقق إجباري على القسم الرئيسي.
     widget.onChanged(LawyerSpecSelection(
-      mainIds: _selectedMainId == null ? const [] : [_selectedMainId!],
+      mainIds: _selectedMainIds.toList(growable: false),
       subIds: subIds,
       lawsuitIds: lawsuitIds,
       lawsuitsBySub: activeLawsuits,
       subCount: subIds.length,
       lawsuitCount: lawsuitIds.length,
-      isValid: _isValid,
-      validationMessage: _isValid ? null : 'اختر التخصص الرئيسي',
+      isValid: true,
     ));
   }
 
   // ── Mutations ────────────────────────────────────────────────────────────
 
-  void _applyMain(LawyerSpecMain selected) {
-    if (selected.id == _selectedMainId) return;
+  static bool _sameIds(Set<String> a, Set<String> b) =>
+      a.length == b.length && a.containsAll(b);
+
+  void _applyMains(List<LawyerSpecMain> selected) {
+    final newIds = {for (final s in selected) s.id};
+    if (_sameIds(newIds, _selectedMainIds)) return;
+
+    // الأقسام الفرعية تبقى كما هي: عند عدم وجود أقسام رئيسية تظل كل
+    // الأقسام الفرعية متاحة، ومع وجودها يُستبعد فقط غير التابع لها.
     final validSubs = _availableSubs(
       catalog: widget.catalog,
-      mainId: selected.id,
-    ).where((s) => _selectedSubIds.contains(s.id)).map((s) => s.id).toSet();
+      mainIds: newIds,
+    ).map((s) => s.id).toSet();
+
+    final filteredSubs = _selectedSubIds.intersection(validSubs);
+
     setState(() {
-      _selectedMainId = selected.id;
-      _selectedSubIds = validSubs;
-      _lawsuitsBySub.removeWhere((subId, _) => !validSubs.contains(subId));
+      _selectedMainIds = newIds;
+      _selectedSubIds = filteredSubs;
+      _lawsuitsBySub.removeWhere((subId, _) => !filteredSubs.contains(subId));
     });
     _emit();
   }
@@ -203,16 +208,19 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
     for (final l in selected) {
       map.putIfAbsent(l.subId, () => <String>{}).add(l.id);
     }
-    setState(() => _lawsuitsBySub = map);
+    setState(() {
+      _lawsuitsBySub = map;
+      // اختيار دعوى يحدد قسمها الفرعي تلقائياً، حتى يبقى الاختيار ظاهراً
+      // ولا يُسقطه التسلسل الهرمي عند الإرسال.
+      _selectedSubIds.addAll(map.keys);
+    });
     _emit();
   }
 
-  void _clearMain() {
-    setState(() {
-      _selectedMainId = null;
-      _selectedSubIds = {};
-      _lawsuitsBySub = {};
-    });
+  /// مسح الأقسام الرئيسية فقط — الفرعية والدعاوى تبقى كما هي لأنها صارت
+  /// مستقلة عنها (تُعرض كلها عند عدم وجود قسم رئيسي مختار).
+  void _clearMains() {
+    setState(() => _selectedMainIds = {});
     _emit();
   }
 
@@ -247,43 +255,29 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
     _emit();
   }
 
-  void _needMainsFirst() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('اختر التخصص الرئيسي أولاً')),
-    );
-  }
-
-  void _needSubsFirst() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('اختر التخصص الفرعي أولاً')),
-    );
-  }
-
   // ── Sheets ───────────────────────────────────────────────────────────────
 
   void _openMainsSheet() {
-    showSelectionBottomSheet(
+    showMultiSelectionBottomSheet(
       context: context,
-      builder: (_) => SelectionBottomSheet<LawyerSpecMain>(
+      builder: (_) => MultiSelectionBottomSheet<LawyerSpecMain>(
         title: 'اختر التخصص الرئيسي',
         searchHint: 'ابحث عن التخصص الرئيسي',
         items: widget.catalog,
         emptyIcon: Icons.account_balance_outlined,
         emptyTitle: 'لا توجد تخصصات متاحة',
         emptyMessage: 'لم يتم العثور على تخصصات نشطة',
-        selectedId: _selectedMainId,
+        selectedIds: _selectedMainIds,
+        allowEmpty: true,
+        confirmText: 'تأكيد',
         itemId: (m) => m.id,
         itemName: (m) => m.name,
-        onConfirm: _applyMain,
+        onConfirm: _applyMains,
       ),
     );
   }
 
   void _openSubsSheet() {
-    if (_selectedMainId == null) {
-      _needMainsFirst();
-      return;
-    }
     showMultiSelectionBottomSheet(
       context: context,
       builder: (_) => MultiSelectionBottomSheet<_SubOption>(
@@ -292,7 +286,9 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
         items: _subs,
         emptyIcon: Icons.account_tree_outlined,
         emptyTitle: 'لا توجد تخصصات فرعية',
-        emptyMessage: 'التخصص المختار لا يحتوي على تخصصات فرعية',
+        emptyMessage: _selectedMainIds.isEmpty
+            ? 'جميع الأقسام الفرعية متاحة للاختيار'
+            : 'التخصصات المختارة لا تحتوي على تخصصات فرعية',
         selectedIds: _selectedSubIds,
         allowEmpty: true,
         confirmText: 'تأكيد',
@@ -305,14 +301,6 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
   }
 
   void _openLawsuitsSheet() {
-    if (_selectedMainId == null) {
-      _needMainsFirst();
-      return;
-    }
-    if (_selectedSubIds.isEmpty) {
-      _needSubsFirst();
-      return;
-    }
     showMultiSelectionBottomSheet(
       context: context,
       builder: (_) => MultiSelectionBottomSheet<_LawsuitOption>(
@@ -321,7 +309,7 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
         items: _lawsuits,
         emptyIcon: Icons.gavel_rounded,
         emptyTitle: 'لا توجد دعاوى',
-        emptyMessage: 'التخصصات الفرعية المختارة لا تحتوي على دعاوى',
+        emptyMessage: 'لا توجد أنواع دعاوى متاحة',
         selectedIds: _flatLawsuitIds.toSet(),
         allowEmpty: true,
         confirmText: 'تأكيد',
@@ -342,10 +330,12 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
   }
 
   String? get _mainsValue {
-    final main = _selectedMainId == null
-        ? null
-        : _byMainId[_selectedMainId]?.name;
-    return (main == null || main.isEmpty) ? null : main;
+    if (_selectedMainIds.isEmpty) return null;
+    final names = [
+      for (final id in _selectedMainIds)
+        if (_byMainId[id] != null) _byMainId[id]!.name,
+    ];
+    return _joinNames(names);
   }
 
   String? get _subsValue {
@@ -379,8 +369,6 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     final subChips = [
       for (final s in _subs)
         if (_selectedSubIds.contains(s.id))
@@ -403,12 +391,12 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
       children: [
         Gap(ConsultationFlowSpacing.titleToContent),
         SpecialtySelectionField(
-          label: 'التخصص الرئيسي',
-          hint: 'اختر التخصص الرئيسي',
+          label: 'التخصص الرئيسي (اختياري)',
+          hint: 'اختر التخصص الرئيسي (يمكن اختيار أكثر من تخصص)',
           value: _mainsValue,
-          isRequired: true,
+          isRequired: false,
           onTap: _openMainsSheet,
-          onClear: _selectedMainId == null ? null : _clearMain,
+          onClear: _selectedMainIds.isEmpty ? null : _clearMains,
         ),
         Gap(ConsultationFlowSpacing.fieldGap),
         SpecialtySelectionField(
@@ -442,24 +430,6 @@ class _SpecializationBookingFormState extends State<SpecializationBookingForm> {
             spacing: 8.w,
             runSpacing: 8.h,
             children: lawsuitChips,
-          ),
-        ],
-        if (!_isValid) ...[
-          Gap(8.h),
-          Row(
-            children: [
-              Icon(Icons.info_outline_rounded,
-                  size: 15, color: theme.colorScheme.error),
-              Gap(6.w),
-              Expanded(
-                child: Text(
-                  'اختر التخصص الرئيسي',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.error,
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
         Gap(12.h),

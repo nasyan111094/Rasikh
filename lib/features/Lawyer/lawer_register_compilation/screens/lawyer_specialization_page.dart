@@ -4,10 +4,10 @@
 // Step 4 (final) – Specializations (التخصصات)
 //
 // مطابقة تماماً لشاشة تعديل التخصصات عبر SpecializationBookingForm المشترك:
-//  • تخصص رئيسي واحد فقط (مطلوب)
+//  • تخصص رئيسي (اختياري — متعدد؛ عند تركه فارغاً تُعرض كل الفرعية والدعاوى)
 //  • تخصص فرعي (اختياري — متعدد)
 //  • نوع دعوى (اختياري — متعدد)
-//  • "إرسال للمراجعة" مفعّل عند اختيار الرئيسي.
+//  • "إرسال للمراجعة" مفعّل دائماً — لا يُشترط اختيار أي قسم.
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/gestures.dart';
@@ -184,9 +184,7 @@ class _LawyerSpecializationPageState extends State<LawyerSpecializationPage> {
                             children: [
                               SpecializationBookingForm(
                                 catalog: mains,
-                                initialMainId: savedMains.isEmpty
-                                    ? null
-                                    : savedMains.first,
+                                initialMainIds: savedMains,
                                 initialSubIds: _cubit
                                     .formData.subSpecializationIds
                                     .toSet(),
@@ -306,7 +304,7 @@ class _SubmitButton extends StatelessWidget {
 
     return BlocBuilder<LawyerCompletionCubit, LawyerCompletionState>(
       builder: (context, state) {
-        final canProceed   = (selection?.isValid ?? false);
+        // القسم الرئيسي اختياري — يمكن إكمال التسجيل بدون أي اختيار.
         final isSubmitting = state is LawyerProfileSubmitting;
 
         return SizedBox(
@@ -315,24 +313,24 @@ class _SubmitButton extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              gradient: (canProceed && !isSubmitting)
+              gradient: (!isSubmitting)
                   ? LinearGradient(
                 colors: [cs.primary, cs.primary.withOpacity(0.82)],
                 begin:  Alignment.centerRight,
                 end:    Alignment.centerLeft,
               )
                   : null,
-              color: (!canProceed || isSubmitting)
+              color: isSubmitting
                   ? cs.outlineVariant.withOpacity(0.3)
                   : null,
             ),
             child: AppButton(
-              onPressed: (canProceed && !isSubmitting)
+              onPressed: (!isSubmitting)
                   ? () {
                 cubit.saveSpecializations(
-                  mainIds: selection!.mainIds,
-                  subIds:  selection!.subIds,
-                  lawsuitIds: selection!.lawsuitIds,
+                  mainIds: selection?.mainIds ?? [],
+                  subIds:  selection?.subIds ?? [],
+                  lawsuitIds: selection?.lawsuitIds ?? [],
                 );
                 cubit.completeProfile();
               }

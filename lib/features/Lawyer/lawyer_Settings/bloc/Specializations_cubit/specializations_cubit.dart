@@ -45,13 +45,18 @@ class SpecializationsCubit extends Cubit<SpecializationsState> {
   // Accepts lists so multiple main categories (each with their own subs)
   // can be sent in a single PUT /api/v1/lawyers/update/form call.
   //
-  //   mainSpecializationIds  → all selected main IDs   e.g. ["id1", "id2"]
-  //   subSpecializationIds   → all selected sub  IDs   e.g. ["id3","id4","id5"]
+  // Each field is optional and means:
+  //   null  → لم يتغيّر عند المستخدم — يُحذف الحقل من الطلب.
+  //   []    → مسح صريح للاختيارات — يُرسل '[]'.
+  //   [ids] → القيم الجديدة المراد حفظها.
+  //
+  // مثال: تعديل الاسم فقط بدون لمس الأقسام → mainSpecializationIds = null
+  //       حذف كل الأقسام الرئيسية عمداً  → mainSpecializationIds = []
 
   Future<void> saveSpecializations({
-    required List<String> mainSpecializationIds,
-    required List<String> subSpecializationIds,
-    List<String> lawsuitTypeIds = const [],
+    List<String>? mainSpecializationIds,
+    List<String>? subSpecializationIds,
+    List<String>? lawsuitTypeIds,
   }) async {
     emit(SaveSpecializationsLoading());
 
