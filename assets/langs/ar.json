@@ -1220,5 +1220,17 @@
   "noSubSpecializationsMessage": "لا تتوفر تخصصات فرعية لهذا التخصص حالياً، يمكنك اختيار تخصص رئيسي آخر",
   "noLawsuitTypesTitle": "لا توجد أنواع دعاوى",
   "noLawsuitTypesMessage": "لا تتوفر أنواع دعاوى لهذا التخصص الفرعي، يمكنك المتابعة إلى الخطوة التالية",
+  "termsBrandName": "منصة راسخ للخدمات القانونية",
+  "termsLegalDocument": "وثيقة قانونية معتمدة",
+  "termsLastUpdated": "آخر تحديث: نوفمبر 2026",
+  "termsVersion": "الإصدار 1.0",
+  "termsCustomersTab": "شروط العملاء",
+  "termsProvidersTab": "اتفاقية مقدمي الخدمات",
+  "termsIntroduction": "المقدمة",
+  "termsTocTitle": "فهرس المواد",
+  "termsTocHint": "اضغط على أي مادة للانتقال إليها مباشرة • {count} مادة",
+  "termsAcceptanceTitle": "موافقتك على الشروط",
+  "termsAcceptanceNote": "باستخدامك للمنصة أو إنشائك حساباً فيها أو طلبك أي خدمة من خلالها، فإنك تقر بأنك اطلعت على هذه الشروط والأحكام وفهمت مضمونها وتوافق على الالتزام بها.",
+  "termsArabicReference": "النسخة العربية هي المرجع المعتمد لتفسير هذه الاتفاقية.",
   "optional": "اختياري"
 }

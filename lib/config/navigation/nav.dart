@@ -20,7 +20,7 @@ import 'package:rasikh/features/common/Auth/screens/otp_page.dart';
 
 
 
-import '../../Shared/bottom_sheets/terms_and_condition_sheet.dart';
+import '../../Shared/terms/terms_and_conditions_screen.dart';
 
 import '../../features/Company/company_register_completion/pages/company_completion_page.dart';
 import '../../features/Lawyer/lawyer-appointments/adding_work_appointment_screen.dart';
@@ -226,11 +226,10 @@ abstract class Nav {
   static termsAndConditions(
       BuildContext context,
       ) async =>
-      await _pushBottomSheet(
-        key: PageKey.termsAndConditions,
-        context: context,
-        page: const TermsAndCondSheets(),
-        barrierDismissible: true,
+      await _push(
+        context,
+        PageKey.termsAndConditions,
+        const TermsAndConditionsScreen(),
       );
 
   static placeOfWorkBottomSheet(

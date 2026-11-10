@@ -1220,5 +1220,17 @@
   "noSubSpecializationsMessage": "No sub-specializations are available for this specialization right now, you can choose another main specialization",
   "noLawsuitTypesTitle": "No lawsuit types",
   "noLawsuitTypesMessage": "No lawsuit types are available for this sub-specialization, you can continue to the next step",
+  "termsBrandName": "Rasikh Legal Services Platform",
+  "termsLegalDocument": "Official legal document",
+  "termsLastUpdated": "Last updated: November 2026",
+  "termsVersion": "Version 1.0",
+  "termsCustomersTab": "Client Terms",
+  "termsProvidersTab": "Service Provider Agreement",
+  "termsIntroduction": "Introduction",
+  "termsTocTitle": "Table of contents",
+  "termsTocHint": "Tap any article to jump to it • {count} articles",
+  "termsAcceptanceTitle": "Your acceptance",
+  "termsAcceptanceNote": "By using the Platform, creating an account, or requesting any service through it, you acknowledge that you have read and understood these Terms and Conditions and agree to be bound by them.",
+  "termsArabicReference": "The Arabic version is the authoritative version for the interpretation of this Agreement.",
   "optional": "Optional"
 }

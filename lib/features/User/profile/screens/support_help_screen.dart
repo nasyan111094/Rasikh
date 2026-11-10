@@ -7,6 +7,7 @@ import 'package:size_config/size_config.dart';
 
 import '../../../../config/theme/colors.dart';
 import '../../../../core/widgets/general_app_bar.dart';
+import '../../../../Shared/terms/terms_and_conditions_screen.dart';
 import '../widgets/header_capsule_appbar_widget.dart';
 import '../widgets/support_action_row.dart';
 import 'question_screen.dart';
@@ -82,21 +83,7 @@ class SupportHelpScreen extends StatelessWidget {
             onTap: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => PolicyTextScreen(
-                    pageTitle: Loc.termsOfUse(),
-                    sections: [
-                      PolicySection(
-                        title: Loc.termsOfUseAlt(),
-                        body:
-                        Loc.termsOfUseSummary(),
-                      ),
-                      PolicySection(
-                        title: Loc.securityAndCommunication(),
-                        body:
-                        Loc.securitySummary(),
-                      ),
-                    ],
-                  ),
+                  builder: (_) => const TermsAndConditionsScreen(),
                 ),
               );
             },

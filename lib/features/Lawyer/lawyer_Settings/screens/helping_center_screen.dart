@@ -10,11 +10,11 @@ import 'package:rasikh/core/cache/cache_helper.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:size_config/size_config.dart';
 
+import '../../../../Shared/terms/terms_and_conditions_screen.dart';
 import '../../../../Shared/widgets/account_item_widget.dart' show AccountItem;
 import '../../../../core/get_it_service/get_it_service.dart';
 import '../../../../core/widgets/general_app_bar.dart';
 import '../../../User/profile/screens/contact_us_screen.dart';
-import '../../../User/profile/screens/policy_text_screen.dart';
 import '../../../User/profile/screens/question_screen.dart';
 import '../../../User/profile/widgets/header_capsule_appbar_widget.dart';
 
@@ -99,10 +99,7 @@ class _HelpCenterBody extends StatelessWidget {
             trailingChevronRight: true,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => PolicyTextScreen(
-                  pageTitle: Loc.termsOfUse(),
-                  contentType: ContentType.terms,
-                ),
+                builder: (_) => const TermsAndConditionsScreen(),
               ),
             ),
           ),
