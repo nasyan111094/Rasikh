@@ -1,9 +1,14 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rasikh/Shared/terms/terms_and_conditions_screen.dart';
 import 'package:rasikh/core/theme/theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:size_config/size_config.dart';
 
 Future<void> _loadFonts() async {
@@ -24,25 +29,42 @@ Future<void> _loadFonts() async {
   await almarai.load();
 }
 
-Widget _app({required ThemeData theme}) {
+class _SyncJsonAssetLoader extends AssetLoader {
+  const _SyncJsonAssetLoader();
+
+  @override
+  Future<Map<String, dynamic>> load(String path, Locale locale) {
+    final file = File('$path/${locale.languageCode}.json');
+    final raw = file.readAsStringSync();
+    final data = jsonDecode(raw) as Map<String, dynamic>;
+    // ignore: avoid_print
+    print('LOADED ${file.path} ${data.length} keys');
+    return SynchronousFuture(data);
+  }
+}
+
+Widget _app({required bool dark}) {
   return EasyLocalization(
     supportedLocales: const [Locale('ar'), Locale('en')],
     path: 'assets/langs',
+    assetLoader: const _SyncJsonAssetLoader(),
     fallbackLocale: const Locale('ar'),
     startLocale: const Locale('ar'),
     child: Builder(
-      builder: (context) => MaterialApp(
-        locale: const Locale('ar'),
-        localizationsDelegates: context.localizationDelegates,
-        supportedLocales: context.supportedLocales,
-        localeResolutionCallback: context.localeResolutionCallback,
-        theme: theme,
-        home: SizeConfigInit(
+      builder: (context) {
+        final localization = EasyLocalization.of(context)!;
+        return SizeConfigInit(
           referenceHeight: 926,
           referenceWidth: 428,
-          child: const TermsAndConditionsScreen(),
-        ),
-      ),
+          builder: (context, _) => MaterialApp(
+            locale: localization.locale,
+            localizationsDelegates: localization.delegates,
+            supportedLocales: localization.supportedLocales,
+            theme: dark ? TAppTheme.darkTheme : TAppTheme.lightTheme,
+            home: const TermsAndConditionsScreen(),
+          ),
+        );
+      },
     ),
   );
 }
@@ -50,6 +72,7 @@ Widget _app({required ThemeData theme}) {
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
     await _loadFonts();
     await EasyLocalization.ensureInitialized();
   });
@@ -67,7 +90,7 @@ void main() {
   });
 
   testWidgets('terms page light', (tester) async {
-    await tester.pumpWidget(_app(theme: TAppTheme.lightTheme));
+    await tester.pumpWidget(_app(dark: false));
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(TermsAndConditionsScreen),
@@ -76,7 +99,7 @@ void main() {
   });
 
   testWidgets('terms page scrolled', (tester) async {
-    await tester.pumpWidget(_app(theme: TAppTheme.lightTheme));
+    await tester.pumpWidget(_app(dark: false));
     await tester.pumpAndSettle();
     await tester.drag(
       find.byType(SingleChildScrollView).first,
@@ -90,7 +113,7 @@ void main() {
   });
 
   testWidgets('terms page dark', (tester) async {
-    await tester.pumpWidget(_app(theme: TAppTheme.darkTheme));
+    await tester.pumpWidget(_app(dark: true));
     await tester.pumpAndSettle();
     await expectLater(
       find.byType(TermsAndConditionsScreen),
